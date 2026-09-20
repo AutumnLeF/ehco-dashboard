@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
+# Master catalog of 7 Ice Machines across 3 Locations
 ICE_MACHINE_CATALOG = {
     "Filia Kitchen": [
         {"Unit_ID": "RMO/FK/IM/01", "Name": "Ice Machine 01"},
@@ -20,6 +21,7 @@ ICE_MACHINE_CATALOG = {
 
 
 def clean_str(val):
+    """Normalizes string for comparison."""
     if not val or pd.isna(val):
         return ""
     return (
@@ -33,35 +35,8 @@ def clean_str(val):
     )
 
 
-def extract_field(rec, keywords):
-    if not isinstance(rec, dict):
-        return None
-    clean_targets = [k.lower().replace("_", "").replace(" ", "").replace(".", "") for k in keywords]
-    for k, v in rec.items():
-        if v is None:
-            continue
-        k_norm = k.lower().replace("_", "").replace(" ", "").replace(".", "")
-        for target in clean_targets:
-            if target in k_norm:
-                if not isinstance(v, (dict, list)):
-                    s_val = str(v).strip()
-                    if s_val and s_val.lower() not in ["none", "nan", ""]:
-                        return v
-        if isinstance(v, dict):
-            found = extract_field(v, keywords)
-            if found is not None:
-                return found
-        elif isinstance(v, list):
-            for elem in v:
-                if isinstance(elem, dict):
-                    found = extract_field(elem, keywords)
-                    if found is not None:
-                        return found
-    return None
-
-
 def parse_record_25_submissions(raw_df):
-    """Parses Record 25 where the submission itself represents the cleaning act."""
+    """Parses Record 25 Ice Machine cleaning submissions targeting the exact schema."""
     if raw_df.empty:
         return pd.DataFrame()
 
@@ -73,19 +48,19 @@ def parse_record_25_submissions(raw_df):
     rows = []
     for _, record in raw_df.iterrows():
         rec = record.to_dict()
-
-        # 1. Date resolution (try ISO, dates, createdAt, etc.)
         sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else {}
+
+        # 1. Date: targeting "date" (lowercase) from JSON
         raw_date = (
-            rec.get("submission.Date")
+            sub.get("date")
+            or rec.get("submission.date")
             or sub.get("Date")
+            or rec.get("submission.Date")
             or rec.get("Date")
-            or rec.get("dateTimeSubmitted")
             or rec.get("createdAt")
-            or extract_field(rec, ["date", "createdat"])
+            or rec.get("dateTimeSubmitted")
             or ""
         )
-
         parsed_dt = pd.to_datetime(raw_date, errors="coerce")
         if pd.isna(parsed_dt):
             parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
@@ -97,33 +72,29 @@ def parse_record_25_submissions(raw_df):
             date_str = str(raw_date)[:10]
             date_obj = None
 
-        # 2. Location
-        location = (
-            rec.get("submission.Location")
+        # 2. Location & Unit ID:
+        # In JSON: "Ice_Machine_Location": "Third Room Kitchen", "location": "RMO/TRK/IM/01"
+        kitchen_location = str(
+            sub.get("Ice_Machine_Location")
+            or rec.get("submission.Ice_Machine_Location")
             or sub.get("Location")
+            or rec.get("submission.Location")
             or rec.get("Location")
-            or extract_field(rec, ["locationother", "location"])
             or ""
-        )
+        ).strip()
 
-        # 3. Ice Machine Number
         raw_unit = (
-            rec.get("submission.Ice_Machine_Number")
+            sub.get("location")
+            or rec.get("submission.location")
             or sub.get("Ice_Machine_Number")
-            or rec.get("submission.Ice Machine Number")
-            or sub.get("Ice Machine Number")
+            or rec.get("submission.Ice_Machine_Number")
             or rec.get("Ice Machine Number")
-            or extract_field(rec, ["icemachinenumber", "machinenumber", "unit_id", "machine"])
             or ""
         )
-
-        # If stored as list (dropdown)
-        if isinstance(raw_unit, list) and len(raw_unit) > 0:
-            raw_unit = raw_unit[0]
 
         clean_raw_unit = clean_str(raw_unit)
         matched_id = None
-        matched_loc = location
+        matched_loc = kitchen_location
 
         for m in flat_master:
             if clean_raw_unit == clean_str(m["Unit_ID"]):
@@ -133,35 +104,34 @@ def parse_record_25_submissions(raw_df):
 
         final_unit = matched_id if matched_id else str(raw_unit).strip()
 
-        # 4. Use / Not in Use Status
-        raw_use = str(
-            rec.get("submission.In_Use_Not_In_Use")
+        # 3. Status: "USE": "IN USE"
+        status_raw = str(
+            sub.get("USE")
+            or rec.get("submission.USE")
             or sub.get("In_Use_Not_In_Use")
             or rec.get("In Use / Not In Use")
-            or extract_field(rec, ["inusenotinuse", "inuse", "status", "use"])
             or "IN USE"
         ).strip().upper()
+        is_in_use = "NOT" not in status_raw
 
-        is_in_use = "NOT" not in raw_use
-
-        # 5. Sign / Initial
+        # 4. Sign: "sign": "Sunil kamble"
         sign = (
-            rec.get("submission.Sign")
+            sub.get("sign")
+            or rec.get("submission.sign")
             or sub.get("Sign")
+            or rec.get("submission.Sign")
             or rec.get("Sign (Initial)")
-            or rec.get("Sign")
-            or extract_field(rec, ["signinitial", "sign", "initial"])
             or "Staff"
         )
 
         rows.append({
             "Date_Str": date_str,
             "Date_Obj": date_obj,
-            "Location": matched_loc or location or "General Kitchen",
+            "Location": matched_loc or "General Area",
             "Unit_ID": final_unit,
             "Clean_Unit": clean_str(final_unit),
             "In_Use": is_in_use,
-            "Status_Text": raw_use,
+            "Status_Text": status_raw,
             "Sign": str(sign).strip(),
         })
 
@@ -170,17 +140,8 @@ def parse_record_25_submissions(raw_df):
 
 def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
     """Renders Record 25 daily audit and 7-day grouped cleaning matrix."""
-
-    # DIAGNOSTIC TOGGLE FOR VERIFICATION
-    with st.expander("🔍 Record 25 API & Ingestion Diagnostic", expanded=False):
-        st.write(f"Total Raw Rows Received from API: **{len(raw_df)}**")
-        if not raw_df.empty:
-            st.write("Columns in raw_df:", list(raw_df.columns))
-            st.dataframe(raw_df.head(5), use_container_width=True)
-
     df_items = parse_record_25_submissions(raw_df)
 
-    # Date filtering
     if not df_items.empty and "Date_Obj" in df_items.columns and df_items["Date_Obj"].notna().any():
         range_df = df_items[
             (df_items["Date_Obj"] >= start_date)
@@ -205,14 +166,14 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
         )
 
         cleaned_units = []
-        standby_units = []
+        inactive_units = []
 
         if not day_df.empty:
             for _, r in day_df.iterrows():
-                if r["In_Use"]:
-                    cleaned_units.append(r.to_dict())
+                if not r["In_Use"]:
+                    inactive_units.append(r.to_dict())
                 else:
-                    standby_units.append(r.to_dict())
+                    cleaned_units.append(r.to_dict())
 
         k1, k2, k3 = st.columns(3)
         with k1:
@@ -222,7 +183,7 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
             )
         with k2:
             st.markdown(
-                f'<div class="kpi-box"><div class="kpi-num" style="color:#64748b;">{len(standby_units)}</div><div class="kpi-lbl">Standby / Not In Use</div></div>',
+                f'<div class="kpi-box"><div class="kpi-num" style="color:#64748b;">{len(inactive_units)}</div><div class="kpi-lbl">Standby / Not In Use</div></div>',
                 unsafe_allow_html=True,
             )
         with k3:
@@ -258,11 +219,11 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
         with c2:
             st.markdown(
-                f'<div class="kanban-col"><div class="kanban-h" style="color:#64748b;">⚪ Standby / Not In Use ({len(standby_units)})</div>',
+                f'<div class="kanban-col"><div class="kanban-h" style="color:#64748b;">⚪ Standby / Not In Use ({len(inactive_units)})</div>',
                 unsafe_allow_html=True,
             )
-            if standby_units:
-                for off in standby_units:
+            if inactive_units:
+                for off in inactive_units:
                     st.markdown(
                         f"""
                     <div class="check-card" style="border-left: 5px solid #94a3b8;">
@@ -323,6 +284,7 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
+        # Area Quick Filter Pills
         filter_options = ["All Areas"] + list(ICE_MACHINE_CATALOG.keys())
         selected_filter = (
             st.segmented_control(
@@ -402,21 +364,15 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
                     unsafe_allow_html=True,
                 )
 
-                u_df = (
-                    loc_df[loc_df["Clean_Unit"] == unit_token]
-                    if not loc_df.empty
-                    else pd.DataFrame()
-                )
+                u_df = loc_df[loc_df["Clean_Unit"] == unit_token] if not loc_df.empty else pd.DataFrame()
 
                 for i, d in enumerate(page_dates):
                     d_str = d.strftime("%d/%m/%Y")
 
                     matches = pd.DataFrame()
                     if not u_df.empty:
-                        # Priority 1: Direct Date_Obj comparison
                         if "Date_Obj" in u_df.columns:
                             matches = u_df[u_df["Date_Obj"] == d]
-                        # Priority 2: Formatted string comparison
                         if matches.empty and "Date_Str" in u_df.columns:
                             matches = u_df[u_df["Date_Str"] == d_str]
 
@@ -431,8 +387,6 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
                         )
                     else:
                         latest = matches.iloc[-1]
-                        
-                        # IN USE means the cleaning was verified!
                         if latest["In_Use"]:
                             status_badge = '<span style="color:#16a34a; font-weight:800; font-size:0.85rem;">✓ CLEANED</span>'
                             detail_txt = '<span style="color:#16a34a; font-weight:600;">IN USE</span>'
