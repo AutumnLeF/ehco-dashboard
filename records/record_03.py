@@ -26,8 +26,8 @@ UNIT_CATALOG = {
         {"Unit_ID": "RMO/FSK/UC/04", "Type": "Fridge"},
     ],
     "Filia Bar": [
-        {"Unit_ID": "RMO/FR/VR/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FR/VR/02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FB/VR/01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FB/VR/02", "Type": "Fridge"},
         {"Unit_ID": "RMO/FB/UC/01", "Type": "Fridge"},
         {"Unit_ID": "RMO/FB/UC/02", "Type": "Fridge"},
         {"Unit_ID": "RMO/FB/UF/01", "Type": "Freezer"},
