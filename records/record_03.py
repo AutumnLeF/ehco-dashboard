@@ -116,13 +116,19 @@ def parse_record_03_submissions(raw_df):
         sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else {}
         entry = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else {}
 
+       # Comprehensive date extraction across all possible OneBlink schema keys
         raw_date = (
             sub.get("Date")
             or sub.get("date")
+            or sub.get("submissionDate")
+            or rec.get("submission.Date")
+            or rec.get("submission.date")
             or rec.get("createdAt")
             or rec.get("dateTimeSubmitted")
+            or rec.get("submissionTimestamp")
             or ""
         )
+        
         parsed_dt = pd.to_datetime(raw_date, errors="coerce")
         if pd.isna(parsed_dt):
             parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
