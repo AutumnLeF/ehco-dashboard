@@ -76,8 +76,6 @@ def extract_temp_value(entry, sub):
         entry.get("temperature"),
         sub.get("Temperature °C (Coolroom 4°C or below / Fridge 4°C or below)"),
         sub.get("Temperature °C (Freezer -18°C or colder)"),
-        sub.get("CRTemperature"),
-        sub.get("FreezerTemp"),
     ]
     for c in candidates:
         if c is not None and str(c).strip() not in ["", "None", "nan"]:
@@ -103,47 +101,42 @@ def parse_record_03_submissions(raw_df):
             })
 
     rows = []
-    for idx, row in raw_df.iterrows():
-        # Handle both raw list-of-dicts and wrapped DataFrames seamlessly
-        if "raw_record" in raw_df.columns:
-            rec = row.get("raw_record")
-        else:
-            rec = row.to_dict()
-
+    for _, row in raw_df.iterrows():
+        rec = row.get("raw_record") if "raw_record" in raw_df.columns else row.to_dict()
         if not isinstance(rec, dict):
             continue
 
-        sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else {}
+        sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
         entry = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else {}
 
-       # Comprehensive date extraction across all possible OneBlink schema keys
+        # Comprehensive date & time extraction with automatic IST conversion (UTC + 5:30)
         raw_date = (
             sub.get("Date")
             or sub.get("date")
-            or sub.get("submissionDate")
-            or rec.get("submission.Date")
-            or rec.get("submission.date")
             or rec.get("createdAt")
             or rec.get("dateTimeSubmitted")
-            or rec.get("submissionTimestamp")
             or ""
         )
         
-       parsed_dt = pd.to_datetime(raw_date, errors="coerce")
+        parsed_dt = pd.to_datetime(raw_date, errors="coerce")
+        if pd.isna(parsed_dt):
+            parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
+
         if pd.notna(parsed_dt):
-            # Convert UTC/naive timestamps to IST (Asia/Kolkata)
+            # Convert to IST (+5:30) if naive UTC
             if parsed_dt.tzinfo is None:
-                parsed_dt = parsed_dt.tz_localize("UTC")
-            parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
-            
+                parsed_dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
+            else:
+                parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
+
             date_str = parsed_dt_ist.strftime("%d/%m/%Y")
             date_obj = parsed_dt_ist.date()
             time_clean = parsed_dt_ist.strftime("%I:%M %p")
-            ts_dt = parsed_dt_ist.tz_localize(None) # Strip tz for clean comparison
+            ts_dt = parsed_dt_ist
         else:
             date_str = str(raw_date)[:10]
             date_obj = None
-            time_clean = ""
+            time_clean = str(sub.get("Time") or "")[:8]
             ts_dt = None
 
         location = str(sub.get("Location") or "").strip()
@@ -237,7 +230,65 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             if not df_items.empty
             else pd.DataFrame()
         )
-        st.write(f"Auditing {len(day_df)} logs for {selected_day_str}")
+
+        excursions = []
+        compliant_logs = []
+        standby_logs = []
+
+        if not day_df.empty:
+            for _, r in day_df.iterrows():
+                if not r["In_Use"]:
+                    standby_logs.append(r.to_dict())
+                elif r["Has_Breach"]:
+                    excursions.append(r.to_dict())
+                else:
+                    compliant_logs.append(r.to_dict())
+
+        k1, k2, k3, k4 = st.columns(4)
+        with k1:
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div><div class="kpi-lbl">Temperature Breaches</div></div>', unsafe_allow_html=True)
+        with k2:
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{len(compliant_logs)}</div><div class="kpi-lbl">Compliant Checks</div></div>', unsafe_allow_html=True)
+        with k3:
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#64748b;">{len(standby_logs)}</div><div class="kpi-lbl">Standby / Off</div></div>', unsafe_allow_html=True)
+        with k4:
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Audited</div></div>', unsafe_allow_html=True)
+
+        st.write("")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(f'<div class="kanban-col"><div class="kanban-h" style="color:#dc2626;">🔴 Temp Breaches ({len(excursions)})</div>', unsafe_allow_html=True)
+            if excursions:
+                for exc in excursions:
+                    limit_txt = "<= 4°C" if "freezer" not in exc["Unit_Type"].lower() else "<= -18°C"
+                    st.markdown(f"""
+                    <div class="check-card" style="border-left: 5px solid #dc2626; padding:10px; margin-bottom:8px; background:#ffffff; border-radius:6px;">
+                        <div style="font-weight:700; font-size:0.92rem; color:#0f172a;">{exc['Unit_ID']} • {exc['Location']}</div>
+                        <div style="font-size:0.82rem; color:#dc2626; font-weight:700; margin-top:3px;">
+                            Reading: {exc['Temp_Disp']} (Breaches {limit_txt})
+                        </div>
+                        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Time: {exc['Time']} | By: {exc['Sign']}</div>
+                    </div>""", unsafe_allow_html=True)
+            else:
+                st.caption("No temperature excursions logged on this date.")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        with c2:
+            st.markdown(f'<div class="kanban-col"><div class="kanban-h" style="color:#16a34a;">🟢 Verified Compliant ({len(compliant_logs)})</div>', unsafe_allow_html=True)
+            if compliant_logs:
+                for ok in compliant_logs:
+                    st.markdown(f"""
+                    <div class="check-card" style="border-left: 5px solid #16a34a; padding:10px; margin-bottom:8px; background:#ffffff; border-radius:6px;">
+                        <div style="font-weight:700; font-size:0.92rem; color:#0f172a;">{ok['Unit_ID']}</div>
+                        <div style="font-size:0.82rem; color:#334155; margin-top:3px;">
+                            Temp: <b style="color:#16a34a;">{ok['Temp_Disp']}</b> &nbsp;|&nbsp; Location: <b>{ok['Location']}</b>
+                        </div>
+                        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Time: {ok['Time']} | By: {ok['Sign']}</div>
+                    </div>""", unsafe_allow_html=True)
+            else:
+                st.caption("No compliant logs recorded for this day.")
+            st.markdown('</div>', unsafe_allow_html=True)
 
     with tab_matrix:
         total_days = max(1, (end_date - start_date).days + 1)
@@ -252,6 +303,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             if st.button("⬅️ Previous 7 Days", key="r03_prev", disabled=(st.session_state.rec03_page <= 0), use_container_width=True):
                 st.session_state.rec03_page -= 1
                 st.rerun()
+
         with nav3:
             if st.button("Next 7 Days ➡️", key="r03_next", disabled=(st.session_state.rec03_page >= max_page), use_container_width=True):
                 st.session_state.rec03_page += 1
