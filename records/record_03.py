@@ -2,9 +2,9 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
-MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge must be <= 4.0°C
-MAX_FREEZER_TEMP = -18.0  # Freezer must be <= -18.0°C
-MIN_GAP_HOURS = 5.0       # At least 5 hours between shift checks
+MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge <= 4.0°C
+MAX_FREEZER_TEMP = -18.0  # Freezer <= -18.0°C
+MIN_GAP_HOURS = 5.0       # Minimum 5 hours between entries
 
 UNIT_CATALOG = {
     "Filia Kitchen": [
@@ -68,7 +68,7 @@ def clean_unit_token(val):
 
 
 def extract_temp_value(entry, sub, rec):
-    """Deep extraction for the numeric temperature value across all OneBlink keys."""
+    """Deep extraction for numeric temperature value across all OneBlink keys."""
     candidates = [
         entry.get("CRTemperature"),
         entry.get("FreezerTemp"),
@@ -84,7 +84,7 @@ def extract_temp_value(entry, sub, rec):
         rec.get("submission.Entry.Temperature"),
     ]
     for c in candidates:
-        if c is not None:
+        if c is not None and str(c).strip() not in ["", "None", "nan"]:
             val_clean = str(c).replace("°C", "").replace("°", "").strip()
             num = pd.to_numeric(val_clean, errors="coerce")
             if pd.notna(num):
@@ -251,7 +251,9 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         "📈 7-Day Grouped Location Matrix"
     ])
 
+    # -------------------------------------------------------------
     # TAB 1: DAILY DRILLDOWN
+    # -------------------------------------------------------------
     with tab_day:
         day_df = (
             df_items[df_items["Date_Str"] == selected_day_str]
@@ -318,15 +320,18 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 st.caption("No compliant logs recorded for this day.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # TAB 2: 7-DAY MATRIX (HEADING = 2 OF 2 LOGGED)
+    # -------------------------------------------------------------
+    # TAB 2: 7-DAY MATRIX
+    # -------------------------------------------------------------
     with tab_matrix:
-        total_days = (end_date - start_date).days + 1
+        total_days = max(1, (end_date - start_date).days + 1)
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
 
-        if "rec03_page" not in st.session_state:
-            st.session_state.rec03_page = max(0, (total_days - 1) // 7)
-
         max_page = max(0, (total_days - 1) // 7)
+
+        # Ensure pagination index is within bounds of active date range
+        if "rec03_page" not in st.session_state or st.session_state.rec03_page > max_page:
+            st.session_state.rec03_page = max_page
 
         nav1, nav2, nav3 = st.columns([1, 3, 1])
         with nav1:
@@ -342,14 +347,17 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         p_start_idx = st.session_state.rec03_page * 7
         page_dates = all_dates[p_start_idx : p_start_idx + 7]
 
+        # Failsafe: if page_dates is somehow empty, default to last 7 days
+        if not page_dates:
+            page_dates = all_dates[-7:]
+
         with nav2:
-            if page_dates:
-                st.markdown(
-                    f"<div style='text-align:center; font-weight:700; color:#0f172a; font-size:0.95rem; padding-top:6px;'>"
-                    f"Showing: <b>{page_dates[0].strftime('%d/%m/%Y')}</b> to <b>{page_dates[-1].strftime('%d/%m/%Y')}</b>"
-                    f"</div>",
-                    unsafe_allow_html=True
-                )
+            st.markdown(
+                f"<div style='text-align:center; font-weight:700; color:#0f172a; font-size:0.95rem; padding-top:6px;'>"
+                f"Showing: <b>{page_dates[0].strftime('%d/%m/%Y')}</b> to <b>{page_dates[-1].strftime('%d/%m/%Y')}</b>"
+                f"</div>",
+                unsafe_allow_html=True
+            )
 
         st.write("")
 
@@ -411,7 +419,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                         entries = matches.sort_values(by="Time").to_dict("records")
                         has_day_breach = any(e["Has_Breach"] for e in entries)
 
-                        # Consolidate checks separated by at least 15 minutes
+                        # Separate distinct checks by >= 15 min gap
                         distinct_shifts = []
                         for ent in entries:
                             if not distinct_shifts:
@@ -437,7 +445,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                                 if diff_hours < MIN_GAP_HOURS:
                                     gap_warning = True
 
-                        # Header tag: marks "✓ 2 of 2 Logged" instead of gap
                         if has_day_breach:
                             status_tag = '<span style="color:#dc2626; font-weight:800; font-size:0.75rem;">🔴 BREACH</span>'
                             border_color = "#dc2626"
