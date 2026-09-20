@@ -99,26 +99,26 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. SIDEBAR CONTROLS (1-MONTH DATE RANGE)
+# 2. SIDEBAR CONTROLS
 # -------------------------------------------------------------
 st.sidebar.title("⚙️ Inspection Controls")
 
-# In Section 2 of app.py:
 today = datetime.now(timezone.utc).date()
-default_start_7d = today - timedelta(days=6)  # Exactly 7 days
+default_start_7d = today - timedelta(days=6)
 
 date_selection = st.sidebar.date_input(
     "Audit Date Range (7 Days)",
     value=[default_start_7d, today],
     max_value=today,
+    key="sb_date_range_picker"
 )
 
 if isinstance(date_selection, (list, tuple)) and len(date_selection) == 2:
-  start_date, end_date = date_selection
+    start_date, end_date = date_selection
 elif isinstance(date_selection, (list, tuple)) and len(date_selection) == 1:
-  start_date = end_date = date_selection[0]
+    start_date = end_date = date_selection[0]
 else:
-  start_date = end_date = date_selection
+    start_date = end_date = date_selection
 
 delta_days = (end_date - start_date).days
 day_options = [
@@ -126,16 +126,16 @@ day_options = [
     for i in range(delta_days + 1)
 ]
 selected_day_str = st.sidebar.selectbox(
-    "Focus Day for Drill-down", options=list(reversed(day_options))
+    "Focus Day for Drill-down", options=list(reversed(day_options)), key="sb_day_focus_select"
 )
 
 DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
 
 api_url = st.sidebar.text_input(
-    "Endpoint URL", value="https://auth-api.blinkm.io/form-store"
+    "Endpoint URL", value="https://auth-api.blinkm.io/form-store", key="sb_api_endpoint_input"
 )
 token_input = st.sidebar.text_area(
-    "Bearer Token", value=DEFAULT_TOKEN, height=90
+    "Bearer Token", value=DEFAULT_TOKEN, height=90, key="sb_bearer_token_input"
 )
 
 # -------------------------------------------------------------
@@ -160,30 +160,31 @@ FORM_MAPPING = {
 }
 
 selected_record = st.selectbox(
-    "SELECT FOOD SAFETY RECORD", list(FORM_MAPPING.keys())
+    "SELECT FOOD SAFETY RECORD", list(FORM_MAPPING.keys()), key="main_record_selector"
 )
 active_form_id = FORM_MAPPING[selected_record]
 
 # -------------------------------------------------------------
-# 4. INCREMENTAL CACHING ENGINE
+# 4. INGESTION ENGINE WITH PAGINATION
 # -------------------------------------------------------------
 cache_key = f"cache_df_{active_form_id}"
 sync_time_key = f"sync_time_{active_form_id}"
 
-if cache_key not in st.session_state:
-    st.session_state[cache_key] = pd.DataFrame()
-    st.session_state[sync_time_key] = None
+force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
+
+if force_refresh:
+    st.session_state.pop(cache_key, None)
+    st.session_state.pop(sync_time_key, None)
 
 last_sync_display = st.session_state.get(sync_time_key)
 if last_sync_display:
     st.sidebar.caption(f"🕒 Cache synched: {last_sync_display.strftime('%H:%M:%S')}")
 else:
-    st.sidebar.caption("🕒 Cache: Not yet loaded")
+    st.sidebar.caption("🕒 Cache: Pending Load")
 
-force_refresh = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
 
-def fetch_submissions(url, token, form_id, start_dt=None):
-    """Paginates form-store and prints debug status per page."""
+def fetch_submissions(url, token, form_id):
+    """Paginates form-store in increments of 50 to retrieve all weekly logs."""
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -195,7 +196,7 @@ def fetch_submissions(url, token, form_id, start_dt=None):
 
     all_rows = []
     current_offset = 0
-    pages_to_fetch = 8  # 8 pages * 50 = 400 records (covers full week)
+    pages_to_fetch = 8  # 8 pages * 50 = up to 400 entries
 
     for p in range(pages_to_fetch):
         payload = {
@@ -204,22 +205,18 @@ def fetch_submissions(url, token, form_id, start_dt=None):
             "offset": current_offset,
             "unwindRepeatableSets": True,
         }
-        
         res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
-        
         if res.status_code != 200:
-            st.sidebar.error(f"Page {p+1} (offset {current_offset}) failed: HTTP {res.status_code}")
+            st.sidebar.error(f"Page {p+1} failed: HTTP {res.status_code}")
             break
 
         data = res.json()
         items = data.get("submissions", []) if isinstance(data, dict) else data
-
         if not items:
-            st.sidebar.info(f"Page {p+1} returned 0 items. Stopping.")
             break
 
         all_rows.extend(items)
-        st.sidebar.text(f"Page {p+1}: +{len(items)} rows (total: {len(all_rows)})")
+        st.sidebar.caption(f"Fetched page {p+1} (+{len(items)} logs)")
 
         if len(items) < 50:
             break
@@ -228,30 +225,23 @@ def fetch_submissions(url, token, form_id, start_dt=None):
 
     return all_rows
 
-# In Section 4 of app.py:
-force_refresh = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
-
-if force_refresh:
-    # Clear the old cached DataFrame so it doesn't hold the stale 50 records
-    st.session_state.pop(cache_key, None)
-    st.session_state.pop(sync_time_key, None)
 
 if cache_key not in st.session_state or st.session_state[cache_key].empty:
     active_token = token_input.strip() if token_input else DEFAULT_TOKEN.strip()
     clean_token = active_token.replace("Bearer ", "").strip()
 
-    with st.spinner(f"Fetching weekly submissions for Form {active_form_id}..."):
+    with st.spinner(f"Fetching weekly logs for Form {active_form_id}..."):
         try:
             items = fetch_submissions(api_url, clean_token, active_form_id)
             if items:
                 raw_df = pd.json_normalize(items)
                 st.session_state[cache_key] = raw_df
                 st.session_state[sync_time_key] = datetime.now()
-                st.sidebar.success(f"✓ Successfully stored {len(raw_df)} rows in memory")
+                st.sidebar.success(f"✓ Loaded {len(raw_df)} logs in memory")
             else:
-                st.sidebar.error("0 submissions returned from API.")
+                st.sidebar.warning(f"Form {active_form_id} returned 0 entries.")
         except Exception as e:
-            st.sidebar.error(f"Sync error: {e}")
+            st.sidebar.error(f"Sync failed: {e}")
 
 raw_records_df = st.session_state.get(cache_key, pd.DataFrame())
 
@@ -304,12 +294,4 @@ elif selected_record == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE REC
 st.divider()
 st.subheader("🛠️ Raw Data Diagnostic")
 st.write(f"**Active Form ID:** `{active_form_id}`")
-st.write(f"**Total Submissions in Memory:** {len(raw_records_df)}")
-
-if not raw_records_df.empty:
-    sample_cols = [
-        c for c in raw_records_df.columns
-        if any(k in c.lower() for k in ["date", "food", "temp", "location", "fridge", "coolroom", "freezer", "sign"])
-    ]
-    if sample_cols:
-        st.dataframe(raw_records_df[sample_cols].head(3), use_container_width=True)
+st.write(f"**Total Rows in Memory:** {len(raw_records_df)}")
