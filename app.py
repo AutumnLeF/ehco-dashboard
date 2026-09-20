@@ -256,11 +256,11 @@ if active_token:
         st.sidebar.error(f"Connection failed: {e}")
 
 # -------------------------------------------------------------
-# 5. ROUTE TO MODULAR RECORD AUDITORS
+# 5. ROUTE TO MODULAR RECORD AUDITORS (EXACT TITLES)
 # -------------------------------------------------------------
 if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
     st.markdown(
-        '<div class="serif-title">Record 04: Cooking & Reheating Shift Audit</div>',
+        f'<div class="serif-title">{selected_record}</div>',
         unsafe_allow_html=True,
     )
     render_record_04_view(
@@ -269,7 +269,7 @@ if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
 
 elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
     st.markdown(
-        '<div class="serif-title">Record 05: Blast Chiller & Cooling Audit</div>',
+        f'<div class="serif-title">{selected_record}</div>',
         unsafe_allow_html=True,
     )
     render_record_05_view(
@@ -278,7 +278,7 @@ elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
 
 elif selected_record == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
     st.markdown(
-        '<div class="serif-title">Record 12: Defrosting Temperature Audit</div>',
+        f'<div class="serif-title">{selected_record}</div>',
         unsafe_allow_html=True,
     )
     render_record_12_view(
@@ -287,7 +287,7 @@ elif selected_record == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
 
 elif selected_record == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
     st.markdown(
-        '<div class="serif-title">Record 13: Warewash Sanitization Audit</div>',
+        f'<div class="serif-title">{selected_record}</div>',
         unsafe_allow_html=True,
     )
     render_record_13_view(
