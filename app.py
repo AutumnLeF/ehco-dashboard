@@ -184,46 +184,51 @@ else:
 
 
 def fetch_submissions(url, token, form_id):
-    """Paginates form-store in increments of 50 to retrieve all weekly logs."""
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0",
-        "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
-        "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
+  """Paginates form-store safely and handles expired tokens."""
+  headers = {
+      "Authorization": f"Bearer {token}",
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "User-Agent": "Mozilla/5.0",
+      "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
+      "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
+  }
+
+  all_rows = []
+  current_offset = 0
+  pages_to_fetch = 8
+
+  for p in range(pages_to_fetch):
+    payload = {
+        "formId": form_id,
+        "limit": 50,
+        "offset": current_offset,
+        "unwindRepeatableSets": True,
     }
+    try:
+      res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
+      if res.status_code == 401:
+        st.sidebar.error(
+            "⚠️ Bearer Token has expired! Please paste a fresh token."
+        )
+        break
+      if res.status_code != 200:
+        break
 
-    all_rows = []
-    current_offset = 0
-    pages_to_fetch = 8  # 8 pages * 50 = up to 400 entries
+      data = res.json()
+      items = data.get("submissions", []) if isinstance(data, dict) else data
+      if not items:
+        break
 
-    for p in range(pages_to_fetch):
-        payload = {
-            "formId": form_id,
-            "limit": 50,
-            "offset": current_offset,
-            "unwindRepeatableSets": True,
-        }
-        res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
-        if res.status_code != 200:
-            st.sidebar.error(f"Page {p+1} failed: HTTP {res.status_code}")
-            break
+      all_rows.extend(items)
+      if len(items) < 50:
+        break
 
-        data = res.json()
-        items = data.get("submissions", []) if isinstance(data, dict) else data
-        if not items:
-            break
+      current_offset += 50
+    except Exception:
+      break
 
-        all_rows.extend(items)
-        st.sidebar.caption(f"Fetched page {p+1} (+{len(items)} logs)")
-
-        if len(items) < 50:
-            break
-
-        current_offset += 50
-
-    return all_rows
+  return all_rows
 
 
 if cache_key not in st.session_state or st.session_state[cache_key].empty:
