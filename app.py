@@ -7,6 +7,7 @@ import streamlit as st
 from records.record_04 import render_record_04_view
 from records.record_05 import render_record_05_view
 from records.record_12 import render_record_12_view
+from records.record_13 import render_record_13_view
 
 st.set_page_config(
     page_title="Kitchen Safety Core",
@@ -193,6 +194,7 @@ FORM_MAPPING = {
     "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD": 31374,
     "RECORD 05 - COOLING OF FOOD RECORD": 31375,
     "RECORD 12 - DEFROSTING TEMPERATURE RECORD": 31381,
+    "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD": 31382,
 }
 
 selected_record = st.selectbox(
@@ -280,6 +282,15 @@ elif selected_record == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
         unsafe_allow_html=True,
     )
     render_record_12_view(
+        raw_records_df, selected_day_str, start_date, end_date
+    )
+
+elif selected_record == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
+    st.markdown(
+        '<div class="serif-title">Record 13: Warewash Sanitization Audit</div>',
+        unsafe_allow_html=True,
+    )
+    render_record_13_view(
         raw_records_df, selected_day_str, start_date, end_date
     )
     
