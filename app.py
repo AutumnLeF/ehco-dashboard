@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
+from records.record_03 import render_record_03_view
 from records.record_04 import render_record_04_view
 from records.record_05 import render_record_05_view
 from records.record_12 import render_record_12_view
@@ -197,6 +198,7 @@ st.markdown(
 
 FORM_MAPPING = {
     "RECORD 02 - FOOD DELIVERY RECORD": 31370,
+    "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD": 31373,
     "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD": 31374,
     "RECORD 05 - COOLING OF FOOD RECORD": 31375,
     "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD": 31376,
@@ -347,6 +349,15 @@ elif selected_record == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
         unsafe_allow_html=True,
     )
     render_record_06_view(
+        raw_records_df, selected_day_str, start_date, end_date
+    )
+
+elif selected_record == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
+    st.markdown(
+        f'<div class="serif-title">{selected_record}</div>',
+        unsafe_allow_html=True,
+    )
+    render_record_03_view(
         raw_records_df, selected_day_str, start_date, end_date
     )
     
