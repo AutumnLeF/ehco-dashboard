@@ -184,56 +184,46 @@ else:
 
 
 def fetch_submissions(url, token, form_id):
-    """Paginates form-store using URL query parameters to fetch all weekly logs."""
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0",
-        "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
-        "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
-    }
+  """Explicitly fetches records 51 to 100 to test offset handling."""
+  headers = {
+      "Authorization": f"Bearer {token}",
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "User-Agent": "Mozilla/5.0",
+      "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
+      "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
+  }
 
-    all_rows = []
-    current_offset = 0
-    base_url = url.strip()
+  # Test explicitly fetching page 2 (offset 50, limit 50)
+  req_url = f"{url.strip()}?limit=50&offset=50"
+  payload = {
+      "formId": form_id,
+      "limit": 50,
+      "offset": 50,
+      "unwindRepeatableSets": True,
+  }
 
-    while True:
-        req_url = f"{base_url}?limit=50&offset={current_offset}"
-        payload = {
-            "formId": form_id,
-            "limit": 50,
-            "offset": current_offset,
-            "unwindRepeatableSets": True,
-        }
-        
-        try:
-            res = requests.post(req_url, headers=headers, json=payload, timeout=20)
-            if res.status_code != 200:
-                st.sidebar.error(f"API failed at offset {current_offset}: HTTP {res.status_code}")
-                break
+  try:
+    res = requests.post(req_url, headers=headers, json=payload, timeout=20)
+    st.sidebar.write(f"Test HTTP Status: {res.status_code}")
 
-            data = res.json()
-            items = data.get("submissions", []) if isinstance(data, dict) else data
-            if not items:
-                break
+    if res.status_code == 200:
+      data = res.json()
+      meta = data.get("meta", {})
+      items = data.get("submissions", [])
 
-            all_rows.extend(items)
-            st.sidebar.text(f"Offset {current_offset} ➔ Got {len(items)} rows")
+      st.sidebar.success(
+          f"Fetched Offset 50-100! Meta: {meta.get('offset')} ->"
+          f" {meta.get('nextOffset')}"
+      )
+      st.sidebar.info(f"Received {len(items)} items for records 51-100")
+      return items
+    else:
+      st.sidebar.error(f"Failed: {res.text}")
+  except Exception as e:
+    st.sidebar.error(f"Error: {e}")
 
-            if len(items) < 50:
-                break
-
-            current_offset += 50
-            if current_offset >= 1000:
-                break
-
-        except Exception as e:
-            st.sidebar.error(f"Error: {e}")
-            break
-
-    return all_rows
-
+  return []
 # Store as raw list of dictionaries so nested parsing works correctly
 if cache_key not in st.session_state or st.session_state[cache_key].empty:
     active_token = token_input.strip() if token_input else DEFAULT_TOKEN.strip()
