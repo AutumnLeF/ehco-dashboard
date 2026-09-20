@@ -183,7 +183,7 @@ else:
     st.sidebar.caption("🕒 Cache: Pending Load")
 
 
-items = fetch_submissions(api_url, clean_token, active_form_id, start_date, end_date):
+items = fetch_submissions(api_url, clean_token, active_form_id, start_date, end_date)
     """Fetches submissions day-by-day to bypass broken server-side offsets."""
     headers = {
         "Authorization": f"Bearer {token}",
