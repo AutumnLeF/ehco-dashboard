@@ -16,23 +16,128 @@ st.set_page_config(
 # -------------------------------------------------------------
 # 1. EDITORIAL STYLING
 # -------------------------------------------------------------
-st.markdown(
-    """
+st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap');
-    .stApp { background-color: #fcfbf9; font-family: 'Inter', sans-serif; color: #2b2b2b; }
-    .serif-title { font-family: 'Newsreader', serif; font-size: 2.2rem; font-weight: 400; color: #1a1a1a; margin-bottom: 0.2rem; }
-    .sub-head { font-size: 0.78rem; color: #8c8983; text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 0.4rem; }
-    .kpi-box { padding: 0.6rem 0; border-bottom: 1px solid #e8e5e0; }
-    .kpi-num { font-family: 'Newsreader', serif; font-size: 2.2rem; font-weight: 500; line-height: 1.1; }
-    .kpi-lbl { font-size: 0.72rem; color: #8c8983; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 0.2rem; }
-    .kanban-col { background: #ffffff; border-radius: 12px; padding: 1.2rem; border: 1px solid #ede9e1; min-height: 420px; }
-    .kanban-h { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding-bottom: 0.6rem; border-bottom: 1px solid #f2eee9; margin-bottom: 1rem; }
-    .check-card { padding: 0.85rem; border-radius: 8px; background: #ffffff; border: 1px solid #ede9e1; margin-bottom: 0.6rem; }
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    
+    /* Clean, crisp high-contrast base */
+    .stApp { 
+        background-color: #f8fafc; 
+        font-family: 'Inter', sans-serif; 
+        color: #0f172a; 
+    }
+    
+    .serif-title { 
+        font-size: 1.85rem; 
+        font-weight: 700; 
+        color: #0f172a; 
+        margin-bottom: 0.4rem; 
+        letter-spacing: -0.02em;
+    }
+    .sub-head { 
+        font-size: 0.75rem; 
+        color: #475569; 
+        text-transform: uppercase; 
+        letter-spacing: 0.08em; 
+        font-weight: 700; 
+        margin-bottom: 0.4rem; 
+    }
+    
+    /* Solid KPI stat cards */
+    .kpi-box { 
+        background: #ffffff;
+        padding: 1rem 1.2rem; 
+        border-radius: 10px;
+        border: 1px solid #cbd5e1;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    .kpi-num { 
+        font-size: 2.2rem; 
+        font-weight: 700; 
+        line-height: 1; 
+    }
+    .kpi-lbl { 
+        font-size: 0.75rem; 
+        color: #475569; 
+        text-transform: uppercase; 
+        font-weight: 600;
+        letter-spacing: 0.05em; 
+        margin-top: 0.35rem; 
+    }
+    
+    /* Solid Kanban columns */
+    .kanban-col { 
+        background: #ffffff; 
+        border-radius: 10px; 
+        padding: 1.2rem; 
+        border: 1px solid #cbd5e1; 
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+        min-height: 380px; 
+    }
+    .kanban-h { 
+        font-size: 0.82rem; 
+        font-weight: 700; 
+        text-transform: uppercase; 
+        letter-spacing: 0.06em; 
+        padding-bottom: 0.6rem; 
+        border-bottom: 2px solid #e2e8f0; 
+        margin-bottom: 1rem; 
+    }
+    .check-card { 
+        padding: 0.85rem; 
+        border-radius: 8px; 
+        background: #f8fafc; 
+        border: 1px solid #cbd5e1; 
+        margin-bottom: 0.65rem; 
+    }
+
+    /* Structured Matrix Table Styles */
+    .audit-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 0.75rem;
+        background: #ffffff;
+        border: 2px solid #334155;
+    }
+    .audit-table th {
+        background-color: #f1f5f9;
+        color: #0f172a;
+        font-weight: 700;
+        font-size: 0.85rem;
+        text-align: center;
+        padding: 10px 8px;
+        border: 1px solid #334155;
+    }
+    .audit-table td {
+        border: 1px solid #334155;
+        padding: 8px;
+        vertical-align: top;
+        font-size: 0.82rem;
+        color: #0f172a;
+    }
+    .cell-count {
+        text-align: center;
+        font-size: 1.15rem;
+        font-weight: 700;
+        color: #0f172a;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #cbd5e1;
+        margin-bottom: 6px;
+    }
+    .cell-foods {
+        font-size: 0.78rem;
+        color: #1e293b;
+        line-height: 1.35;
+        font-weight: 500;
+    }
+    .cell-empty {
+        text-align: center;
+        color: #94a3b8;
+        font-weight: 600;
+        padding-top: 12px;
+    }
 </style>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
 # -------------------------------------------------------------
 # 2. SIDEBAR CONTROLS (1-MONTH DATE RANGE)
