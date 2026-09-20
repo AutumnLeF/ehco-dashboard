@@ -118,26 +118,47 @@ def parse_record_03_submissions(raw_df):
             or ""
         )
         
+        # 1. Date extraction (pure date)
+        raw_date = (
+            sub.get("Date")
+            or sub.get("date")
+            or rec.get("dateTimeSubmitted")
+            or rec.get("createdAt")
+            or ""
+        )
         parsed_dt = pd.to_datetime(raw_date, errors="coerce")
         if pd.isna(parsed_dt):
             parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
 
         if pd.notna(parsed_dt):
-            # Convert to IST (+5:30) if naive UTC
-            if parsed_dt.tzinfo is None:
-                parsed_dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
-            else:
-                parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
-
-            date_str = parsed_dt_ist.strftime("%d/%m/%Y")
-            date_obj = parsed_dt_ist.date()
-            time_clean = parsed_dt_ist.strftime("%I:%M %p")
-            ts_dt = parsed_dt_ist
+            date_str = parsed_dt.strftime("%d/%m/%Y")
+            date_obj = parsed_dt.date()
         else:
             date_str = str(raw_date)[:10]
             date_obj = None
-            time_clean = str(sub.get("Time") or "")[:8]
-            ts_dt = None
+
+        # 2. Time extraction (actual shift time logged by staff)
+        raw_time = str(sub.get("Time") or sub.get("time") or entry.get("Time") or "").strip()
+        
+        # If time is in 24hr format or ISO, parse it nicely; otherwise keep clean string
+        time_clean = raw_time
+        ts_dt = parsed_dt
+        
+        if raw_time:
+            time_dt = pd.to_datetime(f"{date_str} {raw_time}", dayfirst=True, errors="coerce")
+            if pd.notna(time_dt):
+                time_clean = time_dt.strftime("%I:%M %p")
+                ts_dt = time_dt
+            else:
+                time_clean = raw_time
+        elif pd.notna(parsed_dt):
+            # Fallback to submission timestamp time converted to IST (+5:30 if UTC naive)
+            if parsed_dt.tzinfo is None:
+                dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
+            else:
+                dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
+            time_clean = dt_ist.strftime("%I:%M %p")
+            ts_dt = dt_ist
 
         location = str(sub.get("Location") or "").strip()
 
