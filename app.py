@@ -183,47 +183,53 @@ else:
     st.sidebar.caption("🕒 Cache: Pending Load")
 
 
-def fetch_submissions(url, token, form_id):
-  """Explicitly fetches records 51 to 100 to test offset handling."""
-  headers = {
-      "Authorization": f"Bearer {token}",
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-      "User-Agent": "Mozilla/5.0",
-      "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
-      "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
-  }
+def fetch_submissions(url, token, form_id, start_dt, end_dt):
+    """Fetches submissions day-by-day to bypass broken server-side offsets."""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0",
+        "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
+        "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
+    }
 
-  # Test explicitly fetching page 2 (offset 50, limit 50)
-  req_url = f"{url.strip()}?limit=50&offset=50"
-  payload = {
-      "formId": form_id,
-      "limit": 50,
-      "offset": 50,
-      "unwindRepeatableSets": True,
-  }
+    all_rows = []
+    base_url = url.strip()
 
-  try:
-    res = requests.post(req_url, headers=headers, json=payload, timeout=20)
-    st.sidebar.write(f"Test HTTP Status: {res.status_code}")
+    # Generate every date in the selected range
+    current_date = start_dt
+    while current_date <= end_dt:
+        next_date = current_date + timedelta(days=1)
+        
+        iso_from = f"{current_date.isoformat()}T00:00:00.000Z"
+        iso_to = f"{next_date.isoformat()}T00:00:00.000Z"
 
-    if res.status_code == 200:
-      data = res.json()
-      meta = data.get("meta", {})
-      items = data.get("submissions", [])
+        payload = {
+            "formId": form_id,
+            "limit": 200,  # Generous limit per day
+            "submissionTimestampFrom": iso_from,
+            "submissionTimestampTo": iso_to,
+            "unwindRepeatableSets": True,
+        }
 
-      st.sidebar.success(
-          f"Fetched Offset 50-100! Meta: {meta.get('offset')} ->"
-          f" {meta.get('nextOffset')}"
-      )
-      st.sidebar.info(f"Received {len(items)} items for records 51-100")
-      return items
-    else:
-      st.sidebar.error(f"Failed: {res.text}")
-  except Exception as e:
-    st.sidebar.error(f"Error: {e}")
+        try:
+            res = requests.post(base_url, headers=headers, json=payload, timeout=20)
+            if res.status_code == 200:
+                data = res.json()
+                items = data.get("submissions", []) if isinstance(data, dict) else data
+                if items:
+                    all_rows.extend(items)
+                    st.sidebar.text(f"📅 {current_date.strftime('%d/%m/%Y')}: +{len(items)} logs")
+            else:
+                st.sidebar.warning(f"Day {current_date} failed: HTTP {res.status_code}")
+        except Exception as e:
+            st.sidebar.error(f"Error on {current_date}: {e}")
 
-  return []
+        current_date = next_date
+
+    return all_rows
+    
 # Store as raw list of dictionaries so nested parsing works correctly
 if cache_key not in st.session_state or st.session_state[cache_key].empty:
     active_token = token_input.strip() if token_input else DEFAULT_TOKEN.strip()
