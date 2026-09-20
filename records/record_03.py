@@ -109,21 +109,12 @@ def parse_record_03_submissions(raw_df):
         sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
         entry = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else {}
 
-        # Comprehensive date & time extraction with automatic IST conversion (UTC + 5:30)
+        # 1. Date extraction
         raw_date = (
             sub.get("Date")
             or sub.get("date")
             or rec.get("createdAt")
             or rec.get("dateTimeSubmitted")
-            or ""
-        )
-        
-        # 1. Date extraction (pure date)
-        raw_date = (
-            sub.get("Date")
-            or sub.get("date")
-            or rec.get("dateTimeSubmitted")
-            or rec.get("createdAt")
             or ""
         )
         parsed_dt = pd.to_datetime(raw_date, errors="coerce")
@@ -131,34 +122,45 @@ def parse_record_03_submissions(raw_df):
             parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
 
         if pd.notna(parsed_dt):
-            date_str = parsed_dt.strftime("%d/%m/%Y")
-            date_obj = parsed_dt.date()
+            if parsed_dt.tzinfo is None:
+                parsed_dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
+            else:
+                parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
+            date_str = parsed_dt_ist.strftime("%d/%m/%Y")
+            date_obj = parsed_dt_ist.date()
         else:
             date_str = str(raw_date)[:10]
             date_obj = None
+            parsed_dt_ist = datetime.now()
 
-        # 2. Time extraction (actual shift time logged by staff)
-        # Clean time display extraction
-        raw_time = str(sub.get("Time") or sub.get("time") or "").strip()
-        if not raw_time or len(raw_time) < 3:
+        # 2. Robust time extraction
+        raw_time = (
+            sub.get("Time")
+            or sub.get("time")
+            or entry.get("Time")
+            or ""
+        )
+        raw_time_str = str(raw_time).strip()
+        
+        if raw_time_str and len(raw_time_str) >= 3:
+            if "T" in raw_time_str:
+                try:
+                    t_part = raw_time_str.split("T")[1][:5]
+                    t_obj = datetime.strptime(t_part, "%H:%M")
+                    time_clean = t_obj.strftime("%I:%M %p")
+                except Exception:
+                    time_clean = raw_time_str[-8:]
+            else:
+                time_clean = raw_time_str
+        else:
             if pd.notna(parsed_dt):
                 if parsed_dt.tzinfo is None:
                     dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
                 else:
                     dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
                 time_clean = dt_ist.strftime("%I:%M %p")
-                ts_dt = dt_ist
             else:
-                time_clean = "08:00 AM"
-                ts_dt = parsed_dt
-        else:
-            time_dt = pd.to_datetime(f"{date_str} {raw_time}", dayfirst=True, errors="coerce")
-            if pd.notna(time_dt):
-                time_clean = time_dt.strftime("%I:%M %p")
-                ts_dt = time_dt
-            else:
-                time_clean = raw_time[:8]
-                ts_dt = parsed_dt
+                time_clean = "Shift Log"
 
         location = str(sub.get("Location") or "").strip()
 
@@ -210,7 +212,7 @@ def parse_record_03_submissions(raw_df):
         rows.append({
             "Date_Str": date_str,
             "Date_Obj": date_obj,
-            "Timestamp_DT": ts_dt,
+            "Timestamp_DT": parsed_dt_ist,
             "Time": time_clean,
             "Location": matched_loc,
             "Unit_ID": final_unit,
@@ -225,7 +227,7 @@ def parse_record_03_submissions(raw_df):
 
     df = pd.DataFrame(rows)
     if not df.empty:
-        df = df.drop_duplicates(subset=["Date_Str", "Time", "Clean_Unit", "Temp"], keep="first")
+        df = df.drop_duplicates(subset=["Date_Str", "Time", "Clean_Unit", "Temp", "Sign"], keep="first")
     return df
 
 
@@ -401,14 +403,8 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                             if not distinct_shifts:
                                 distinct_shifts.append(ent)
                             else:
-                                prev_dt = distinct_shifts[-1].get("Timestamp_DT")
-                                curr_dt = ent.get("Timestamp_DT")
-                                if pd.notna(prev_dt) and pd.notna(curr_dt):
-                                    if abs((curr_dt - prev_dt).total_seconds()) > 900:
-                                        distinct_shifts.append(ent)
-                                else:
-                                    if ent["Time"] != distinct_shifts[-1]["Time"]:
-                                        distinct_shifts.append(ent)
+                                if ent["Time"] != distinct_shifts[-1]["Time"]:
+                                    distinct_shifts.append(ent)
 
                         gap_txt = ""
                         gap_warning = False
