@@ -59,7 +59,11 @@ st.sidebar.title("⚙️ Inspection Controls")
 target_date = st.sidebar.date_input(
     "Audit Date", value=datetime.now(timezone.utc).date()
 )
-date_str = target_date.strftime("%d/%m/%Y")  # Matches 19/09/2026 format
+date_slash = target_date.strftime("%d/%m/%Y")  # e.g., 19/09/2026
+date_iso = target_date.strftime("%Y-%m-%d")    # e.g., 2026-09-19
+
+if "raw_records_df" not in locals():
+    raw_records_df = pd.DataFrame()
 
 api_token = st.sidebar.text_input("Cognito Bearer Token", type="password")
 api_url = st.sidebar.text_input(
@@ -190,10 +194,7 @@ if api_token and api_url:
 # ROUTE TO RECORD MODULES
 # -------------------------------------------------------------
 if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
-    st.markdown(
-        '<div class="serif-title">Record 04: Cooking & Reheating Shift Audit</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="serif-title">Record 04: Cooking & Reheating Shift Audit</div>', unsafe_allow_html=True)
     render_record_04_view(raw_records_df, date_slash)
 
 elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
