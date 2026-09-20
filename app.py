@@ -234,7 +234,7 @@ else:
     st.info(f"Module for {selected_record} will load here.")
 
 # -------------------------------------------------------------
-# DIAGNOSTIC PANEL (FLUSH TO THE LEFT MARGIN - ZERO SPACES)
+# DIAGNOSTIC PANEL
 # -------------------------------------------------------------
 st.divider()
 st.subheader("🛠️ Raw Data Diagnostic")
@@ -247,4 +247,4 @@ if not raw_records_df.empty:
     st.write("Date columns found:", date_cols)
     cols_to_show = date_cols + id_cols
     if cols_to_show:
-        st.dataframe(raw_records_df[cols_to_show].head(5), use_container_width=True) progress.")
+        st.dataframe(raw_records_df[cols_to_show].head(5), use_container_width=True)
