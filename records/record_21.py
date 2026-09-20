@@ -56,16 +56,18 @@ def parse_record_21_submissions(raw_df):
             date_obj = None
 
         time_str = str(extract_field(rec, ["time", "submissiontime"]) or "")[:8]
-        location = extract_field(rec, ["locationother", "location"]) or "Main Kitchen"
+        location = extract_field(rec, ["locationother", "location"]) or "Black Lacquer Kitchen"
 
-        # Food item resolution (Type of Food vs Type of Food (Other))
-        food_type = str(extract_field(rec, ["typeoffood", "foodtype", "food"]) or "").replace("•", "").strip()
+        # Food item resolution (Checks 'Type of food (Other)' first if present, then 'Type of Food')
         food_other = str(extract_field(rec, ["typeoffoodother", "foodother", "otherfood"]) or "").strip()
+        food_main = str(extract_field(rec, ["typeoffood", "foodtype", "food"]) or "").replace("•", "").strip()
 
-        if food_type.lower() == "other" or not food_type:
-            food_item = food_other if food_other else "Salad Veg"
+        if food_other and food_other.lower() not in ["none", "nan", ""]:
+            food_item = food_other
+        elif food_main and food_main.lower() not in ["other", "none", "nan", ""]:
+            food_item = food_main
         else:
-            food_item = food_type
+            food_item = "Salad Greens"
 
         # Chemical PPM strength (must be 100)
         ppm_raw = extract_field(rec, ["chemicalppmstrength", "ppmstrength", "ppm", "strength"])
@@ -90,7 +92,7 @@ def parse_record_21_submissions(raw_df):
             "Location": location.strip(),
             "Food": food_item,
             "PPM": ppm_num,
-            "PPM_Raw": str(ppm_raw),
+            "PPM_Raw": str(ppm_raw) if ppm_raw else "100",
             "Minutes": minutes_num,
             "Minutes_Raw": time_raw or "5 Minutes",
             "PPM_Breach": ppm_breach,
@@ -168,7 +170,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                 for exc in excursions:
                     errs = []
                     if exc["PPM_Breach"]:
-                        errs.append(f"PPM: {exc['PPM']} (Expected 100)")
+                        errs.append(f"PPM: {exc['PPM']} (Target 100)")
                     if exc["Time_Breach"]:
                         errs.append(f"Time: {exc['Minutes']}m (< 5 Min)")
 
@@ -265,10 +267,13 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
-        # Discovers all kitchens submitting food washing dynamically
-        all_kitchens = sorted(list(range_df["Location"].dropna().unique())) if not range_df.empty and "Location" in range_df.columns else ["Black Lacquer Kitchen", "Filia Kitchen"]
+        # Only display locations that actually have records in the dataset
+        if not range_df.empty and "Location" in range_df.columns:
+            active_kitchens = sorted(list(range_df["Location"].dropna().unique()))
+        else:
+            active_kitchens = ["Black Lacquer Kitchen"]
 
-        for kitchen in all_kitchens:
+        for kitchen in active_kitchens:
             row_cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
 
             row_cols[0].markdown(f"""
@@ -294,10 +299,11 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                     </div>
                     """, unsafe_allow_html=True)
                 else:
-                    count = len(matches)
+                    # Count ALL items washed on that day
+                    batch_count = len(matches)
                     has_day_breach = any(matches["Has_Breach"])
 
-                    # Extract unique food items washed on this day
+                    # Aggregate all distinct vegetables washed
                     foods_list = list(dict.fromkeys(matches["Food"].dropna().tolist()))
                     foods_formatted = ", ".join(foods_list)
 
@@ -305,7 +311,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                         badge = '<span style="color:#dc2626; font-weight:800; font-size:0.88rem;">🔴 BREACH</span>'
                         border_style = "2px solid #dc2626"
                     else:
-                        badge = f'<span style="color:#16a34a; font-weight:800; font-size:0.95rem;">{count}</span>'
+                        badge = f'<span style="color:#16a34a; font-weight:800; font-size:1.15rem;">{batch_count}</span>'
                         border_style = "1.5px solid #0f172a"
 
                     row_cols[i + 1].markdown(f"""
