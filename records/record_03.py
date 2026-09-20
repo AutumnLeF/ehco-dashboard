@@ -6,12 +6,11 @@ MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge must be <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer must be <= -18.0°C
 MIN_GAP_HOURS = 5.0       # At least 5 hours between shift checks
 
+# REVISED MASTER INVENTORY MATCHING YOUR TABLE
 UNIT_CATALOG = {
     "Filia Kitchen": [
         {"Unit_ID": "RMO/FK/UC/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FK/UC/02", "Type": "Fridge"},
         {"Unit_ID": "RMO/FK/CR/01", "Type": "Coolroom"},
-        {"Unit_ID": "RMO/FK/CR/02", "Type": "Coolroom"},
         {"Unit_ID": "RMO/FK/WF/01", "Type": "Freezer"},
         {"Unit_ID": "RMO/FK/UF/01", "Type": "Freezer"},
     ],
@@ -27,17 +26,26 @@ UNIT_CATALOG = {
         {"Unit_ID": "RMO/FSK/UC/03", "Type": "Fridge"},
         {"Unit_ID": "RMO/FSK/UC/04", "Type": "Fridge"},
     ],
-    "Filia Restaurant": [
+    "Filia Bar": [
         {"Unit_ID": "RMO/FR/VR/01", "Type": "Fridge"},
         {"Unit_ID": "RMO/FR/VR/02", "Type": "Fridge"},
-    ],
-    "Filia Bar": [
         {"Unit_ID": "RMO/FB/UC/01", "Type": "Fridge"},
         {"Unit_ID": "RMO/FB/UC/02", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FB/UC/03", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FB/UC/04", "Type": "Fridge"},
         {"Unit_ID": "RMO/FB/UF/01", "Type": "Freezer"},
-        {"Unit_ID": "RMO/FB/UF/02", "Type": "Freezer"},
+    ],
+    "Black Lacquer Kitchen": [
+        {"Unit_ID": "RMO/BLK/UC/01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BLK/UC/02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BLK/VR/01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BLK/CR/01", "Type": "Coolroom"},
+        {"Unit_ID": "RMO/BLK/UF/01", "Type": "Freezer"},
+    ],
+    "Black Lacquer Bar": [
+        {"Unit_ID": "RMO/BL/UC/01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BL/UC/02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BL/UC/03", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BL/VR/01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BL/UF/01", "Type": "Freezer"},
     ],
     "Third Room Kitchen": [
         {"Unit_ID": "RMO/TRK/VR/01", "Type": "Fridge"},
@@ -50,31 +58,6 @@ UNIT_CATALOG = {
         {"Unit_ID": "RMO/TRB/UC/01", "Type": "Fridge"},
         {"Unit_ID": "RMO/TRB/UC/02", "Type": "Fridge"},
         {"Unit_ID": "RMO/TRB/UC/03", "Type": "Fridge"},
-        {"Unit_ID": "RMO/TR/UF/01",  "Type": "Freezer"},
-    ],
-    "Black Lacquer Kitchen": [
-        {"Unit_ID": "RMO/BLK/UC/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BLK/VR/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BLK/UF/01", "Type": "Freezer"},
-    ],
-    "Black Lacquer Bar": [
-        {"Unit_ID": "RMO/BL/UC/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BL/UC/02", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BL/UC/03", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BL/UC/04", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BL/UC/05", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BL/VR/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BL/VR/02", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BL/VR/03", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BL/UF/01", "Type": "Freezer"},
-        {"Unit_ID": "RMO/BL/UF/02", "Type": "Freezer"},
-        {"Unit_ID": "RMO/BL/UF/03", "Type": "Freezer"},
-        {"Unit_ID": "RMO/BL/UF/04", "Type": "Freezer"},
-    ],
-    "Black Lacquer Speakeasy": [
-        {"Unit_ID": "RMO/BLS/UC/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BLS/UC/02", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BLS/UF/01", "Type": "Freezer"},
     ],
 }
 
@@ -191,7 +174,7 @@ def parse_record_03_submissions(raw_df):
         ).strip().upper()
         is_in_use = "NOT" not in status_raw
 
-        # 6. Temperature: handles CRTemperature, FreezerTemp, and FZTemperature
+        # 6. Temperature Check
         temp_val_raw = (
             entry.get("FreezerTemp")
             or entry.get("CRTemperature")
@@ -227,11 +210,7 @@ def parse_record_03_submissions(raw_df):
             or "Staff"
         )
 
-        # Submission ID used to deduplicate unwound items
-        sub_id = rec.get("submissionId") or rec.get("_id") or f"{date_str}_{time_clean}"
-
         rows.append({
-            "Sub_ID": sub_id,
             "Date_Str": date_str,
             "Date_Obj": date_obj,
             "Timestamp_DT": ts_dt,
@@ -248,7 +227,7 @@ def parse_record_03_submissions(raw_df):
         })
 
     df = pd.DataFrame(rows)
-    # Deduplicate exact duplicate readings for the same unit and timestamp
+    # Deduplicate unwound duplicate rows that share the same unit and timestamp
     if not df.empty:
         df = df.drop_duplicates(subset=["Date_Str", "Time", "Clean_Unit", "Temp"], keep="first")
     return df
@@ -260,7 +239,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
 
     tab_day, tab_matrix = st.tabs([
         f"📅 Daily Unit Temperature Audit ({selected_day_str})",
-        "📈 7-Day Grouped Location Matrix (49 Units)"
+        "📈 7-Day Grouped Location Matrix (Monitored Units)"
     ])
 
     # -------------------------------------------------------------
@@ -333,7 +312,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             st.markdown('</div>', unsafe_allow_html=True)
 
     # -------------------------------------------------------------
-    # TAB 2: HIGH-READABILITY 7-DAY MATRIX (49 UNITS)
+    # TAB 2: HIGH-READABILITY 7-DAY MATRIX
     # -------------------------------------------------------------
     with tab_matrix:
         total_days = (end_date - start_date).days + 1
@@ -428,29 +407,39 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                         entries = matches.sort_values(by="Time").to_dict("records")
                         has_day_breach = any(e["Has_Breach"] for e in entries)
 
-                        # Separate checks by distinct times
-                        unique_times = set(e["Time"] for e in entries)
-                        
+                        # Filter down to distinct checks separated by at least 15 minutes
+                        distinct_shifts = []
+                        for ent in entries:
+                            if not distinct_shifts:
+                                distinct_shifts.append(ent)
+                            else:
+                                prev_dt = distinct_shifts[-1].get("Timestamp_DT")
+                                curr_dt = ent.get("Timestamp_DT")
+                                if pd.notna(prev_dt) and pd.notna(curr_dt):
+                                    if abs((curr_dt - prev_dt).total_seconds()) > 900:  # > 15 mins
+                                        distinct_shifts.append(ent)
+                                else:
+                                    if ent["Time"] != distinct_shifts[-1]["Time"]:
+                                        distinct_shifts.append(ent)
+
                         gap_warning = False
                         gap_txt = ""
-
-                        if len(unique_times) >= 2:
-                            dt1 = entries[0].get("Timestamp_DT")
-                            dt2 = entries[-1].get("Timestamp_DT")
+                        if len(distinct_shifts) >= 2:
+                            dt1 = distinct_shifts[0].get("Timestamp_DT")
+                            dt2 = distinct_shifts[-1].get("Timestamp_DT")
                             if pd.notna(dt1) and pd.notna(dt2):
                                 diff_hours = abs((dt2 - dt1).total_seconds()) / 3600.0
                                 gap_txt = f"{diff_hours:.1f}h gap"
                                 if diff_hours < MIN_GAP_HOURS:
                                     gap_warning = True
 
-                        # Status header tag
                         if has_day_breach:
                             status_tag = '<span style="color:#dc2626; font-weight:800; font-size:0.75rem;">🔴 BREACH</span>'
                             border_color = "#dc2626"
                         elif gap_warning:
                             status_tag = f'<span style="color:#d97706; font-weight:800; font-size:0.74rem;">⚠️ {gap_txt}</span>'
                             border_color = "#d97706"
-                        elif len(unique_times) >= 2:
+                        elif len(distinct_shifts) >= 2:
                             status_tag = f'<span style="color:#16a34a; font-weight:800; font-size:0.75rem;">✓ {gap_txt or "2/2 OK"}</span>'
                             border_color = "#16a34a"
                         else:
@@ -458,7 +447,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                             border_color = "#94a3b8"
 
                         readings_str = ""
-                        for idx, ent in enumerate(entries[:2]):
+                        for idx, ent in enumerate(distinct_shifts[:2]):
                             t_color = "#dc2626" if ent["Has_Breach"] else "#0f172a"
                             t_val = ent["Temp_Disp"]
                             t_time = ent["Time"][:8]
@@ -468,7 +457,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                             f'<div style="background:#ffffff; border:1.5px solid {border_color}; border-radius:6px; padding:6px 6px; min-height:82px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">'
                             f'<div style="text-align:center; padding-bottom:3px; border-bottom:1px solid #f1f5f9;">{status_tag}</div>'
                             f'{readings_str}'
-                            f'<div style="font-size:0.65rem; color:#64748b; text-align:right; margin-top:3px;">By: {entries[0]["Sign"]}</div>'
+                            f'<div style="font-size:0.65rem; color:#64748b; text-align:right; margin-top:3px;">By: {distinct_shifts[0]["Sign"]}</div>'
                             f'</div>',
                             unsafe_allow_html=True
                         )
