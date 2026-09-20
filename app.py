@@ -167,8 +167,8 @@ active_form_id = FORM_MAPPING[selected_record]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH PAGINATION
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}"
-sync_time_key = f"sync_time_{active_form_id}"
+cache_key = f"cache_df_{active_form_id}_v3"
+sync_time_key = f"sync_time_{active_form_id}_v3"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -184,7 +184,7 @@ else:
 
 
 def fetch_submissions(url, token, form_id):
-    """Paginates form-store by passing offset in both URL query params and JSON payload."""
+    """Paginates form-store using URL query parameters to fetch all weekly logs."""
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -199,9 +199,7 @@ def fetch_submissions(url, token, form_id):
     base_url = url.strip()
 
     while True:
-        # Pass offset and limit as URL query parameters so the server accepts them
         req_url = f"{base_url}?limit=50&offset={current_offset}"
-        
         payload = {
             "formId": form_id,
             "limit": 50,
@@ -212,7 +210,7 @@ def fetch_submissions(url, token, form_id):
         try:
             res = requests.post(req_url, headers=headers, json=payload, timeout=20)
             if res.status_code != 200:
-                st.sidebar.error(f"API request failed at offset {current_offset}: HTTP {res.status_code}")
+                st.sidebar.error(f"API failed at offset {current_offset}: HTTP {res.status_code}")
                 break
 
             data = res.json()
@@ -226,18 +224,35 @@ def fetch_submissions(url, token, form_id):
             if len(items) < 50:
                 break
 
-            # Manually step forward by 50 to ensure reliable pagination
             current_offset += 50
-
-            # Safety ceiling (up to 1,000 records / 20 pages)
             if current_offset >= 1000:
                 break
 
         except Exception as e:
-            st.sidebar.error(f"Pagination error: {e}")
+            st.sidebar.error(f"Error: {e}")
             break
 
     return all_rows
+
+# Store as raw list of dictionaries so nested parsing works correctly
+if cache_key not in st.session_state or st.session_state[cache_key].empty:
+    active_token = token_input.strip() if token_input else DEFAULT_TOKEN.strip()
+    clean_token = active_token.replace("Bearer ", "").strip()
+
+    with st.spinner(f"Fetching all historical logs for Form {active_form_id}..."):
+        try:
+            items = fetch_submissions(api_url, clean_token, active_form_id)
+            if items:
+                raw_df = pd.DataFrame({"raw_record": items})
+                st.session_state[cache_key] = raw_df
+                st.session_state[sync_time_key] = datetime.now()
+                st.sidebar.success(f"✓ Loaded {len(items)} total raw logs")
+            else:
+                st.sidebar.warning("0 entries returned.")
+        except Exception as e:
+            st.sidebar.error(f"Sync failed: {e}")
+
+raw_records_df = st.session_state.get(cache_key, pd.DataFrame())
 
 
 if cache_key not in st.session_state or st.session_state[cache_key].empty:
