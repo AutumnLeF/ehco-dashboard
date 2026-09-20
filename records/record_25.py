@@ -20,18 +20,29 @@ ICE_MACHINE_CATALOG = {
 }
 
 
-def clean_str(val):
-    """Normalizes string for bulletproof equality comparison."""
-    if not val or pd.isna(val):
+def clean_unit_token(val):
+    """Aggressively strips slashes, spaces, hyphens, and casing."""
+    if val is None or pd.isna(val):
         return ""
-    return str(val).replace("/", "").replace("_", "").replace(" ", "").replace("-", "").strip().upper()
+    return (
+        str(val)
+        .replace("/", "")
+        .replace("_", "")
+        .replace(" ", "")
+        .replace("-", "")
+        .strip()
+        .upper()
+    )
 
 
 def extract_field(rec, keywords):
     """Deep search for matching keywords across flat or nested keys."""
     if not isinstance(rec, dict):
         return None
-    clean_targets = [k.lower().replace("_", "").replace(" ", "").replace(".", "") for k in keywords]
+    clean_targets = [
+        k.lower().replace("_", "").replace(" ", "").replace(".", "")
+        for k in keywords
+    ]
     for k, v in rec.items():
         if v is None:
             continue
@@ -56,7 +67,7 @@ def extract_field(rec, keywords):
 
 
 def parse_record_25_submissions(raw_df):
-    """Parses Record 25 Ice Machine cleaning submissions with robust normalizers."""
+    """Parses Record 25 Ice Machine cleaning submissions."""
     if raw_df.empty:
         return pd.DataFrame()
 
@@ -69,12 +80,13 @@ def parse_record_25_submissions(raw_df):
     for _, record in raw_df.iterrows():
         rec = record.to_dict()
 
-        # 1. Date normalization
+        # 1. Date normalization (Try all date keys)
         raw_date = (
             rec.get("submission.Date")
             or rec.get("Date")
             or (rec.get("submission") or {}).get("Date")
             or rec.get("createdAt")
+            or rec.get("dateTimeSubmitted")
             or extract_field(rec, ["date", "createdat"])
             or ""
         )
@@ -95,7 +107,7 @@ def parse_record_25_submissions(raw_df):
             or rec.get("Location")
             or (rec.get("submission") or {}).get("Location")
             or extract_field(rec, ["locationother", "location"])
-            or "General Area"
+            or ""
         ).strip()
 
         # 3. Ice Machine Number
@@ -103,16 +115,20 @@ def parse_record_25_submissions(raw_df):
             rec.get("submission.Ice_Machine_Number")
             or rec.get("submission.Ice Machine Number")
             or rec.get("Ice Machine Number")
-            or extract_field(rec, ["icemachinenumber", "machinenumber", "unitid", "machine"])
+            or rec.get("Ice_Machine_Number")
+            or extract_field(
+                rec, ["icemachinenumber", "machinenumber", "unitid", "machine"]
+            )
             or ""
         )
 
-        clean_raw_unit = clean_str(raw_unit)
+        clean_raw_unit = clean_unit_token(raw_unit)
         matched_id = None
         matched_loc = location
 
+        # Direct map against catalog
         for m in flat_master:
-            if clean_raw_unit == clean_str(m["Unit_ID"]):
+            if clean_raw_unit == clean_unit_token(m["Unit_ID"]):
                 matched_id = m["Unit_ID"]
                 matched_loc = m["Location"]
                 break
@@ -132,7 +148,7 @@ def parse_record_25_submissions(raw_df):
             rec.get("submission.Sign")
             or rec.get("Sign (Initial)")
             or rec.get("Sign")
-            or extract_field(rec, ["signinitial", "sign", "initial", "user.email"])
+            or extract_field(rec, ["signinitial", "sign", "initial"])
             or "Staff"
         )
 
@@ -141,7 +157,7 @@ def parse_record_25_submissions(raw_df):
             "Date_Obj": date_obj,
             "Location": matched_loc,
             "Unit_ID": final_unit,
-            "Clean_Unit": clean_str(final_unit),
+            "Clean_Unit": clean_unit_token(final_unit),
             "In_Use": is_in_use,
             "Status_Text": status_raw,
             "Sign": str(sign).strip(),
@@ -164,7 +180,7 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
     tab_day, tab_matrix = st.tabs([
         f"📅 Daily Cleaning Audit ({selected_day_str})",
-        "📈 7-Day Grouped Location Matrix"
+        "📈 7-Day Grouped Location Matrix",
     ])
 
     # -------------------------------------------------------------
@@ -263,12 +279,22 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
         nav1, nav2, nav3 = st.columns([1, 3, 1])
         with nav1:
-            if st.button("⬅️ Previous 7 Days", key="r25_prev", disabled=(st.session_state.rec25_page <= 0), use_container_width=True):
+            if st.button(
+                "⬅️ Previous 7 Days",
+                key="r25_prev",
+                disabled=(st.session_state.rec25_page <= 0),
+                use_container_width=True,
+            ):
                 st.session_state.rec25_page -= 1
                 st.rerun()
 
         with nav3:
-            if st.button("Next 7 Days ➡️", key="r25_next", disabled=(st.session_state.rec25_page >= max_page), use_container_width=True):
+            if st.button(
+                "Next 7 Days ➡️",
+                key="r25_next",
+                disabled=(st.session_state.rec25_page >= max_page),
+                use_container_width=True,
+            ):
                 st.session_state.rec25_page += 1
                 st.rerun()
 
@@ -288,12 +314,15 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
         # Area Quick Filter Pills
         filter_options = ["All Areas"] + list(ICE_MACHINE_CATALOG.keys())
-        selected_filter = st.segmented_control(
-            "Filter Ice Machine Area",
-            options=filter_options,
-            default="All Areas",
-            label_visibility="collapsed",
-        ) or "All Areas"
+        selected_filter = (
+            st.segmented_control(
+                "Filter Ice Machine Area",
+                options=filter_options,
+                default="All Areas",
+                label_visibility="collapsed",
+            )
+            or "All Areas"
+        )
 
         locations_to_show = (
             list(ICE_MACHINE_CATALOG.keys())
@@ -303,85 +332,111 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
         for location in locations_to_show:
             units = ICE_MACHINE_CATALOG[location]
-            
-            # Match location flexibly
-            loc_clean = clean_str(location)
-            loc_df = (
-                range_df[range_df["Location"].apply(clean_str).str.contains(loc_clean[:5])]
-                if not range_df.empty
-                else pd.DataFrame()
-            )
+            unit_tokens = [clean_unit_token(u["Unit_ID"]) for u in units]
+
+            # Filter by matching any unit assigned to this location
+            if not range_df.empty and "Clean_Unit" in range_df.columns:
+                loc_df = range_df[range_df["Clean_Unit"].isin(unit_tokens)]
+            else:
+                loc_df = pd.DataFrame()
 
             total_units = len(units)
             logs_count = len(loc_df) if not loc_df.empty else 0
             badge_color = "#16a34a" if logs_count > 0 else "#64748b"
-            badge_text = f"{logs_count} Cleaning Logs" if logs_count > 0 else "No Logs In Window"
+            badge_text = (
+                f"{logs_count} Cleaning Logs"
+                if logs_count > 0
+                else "No Logs In Window"
+            )
 
-            st.markdown(f"""
+            st.markdown(
+                f"""
             <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:6px solid #0f172a; border-radius:8px; padding:10px 14px; margin-top:1.2rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center;">
                 <div style="font-size:1.05rem; font-weight:700; color:#0f172a;">🧊 {location} <span style="font-size:0.8rem; font-weight:500; color:#64748b;">({total_units} Assigned Ice Machines)</span></div>
                 <div style="background:{badge_color}; color:#ffffff; font-size:0.75rem; font-weight:700; padding:3px 10px; border-radius:12px;">{badge_text}</div>
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
             cols = st.columns([1.6, 1, 1, 1, 1, 1, 1, 1])
-            cols[0].markdown("""
+            cols[0].markdown(
+                """
             <div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.8rem; padding:8px 4px; border-radius:6px; text-align:center;">
                 Ice Machine ID
             </div>
-            """, unsafe_allow_html=True)
+            """,
+                unsafe_allow_html=True,
+            )
 
             for i, d in enumerate(page_dates):
-                cols[i + 1].markdown(f"""
+                cols[i + 1].markdown(
+                    f"""
                 <div style="background:#1e293b; color:#ffffff; font-weight:700; font-size:0.78rem; padding:8px 2px; border-radius:6px; text-align:center;">
                     {d.strftime('%d/%m (%a)')}
                 </div>
-                """, unsafe_allow_html=True)
+                """,
+                    unsafe_allow_html=True,
+                )
 
             st.write("")
 
             for u in units:
                 unit_id = u["Unit_ID"]
-                unit_clean = clean_str(unit_id)
+                unit_token = clean_unit_token(unit_id)
 
                 row_cols = st.columns([1.6, 1, 1, 1, 1, 1, 1, 1])
 
-                row_cols[0].markdown(f"""
+                row_cols[0].markdown(
+                    f"""
                 <div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:8px 6px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:105px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
                     <div style="font-weight:700; color:#0f172a; font-size:0.85rem;">{unit_id}</div>
                     <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">{location}</div>
                 </div>
-                """, unsafe_allow_html=True)
+                """,
+                    unsafe_allow_html=True,
+                )
 
-                # Match by normalized unit string (e.g. RMOFKIM01 matches RMO/FK/IM/01)
-                u_df = loc_df[loc_df["Clean_Unit"] == unit_clean] if not loc_df.empty else pd.DataFrame()
+                # Direct match using normalized unit ID
+                u_df = (
+                    loc_df[loc_df["Clean_Unit"] == unit_token]
+                    if not loc_df.empty
+                    else pd.DataFrame()
+                )
 
                 for i, d in enumerate(page_dates):
-                    # Match by date object or formatted string
-                    matches = (
-                        u_df[u_df["Date_Obj"] == d]
-                        if (not u_df.empty and "Date_Obj" in u_df.columns and pd.notna(d))
-                        else pd.DataFrame()
-                    )
+                    d_str = d.strftime("%d/%m/%Y")
+
+                    # Match by Date_Obj OR formatted Date_Str
+                    matches = pd.DataFrame()
+                    if not u_df.empty:
+                        if "Date_Obj" in u_df.columns:
+                            matches = u_df[u_df["Date_Obj"] == d]
+                        if matches.empty and "Date_Str" in u_df.columns:
+                            matches = u_df[u_df["Date_Str"] == d_str]
 
                     if matches.empty:
-                        row_cols[i + 1].markdown("""
+                        row_cols[i + 1].markdown(
+                            """
                         <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:105px; display:flex; align-items:center; justify-content:center;">
                             <span style="color:#94a3b8; font-weight:600; font-size:0.8rem;">— Not Logged</span>
                         </div>
-                        """, unsafe_allow_html=True)
+                        """,
+                            unsafe_allow_html=True,
+                        )
                     else:
                         latest = matches.iloc[-1]
                         if not latest["In_Use"]:
                             status_badge = '<span style="color:#64748b; font-weight:700; font-size:0.82rem;">STANDBY</span>'
-                            detail_txt = 'Not In Use'
+                            detail_txt = "Not In Use"
                             card_border = "1.5px solid #94a3b8"
                         else:
                             status_badge = '<span style="color:#16a34a; font-weight:800; font-size:0.85rem;">✓ CLEANED</span>'
-                            detail_txt = 'Sanitized'
+                            detail_txt = "Sanitized"
                             card_border = "1.5px solid #0f172a"
 
-                        row_cols[i + 1].markdown(f"""
+                        row_cols[i + 1].markdown(
+                            f"""
                         <div style="background:#ffffff; border:{card_border}; border-radius:8px; padding:6px 3px; text-align:center; min-height:105px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
                             <div>{status_badge}</div>
                             <div style="height:1px; background:#e2e8f0; margin:4px 0;"></div>
@@ -390,7 +445,9 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
                             </div>
                             <div style="font-size:0.68rem; color:#64748b; margin-top:4px;">By: {latest['Sign']}</div>
                         </div>
-                        """, unsafe_allow_html=True)
+                        """,
+                            unsafe_allow_html=True,
+                        )
 
                 st.write("")
 
@@ -399,7 +456,18 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
         with st.expander("📋 View All Individual Ice Machine Cleaning Records"):
             if not range_df.empty:
                 show_cols = [
-                    c for c in ["Date_Str", "Location", "Unit_ID", "Status_Text", "Sign"]
+                    c
+                    for c in [
+                        "Date_Str",
+                        "Location",
+                        "Unit_ID",
+                        "Status_Text",
+                        "Sign",
+                    ]
                     if c in range_df.columns
                 ]
-                st.dataframe(range_df[show_cols], use_container_width=True, hide_index=True)
+                st.dataframe(
+                    range_df[show_cols],
+                    use_container_width=True,
+                    hide_index=True,
+                )
