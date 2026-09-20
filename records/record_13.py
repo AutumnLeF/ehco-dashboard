@@ -1,33 +1,57 @@
-from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
+from datetime import datetime, timedelta
 
 WASH_MIN_TEMP = 55.0   # Wash Cycle >= 55°C
 RINSE_MIN_TEMP = 82.0  # Final Rinse Cycle >= 82°C
 
+def is_empty_val(v):
+    """Safely checks if a value is None or empty without crashing on lists/dicts."""
+    if v is None:
+        return True
+    if isinstance(v, (list, dict, tuple)):
+        return len(v) == 0
+    try:
+        return pd.isna(v) or str(v).strip() == ""
+    except Exception:
+        return False
 
 def get_deep_val(rec, possible_keys):
-    """Searches both flat keys and nested dictionaries for keys matching any possible_keys substring."""
+    """Recursively searches dictionary keys without triggering pandas ambiguity errors."""
+    if not isinstance(rec, dict):
+        return None
+
     clean_targets = [p.lower().replace("_", "").replace(" ", "").replace(".", "") for p in possible_keys]
 
     for k, v in rec.items():
-        if pd.isna(v) or str(v).strip() == "":
+        if is_empty_val(v):
             continue
+
         k_norm = k.lower().replace("_", "").replace(" ", "").replace(".", "")
         for t in clean_targets:
             if t in k_norm:
-                return v
+                if not isinstance(v, (dict, list)):
+                    return v
 
-        # If the value is a nested dict (e.g., submission dictionary)
+        # Recursively explore nested dictionaries
         if isinstance(v, dict):
             sub_res = get_deep_val(v, possible_keys)
             if sub_res is not None:
                 return sub_res
+
+        # Recursively explore list of dictionaries if present
+        elif isinstance(v, list):
+            for item in v:
+                if isinstance(item, dict):
+                    sub_res = get_deep_val(item, possible_keys)
+                    if sub_res is not None:
+                        return sub_res
+
     return None
 
 
 def parse_record_13_submissions(raw_df):
-    """Parses Record 13 Dishwasher and Glasswasher temperature logs."""
+    """Parses Record 13 Dishwasher and Glasswasher temperature logs safely."""
     if raw_df.empty:
         return pd.DataFrame()
 
@@ -52,7 +76,7 @@ def parse_record_13_submissions(raw_df):
         location = get_deep_val(rec, ["locationother", "location"]) or "General Kitchen"
         machine_type = get_deep_val(rec, ["dishwasherglasswasher", "machinetype", "type"]) or "Machine"
 
-        # 2. Unit ID Resolution (checks specific DW, GW, and generic Unit ID fields)
+        # 2. Unit ID Resolution
         unit_id = (
             get_deep_val(rec, [
                 "unitiddishwasher", 
@@ -89,7 +113,7 @@ def parse_record_13_submissions(raw_df):
 
         sign = get_deep_val(rec, ["signinitial", "sign", "initial", "user.email"]) or "Staff"
 
-        # 4. Excursion logic (Requires valid temperatures when IN USE)
+        # 4. Excursion logic
         wash_breach = False
         rinse_breach = False
         if is_in_use:
@@ -114,11 +138,10 @@ def parse_record_13_submissions(raw_df):
             "Wash_Breach": wash_breach,
             "Rinse_Breach": rinse_breach,
             "Has_Breach": has_breach,
-            "Sign": sign,
+            "Sign": sign
         })
 
     return pd.DataFrame(rows)
-
 
 def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
     """Renders Record 13 daily audit and 7-day paginated matrix."""
