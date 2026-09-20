@@ -197,8 +197,8 @@ else:
     st.sidebar.caption("🕒 Cache: Pending Load")
 
 
-def fetch_submissions(url, token, form_id):
-    """Paginates form-store using the exact nested paging & sorting payload from OneBlink portal."""
+def fetch_submissions(url, token, form_id, start_dt, end_dt):
+    """Paginates form-store using nested paging & sorting payload."""
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -212,7 +212,6 @@ def fetch_submissions(url, token, form_id):
     current_offset = 0
     base_url = url.strip()
 
-    # Loop up to 20 pages (1,000 records) safely
     for page in range(20):
         payload = {
             "formId": form_id,
