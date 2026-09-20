@@ -8,6 +8,7 @@ from records.record_04 import render_record_04_view
 from records.record_05 import render_record_05_view
 from records.record_12 import render_record_12_view
 from records.record_13 import render_record_13_view
+from records.record_15 import render_record_15_view
 
 st.set_page_config(
     page_title="Kitchen Safety Core",
@@ -195,6 +196,7 @@ FORM_MAPPING = {
     "RECORD 05 - COOLING OF FOOD RECORD": 31375,
     "RECORD 12 - DEFROSTING TEMPERATURE RECORD": 31381,
     "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD": 31382,
+    "RECORD 15 - PESTICIDE USAGE RECORD": 31384,
 }
 
 selected_record = st.selectbox(
@@ -291,6 +293,15 @@ elif selected_record == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECO
         unsafe_allow_html=True,
     )
     render_record_13_view(
+        raw_records_df, selected_day_str, start_date, end_date
+    )
+    
+elif selected_record == "RECORD 15 - PESTICIDE USAGE RECORD":
+    st.markdown(
+        f'<div class="serif-title">{selected_record}</div>',
+        unsafe_allow_html=True,
+    )
+    render_record_15_view(
         raw_records_df, selected_day_str, start_date, end_date
     )
     
