@@ -146,12 +146,10 @@ def render_record_15_view(raw_df, selected_day_str, start_date, end_date):
         else:
             st.info("No pest control treatment logged for this date.")
 
-    # -------------------------------------------------------------
-    # TAB 2: 7-DAY EXECUTIVE FACILITY MATRIX
+   # -------------------------------------------------------------
+    # TAB 2: 7-DAY FULL-WIDTH DAILY TREATMENT CARDS
     # -------------------------------------------------------------
     with tab_matrix:
-        st.subheader("Facility Pest Control Audit")
-
         total_days = (end_date - start_date).days + 1
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
 
@@ -185,94 +183,69 @@ def render_record_15_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
-        # 8 Columns: Facility Status Header + 7 Dates
-        cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
-        cols[0].markdown("""
-        <div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.85rem; padding:10px 4px; border-radius:6px; text-align:center;">
-            Scope
-        </div>
-        """, unsafe_allow_html=True)
+        # 7 Full-Width Columns (No Scope column on the left!)
+        cols = st.columns(7)
 
+        # 1. Date Headers across top
         for i, d in enumerate(page_dates):
-            cols[i + 1].markdown(f"""
-            <div style="background:#1e293b; color:#ffffff; font-weight:700; font-size:0.8rem; padding:10px 2px; border-radius:6px; text-align:center;">
+            cols[i].markdown(f"""
+            <div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.82rem; padding:10px 2px; border-radius:6px; text-align:center; margin-bottom:8px;">
                 {d.strftime('%d/%m (%a)')}
             </div>
             """, unsafe_allow_html=True)
 
-        st.write("")
-
-        # Single Unified Row: Hotel Pest Management Activity
-        row_cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
-
-        row_cols[0].markdown("""
-        <div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:12px 6px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:120px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-            <div style="font-weight:700; color:#0f172a; font-size:0.88rem;">Hotel Premises</div>
-            <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">Rentokil PCI</div>
-        </div>
-        """, unsafe_allow_html=True)
-
+        # 2. Daily Treatment Cards directly below each date
         for i, d in enumerate(page_dates):
             d_str = d.strftime("%d/%m/%Y")
             matches = range_df[range_df["Date_Str"] == d_str] if not range_df.empty else pd.DataFrame()
 
-            if matches.empty:
-                row_cols[i + 1].markdown("""
-                <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:120px; display:flex; align-items:center; justify-content:center;">
-                    <span style="color:#94a3b8; font-weight:600; font-size:0.82rem;">— No Service</span>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                count = len(matches)
-                # Summarize distinct chemicals and methods
-                chem_summary = []
-                for _, r in matches.iterrows():
-                    chem_summary.append(f"{r['Chemical']} ({r['Method']})")
-                chem_text = "<br>".join(list(dict.fromkeys(chem_summary))[:2])
-                tech_names = ", ".join(list(dict.fromkeys(matches["Technician"].dropna().tolist())))
-
-                row_cols[i + 1].markdown(f"""
-                <div style="background:#ffffff; border:1.5px solid #0f172a; border-radius:8px; padding:8px 4px; text-align:center; min-height:120px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                    <div style="font-size:1.15rem; font-weight:800; color:#16a34a; line-height:1;">✓ {count} Done</div>
-                    <div style="height:1px; background:#cbd5e1; margin:6px 0;"></div>
-                    <div style="font-size:0.75rem; font-weight:700; color:#0f172a; line-height:1.25;">
-                        {chem_text}
+            with cols[i]:
+                if matches.empty:
+                    st.markdown("""
+                    <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:12px 6px; text-align:center; min-height:160px; display:flex; align-items:center; justify-content:center;">
+                        <span style="color:#94a3b8; font-weight:600; font-size:0.82rem;">— No Service</span>
                     </div>
-                    <div style="font-size:0.68rem; color:#64748b; margin-top:4px;">By: {tech_names}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                    """, unsafe_allow_html=True)
+                else:
+                    count = len(matches)
+                    
+                    # Group distinct chemicals & application methods
+                    chem_summary = []
+                    for _, r in matches.iterrows():
+                        chem_summary.append(f"{r['Chemical']} ({r['Method']})")
+                    chem_text = "<br>".join(list(dict.fromkeys(chem_summary)))
 
-        st.write("")
+                    # Extract all unique treated areas for this day
+                    areas_list = list(dict.fromkeys(matches["Areas_Treated"].dropna().tolist()))
+                    areas_html = ""
+                    for a in areas_list:
+                        areas_html += f"<div style='font-size:0.72rem; color:#1e293b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:3px 5px; margin-top:4px; word-wrap:break-word; text-align:left;'>📍 {a}</div>"
+
+                    # Technician names
+                    tech_names = ", ".join(list(dict.fromkeys(matches["Technician"].dropna().tolist())))
+
+                    st.markdown(f"""
+                    <div style="background:#ffffff; border:1.5px solid #0f172a; border-radius:8px; padding:10px 6px; text-align:center; min-height:160px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                        <div style="font-size:1.15rem; font-weight:800; color:#16a34a; line-height:1;">✓ {count} Done</div>
+                        <div style="height:1px; background:#cbd5e1; margin:6px 0;"></div>
+                        <div style="font-size:0.78rem; font-weight:700; color:#0f172a; line-height:1.25;">
+                            {chem_text}
+                        </div>
+                        <div style="margin-top:6px;">
+                            {areas_html}
+                        </div>
+                        <div style="font-size:0.68rem; color:#64748b; margin-top:6px;">By: {tech_names}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+
         st.divider()
 
-        # 7-Day Activity Feed (Audit Detail without messy rows)
-        st.markdown(f"#### 📋 Service Log for Selected 7-Day Block")
-        p_start_str = page_dates[0].strftime("%d/%m/%Y")
-        p_end_str = page_dates[-1].strftime("%d/%m/%Y")
-
-        block_df = range_df[
-            (range_df["Date_Obj"] >= page_dates[0])
-            & (range_df["Date_Obj"] <= page_dates[-1])
-        ] if not range_df.empty and "Date_Obj" in range_df.columns else pd.DataFrame()
-
-        if block_df.empty:
-            st.info("No pest treatments recorded during this 7-day period.")
-        else:
-            # Display clean structured audit table sorted chronologically
-            display_table = block_df[[
-                "Date_Str", "Areas_Treated", "Chemical", "Amount", "Method", "Batch", "Technician", "Sign"
-            ]].rename(columns={
-                "Date_Str": "Date",
-                "Areas_Treated": "Areas Treated",
-                "Chemical": "Chemical",
-                "Amount": "Dosage",
-                "Method": "Method",
-                "Batch": "Batch No.",
-                "Technician": "Technician",
-                "Sign": "Sign"
-            })
-            st.dataframe(
-                display_table,
-                use_container_width=True,
-                hide_index=True,
-            )
+        # Detailed expandable raw list
+        with st.expander("📋 View All Individual Pest Treatment Records (Table View)"):
+            if not range_df.empty:
+                show_cols = [
+                    c for c in [
+                        "Date_Str", "Company", "Technician", "Areas_Treated", "Chemical", "Amount", "Method", "Batch", "Sign"
+                    ] if c in range_df.columns
+                ]
+                st.dataframe(range_df[show_cols], use_container_width=True, hide_index=True)
