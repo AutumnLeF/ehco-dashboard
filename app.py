@@ -223,10 +223,20 @@ if api_token and api_url:
 # ROUTE TO RECORD MODULES
 # -------------------------------------------------------------
 if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
-    st.markdown(
-        '<div class="serif-title">Record 04: Cooking & Reheating Shift Audit</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="serif-title">Record 04: Cooking & Reheating Shift Audit</div>', unsafe_allow_html=True)
+    render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
+
+elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
+    st.markdown('<div class="serif-title">Record 05: Blast Chiller & Cooling Audit</div>', unsafe_allow_html=True)
+    render_record_05_view(raw_records_df)
+
+else:
+    st.info(f"Module for {selected_record} will load here.")
+
+# -------------------------------------------------------------
+# DIAGNOSTIC PANEL (FLUSH TO THE LEFT MARGIN - ZERO SPACES)
+# -------------------------------------------------------------
+st.divider()
 st.subheader("🛠️ Raw Data Diagnostic")
 st.write(f"Total raw records loaded: {len(raw_records_df)}")
 
@@ -235,14 +245,6 @@ if not raw_records_df.empty:
     date_cols = [c for c in raw_records_df.columns if "date" in c.lower() or "created" in c.lower()]
     st.write("Form ID columns found:", id_cols)
     st.write("Date columns found:", date_cols)
-    st.dataframe(raw_records_df[date_cols + id_cols].head(5))
-        
-    render_record_04_view(
-        raw_records_df, selected_day_str, start_date, end_date
-    )
-elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
-    st.markdown('<div class="serif-title">Blast Chiller & Cooling Audit</div>', unsafe_allow_html=True)
-    render_record_05_view(raw_records_df)
-
-else:
-    st.info(f"Module for {selected_record} is currently in progress.")
+    cols_to_show = date_cols + id_cols
+    if cols_to_show:
+        st.dataframe(raw_records_df[cols_to_show].head(5), use_container_width=True) progress.")
