@@ -6,6 +6,7 @@ import streamlit as st
 
 from records.record_04 import render_record_04_view
 from records.record_05 import render_record_05_view
+from records.record_12 import render_record_12_view
 
 st.set_page_config(
     page_title="Kitchen Safety Core",
@@ -191,6 +192,7 @@ st.markdown(
 FORM_MAPPING = {
     "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD": 31374,
     "RECORD 05 - COOLING OF FOOD RECORD": 31375,
+    "RECORD 12 - DEFROSTING TEMPERATURE RECORD": 31382,
 }
 
 selected_record = st.selectbox(
@@ -272,6 +274,15 @@ elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
         raw_records_df, selected_day_str, start_date, end_date
     )
 
+elif selected_record == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
+    st.markdown(
+        '<div class="serif-title">Record 12: Defrosting Temperature Audit</div>',
+        unsafe_allow_html=True,
+    )
+    render_record_12_view(
+        raw_records_df, selected_day_str, start_date, end_date
+    )
+    
 # -------------------------------------------------------------
 # 6. DIAGNOSTIC PANEL
 # -------------------------------------------------------------
