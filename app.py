@@ -99,101 +99,50 @@ api_url = st.sidebar.text_input(
     "Endpoint URL", value="https://example.com/form-store"
 )
 
-# DATA SOURCE: Replace with live API call or test with current screenshot data
-# Sample data reconstructed directly from your screenshot:
-sample_data = pd.DataFrame(
-    [
-        {
-            "Date": "19/09/2026",
-            "Time": "8:14 PM",
-            "Location": "Filia Kitchen",
-            "Meal Service": "Dinner",
-            "Type of Heat Treatment": "Cooking",
-            "Name of Food": "Polpette di carne",
-            "Food Temperature °C (Cooking)": 78.6,
-            "Sign (Initial)": "Yashika",
-        },
-        {
-            "Date": "19/09/2026",
-            "Time": "8:14 PM",
-            "Location": "Filia Kitchen",
-            "Meal Service": "Dinner",
-            "Type of Heat Treatment": "Cooking",
-            "Name of Food": "Pancia di maile",
-            "Food Temperature °C (Cooking)": 79.2,
-            "Sign (Initial)": "Yashika",
-        },
-        {
-            "Date": "19/09/2026",
-            "Time": "8:14 PM",
-            "Location": "Filia Kitchen",
-            "Meal Service": "Dinner",
-            "Type of Heat Treatment": "Cooking",
-            "Name of Food": "Gamberi",
-            "Food Temperature °C (Cooking)": 76.4,
-            "Sign (Initial)": "Yashika",
-        },
-        {
-            "Date": "19/09/2026",
-            "Time": "8:00 PM",
-            "Location": "Black Lacquer Kitchen",
-            "Meal Service": "Dinner",
-            "Type of Heat Treatment": "Cooking",
-            "Name of Food": "Shrimp tempura",
-            "Food Temperature °C (Cooking)": 76.8,
-            "Sign (Initial)": "Manish Sawant",
-        },
-        {
-            "Date": "19/09/2026",
-            "Time": "8:00 PM",
-            "Location": "Black Lacquer Kitchen",
-            "Meal Service": "Dinner",
-            "Type of Heat Treatment": "Cooking",
-            "Name of Food": "Katsu curry",
-            "Food Temperature °C (Cooking)": 80.9,
-            "Sign (Initial)": "Manish Sawant",
-        },
-        {
-            "Date": "19/09/2026",
-            "Time": "8:00 PM",
-            "Location": "Black Lacquer Kitchen",
-            "Meal Service": "Dinner",
-            "Type of Heat Treatment": "Cooking",
-            "Name of Food": "Tori tatsuta",
-            "Food Temperature °C (Cooking)": 79.1,
-            "Sign (Initial)": "Manish Sawant",
-        },
-        {
-            "Date": "19/09/2026",
-            "Time": "3:34 PM",
-            "Location": "Filia Kitchen",
-            "Meal Service": "Lunch",
-            "Type of Heat Treatment": "Cooking",
-            "Name of Food": "Pappardelle al ragout",
-            "Food Temperature °C (Cooking)": 75.8,
-            "Sign (Initial)": "Vidya",
-        },
-        {
-            "Date": "19/09/2026",
-            "Time": "3:34 PM",
-            "Location": "Filia Kitchen",
-            "Meal Service": "Lunch",
-            "Type of Heat Treatment": "Cooking",
-            "Name of Food": "Fritto misto",
-            "Food Temperature °C (Cooking)": 76.4,
-            "Sign (Initial)": "Vidya",
-        },
-        {
-            "Date": "19/09/2026",
-            "Time": "3:34 PM",
-            "Location": "Filia Kitchen",
-            "Meal Service": "Lunch",
-            "Type of Heat Treatment": "Cooking",
-            "Name of Food": "Asparagus soup",
-            "Food Temperature °C (Cooking)": 76.4,
-            "Sign (Initial)": "Vidya",
-        },
-    ]
+# -------------------------------------------------------------
+# LIVE DATA FETCHER & RESPONSE DEBUGGER
+# -------------------------------------------------------------
+raw_records_df = pd.DataFrame()
+api_status_code = None
+api_response_text = ""
+
+if api_url and token_input:
+    clean_token = token_input.replace("Bearer ", "").strip()
+    headers = {
+        "Authorization": f"Bearer {clean_token}",
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0",
+    }
+    # Form 31374 for Record 04
+    params = {"limit": 250, "formId": 31374}
+
+    try:
+        res = requests.get(api_url.strip(), headers=headers, params=params, timeout=15)
+        api_status_code = res.status_code
+        api_response_text = res.text
+
+        if res.status_code == 200:
+            payload = res.json()
+            items = []
+            if isinstance(payload, list):
+                items = payload
+            elif isinstance(payload, dict):
+                items = (
+                    payload.get("submissions")
+                    or payload.get("records")
+                    or payload.get("data")
+                    or payload.get("items")
+                    or []
+                )
+            if items:
+                raw_records_df = pd.json_normalize(items)
+                st.sidebar.success(f"✓ Retrieved {len(raw_records_df)} records")
+            else:
+                st.sidebar.warning("API returned 200 OK, but no records list was found in payload.")
+        else:
+            st.sidebar.error(f"API Error HTTP {res.status_code}")
+    except Exception as e:
+        st.sidebar.error(f"Connection failed: {e}")
 )
 
 # -------------------------------------------------------------
