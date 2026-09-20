@@ -1,41 +1,13 @@
-import streamlit as st
-import pandas as pd
 from datetime import datetime, timedelta
+import pandas as pd
+import streamlit as st
 
 TARGET_PPM = 100.0       # Chlorine PPM must be 100
 TARGET_MINUTES = 5.0    # Contact time must be 5 minutes
 
 
-def extract_field(rec, keywords):
-    """Deep search for matching keywords across flat or nested keys."""
-    if not isinstance(rec, dict):
-        return None
-    clean_targets = [k.lower().replace("_", "").replace(" ", "").replace(".", "") for k in keywords]
-    for k, v in rec.items():
-        if v is None:
-            continue
-        k_norm = k.lower().replace("_", "").replace(" ", "").replace(".", "")
-        for target in clean_targets:
-            if target in k_norm:
-                if not isinstance(v, (dict, list)):
-                    s_val = str(v).strip()
-                    if s_val and s_val.lower() not in ["none", "nan", ""]:
-                        return v
-        if isinstance(v, dict):
-            found = extract_field(v, keywords)
-            if found is not None:
-                return found
-        elif isinstance(v, list):
-            for elem in v:
-                if isinstance(elem, dict):
-                    found = extract_field(elem, keywords)
-                    if found is not None:
-                        return found
-    return None
-
-
 def parse_record_21_submissions(raw_df):
-    """Parses Record 21 submissions matching the exact submission.CL payload structure."""
+    """Parses Record 21 submissions targeting the exact OneBlink submission.CL schema."""
     if raw_df.empty:
         return pd.DataFrame()
 
@@ -43,11 +15,12 @@ def parse_record_21_submissions(raw_df):
     for _, record in raw_df.iterrows():
         rec = record.to_dict()
 
-        # 1. Date normalization
+        # 1. Date normalization (Direct paths)
         raw_date = (
             rec.get("submission.Date")
             or rec.get("Date")
-            or extract_field(rec, ["date", "createdat", "submissiondate"])
+            or (rec.get("submission") or {}).get("Date")
+            or rec.get("createdAt")
             or ""
         )
         parsed_dt = pd.to_datetime(raw_date, errors="coerce")
@@ -61,79 +34,105 @@ def parse_record_21_submissions(raw_df):
             date_str = str(raw_date)[:10]
             date_obj = None
 
-        time_str = str(rec.get("submission.Time") or rec.get("Time") or extract_field(rec, ["time"]) or "")[:8]
-        location = (
+        time_str = str(
+            rec.get("submission.Time")
+            or rec.get("Time")
+            or (rec.get("submission") or {}).get("Time")
+            or ""
+        )[:8]
+
+        location = str(
             rec.get("submission.Location")
             or rec.get("Location")
-            or extract_field(rec, ["locationother", "location"])
+            or (rec.get("submission") or {}).get("Location")
             or "Black Lacquer Kitchen"
         ).strip()
 
-        sign = rec.get("submission.Sign") or rec.get("Sign") or extract_field(rec, ["signinitial", "sign", "initial"]) or "Staff"
-
-        # 2. Extract the CL object
-        cl_data = rec.get("submission.CL") or rec.get("CL") or {}
-        if not isinstance(cl_data, dict):
-            # If flattened by pandas normalizer:
-            cl_data = {
-                "Type": rec.get("submission.CL.Type") or rec.get("CL.Type") or rec.get("Type"),
-                "Type_of_food_Other": rec.get("submission.CL.Type_of_food_Other") or rec.get("CL.Type_of_food_Other") or rec.get("Type of food (Other)"),
-                "Chemical_ppm_strength": rec.get("submission.CL.Chemical_ppm_strength") or rec.get("CL.Chemical_ppm_strength") or rec.get("Chemical ppm strength"),
-                "Contact_Time_in_Minutes": rec.get("submission.CL.Contact_Time_in_Minutes") or rec.get("CL.Contact_Time_in_Minutes") or rec.get("Contact Time in Minutes"),
-            }
-
-        # 3. Resolve Food Name
-        raw_type = cl_data.get("Type") or extract_field(rec, ["typeoffood", "foodtype", "type"])
-        if isinstance(raw_type, list) and len(raw_type) > 0:
-            type_str = str(raw_type[0]).strip()
-        else:
-            type_str = str(raw_type or "").replace("•", "").replace("[", "").replace("]", "").replace("'", "").strip()
-
-        food_other = (
-            cl_data.get("Type_of_food_Other")
-            or cl_data.get("Type of food (Other)")
-            or rec.get("Type of food (Other)")
-            or extract_field(rec, ["typeoffoodother", "foodother", "otherfood"])
-            or ""
+        sign = (
+            rec.get("submission.Sign")
+            or rec.get("Sign")
+            or (rec.get("submission") or {}).get("Sign")
+            or "Staff"
         )
-        food_other_clean = str(food_other).replace("•", "").strip()
 
-        if food_other_clean and food_other_clean.lower() not in ["none", "nan", ""]:
-            final_food = food_other_clean
-        elif type_str and type_str.lower() not in ["other", "none", "nan", ""]:
-            final_food = type_str
-        else:
-            final_food = "Veg Item"
+        # 2. Direct extraction of CL structure
+        cl_obj = (
+            rec.get("submission.CL")
+            or (rec.get("submission") or {}).get("CL")
+            or rec.get("CL")
+            or {}
+        )
 
-        # 4. Chemical PPM Strength
-        ppm_raw = cl_data.get("Chemical_ppm_strength") or extract_field(rec, ["chemicalppmstrength", "ppmstrength", "ppm"])
-        ppm_num = pd.to_numeric(str(ppm_raw).replace("ppm", "").strip(), errors="coerce")
+        # Handle both dictionary and list forms of CL
+        cl_items = [cl_obj] if isinstance(cl_obj, dict) else (cl_obj if isinstance(cl_obj, list) else [{}])
 
-        # 5. Contact Time
-        time_raw = str(cl_data.get("Contact_Time_in_Minutes") or extract_field(rec, ["contacttimeinminutes", "contacttime", "minutes"]) or "5")
-        time_clean = time_raw.lower().replace("minutes", "").replace("minute", "").replace("mins", "").replace("min", "").strip()
-        minutes_num = pd.to_numeric(time_clean, errors="coerce")
+        for cl in cl_items:
+            # Type resolution (ignoring user.providerType!)
+            raw_type = (
+                cl.get("Type")
+                or rec.get("submission.CL.Type")
+                or rec.get("CL.Type")
+                or []
+            )
+            if isinstance(raw_type, list) and len(raw_type) > 0:
+                type_val = str(raw_type[0]).strip()
+            else:
+                type_val = str(raw_type).replace("['", "").replace("']", "").replace("•", "").strip()
 
-        # 6. Excursion checks
-        ppm_breach = pd.notna(ppm_num) and (ppm_num != TARGET_PPM)
-        time_breach = pd.notna(minutes_num) and (minutes_num < TARGET_MINUTES)
-        has_breach = ppm_breach or time_breach
+            other_val = str(
+                cl.get("Type_of_food_Other")
+                or cl.get("Type of food (Other)")
+                or rec.get("submission.CL.Type_of_food_Other")
+                or rec.get("submission.CL.Type of food (Other)")
+                or ""
+            ).replace("•", "").strip()
 
-        rows.append({
-            "Date_Str": date_str,
-            "Date_Obj": date_obj,
-            "Time": time_str,
-            "Location": location,
-            "Food": final_food,
-            "PPM": ppm_num,
-            "PPM_Raw": str(ppm_raw) if ppm_raw else "100",
-            "Minutes": minutes_num,
-            "Minutes_Raw": f"{time_raw} Min",
-            "PPM_Breach": ppm_breach,
-            "Time_Breach": time_breach,
-            "Has_Breach": has_breach,
-            "Sign": sign
-        })
+            # If other is specified or type is "Other", use other_val
+            if other_val and other_val.lower() not in ["none", "nan", ""]:
+                food_name = other_val
+            elif type_val and type_val.lower() not in ["other", "none", "nan", "cognito", ""]:
+                food_name = type_val
+            else:
+                food_name = "Salad Item"
+
+            # 3. Chemical PPM strength
+            ppm_raw = (
+                cl.get("Chemical_ppm_strength")
+                or cl.get("Chemical ppm strength")
+                or rec.get("submission.CL.Chemical_ppm_strength")
+                or rec.get("submission.CL.Chemical ppm strength")
+            )
+            ppm_num = pd.to_numeric(str(ppm_raw).replace("ppm", "").strip(), errors="coerce")
+
+            # 4. Contact time in minutes
+            time_raw = str(
+                cl.get("Contact_Time_in_Minutes")
+                or cl.get("Contact Time in Minutes")
+                or rec.get("submission.CL.Contact_Time_in_Minutes")
+                or rec.get("submission.CL.Contact Time in Minutes")
+                or "5"
+            )
+            time_clean = time_raw.lower().replace("minutes", "").replace("minute", "").replace("mins", "").replace("min", "").strip()
+            minutes_num = pd.to_numeric(time_clean, errors="coerce")
+
+            ppm_breach = pd.notna(ppm_num) and (ppm_num != TARGET_PPM)
+            time_breach = pd.notna(minutes_num) and (minutes_num < TARGET_MINUTES)
+
+            rows.append({
+                "Date_Str": date_str,
+                "Date_Obj": date_obj,
+                "Time": time_str,
+                "Location": location,
+                "Food": food_name,
+                "PPM": ppm_num,
+                "PPM_Raw": str(ppm_raw) if ppm_raw else "100",
+                "Minutes": minutes_num,
+                "Minutes_Raw": f"{time_raw}m",
+                "PPM_Breach": ppm_breach,
+                "Time_Breach": time_breach,
+                "Has_Breach": (ppm_breach or time_breach),
+                "Sign": sign,
+            })
 
     return pd.DataFrame(rows)
 
@@ -144,8 +143,8 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
 
     if not df_items.empty and "Date_Obj" in df_items.columns:
         range_df = df_items[
-            (df_items["Date_Obj"] >= start_date) & 
-            (df_items["Date_Obj"] <= end_date)
+            (df_items["Date_Obj"] >= start_date)
+            & (df_items["Date_Obj"] <= end_date)
         ]
     else:
         range_df = df_items.copy()
@@ -159,7 +158,11 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
     # TAB 1: DAILY DRILLDOWN
     # -------------------------------------------------------------
     with tab_day:
-        day_df = range_df[range_df["Date_Str"] == selected_day_str] if not range_df.empty else pd.DataFrame()
+        day_df = (
+            range_df[range_df["Date_Str"] == selected_day_str]
+            if not range_df.empty
+            else pd.DataFrame()
+        )
 
         excursions = []
         compliant_logs = []
@@ -173,17 +176,29 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
 
         k1, k2, k3 = st.columns(3)
         with k1:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div><div class="kpi-lbl">PPM / Time Excursions</div></div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div><div class="kpi-lbl">PPM / Time Excursions</div></div>',
+                unsafe_allow_html=True,
+            )
         with k2:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{len(compliant_logs)}</div><div class="kpi-lbl">Verified 100 PPM (5 Min)</div></div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{len(compliant_logs)}</div><div class="kpi-lbl">Verified 100 PPM (5 Min)</div></div>',
+                unsafe_allow_html=True,
+            )
         with k3:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Batches Washed</div></div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Batches Washed</div></div>',
+                unsafe_allow_html=True,
+            )
 
         st.write("")
 
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f'<div class="kanban-col"><div class="kanban-h" style="color:#dc2626;">🔴 Chemical / Time Breaches ({len(excursions)})</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="kanban-col"><div class="kanban-h" style="color:#dc2626;">🔴 Chemical / Time Breaches ({len(excursions)})</div>',
+                unsafe_allow_html=True,
+            )
             if excursions:
                 for exc in excursions:
                     errs = []
@@ -191,33 +206,42 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                         errs.append(f"PPM: {exc['PPM']} (Target 100)")
                     if exc["Time_Breach"]:
                         errs.append(f"Time: {exc['Minutes']}m (< 5 Min)")
-                    st.markdown(f"""
+                    st.markdown(
+                        f"""
                     <div class="check-card" style="border-left: 5px solid #dc2626;">
                         <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{exc['Food']} • {exc['Location']}</div>
                         <div style="font-size:0.8rem; color:#dc2626; font-weight:600; margin-top:3px;">
                             {' | '.join(errs)}
                         </div>
                         <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Time: {exc['Time']} | Initial: {exc['Sign']}</div>
-                    </div>""", unsafe_allow_html=True)
+                    </div>""",
+                        unsafe_allow_html=True,
+                    )
             else:
                 st.caption("No PPM or contact time breaches on this date.")
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
         with c2:
-            st.markdown(f'<div class="kanban-col"><div class="kanban-h" style="color:#16a34a;">🟢 Verified Sanitized ({len(compliant_logs)})</div>', unsafe_allow_html=True)
+            st.markdown(
+                f'<div class="kanban-col"><div class="kanban-h" style="color:#16a34a;">🟢 Verified Sanitized ({len(compliant_logs)})</div>',
+                unsafe_allow_html=True,
+            )
             if compliant_logs:
                 for ok in compliant_logs:
-                    st.markdown(f"""
+                    st.markdown(
+                        f"""
                     <div class="check-card" style="border-left: 5px solid #16a34a;">
                         <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{ok['Food']}</div>
                         <div style="font-size:0.8rem; color:#334155; margin-top:3px;">
                             Strength: <b style="color:#16a34a;">100 PPM</b> &nbsp;|&nbsp; Contact: <b>5 Minutes</b>
                         </div>
                         <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Kitchen: {ok['Location']} | Sign: {ok['Sign']}</div>
-                    </div>""", unsafe_allow_html=True)
+                    </div>""",
+                        unsafe_allow_html=True,
+                    )
             else:
                 st.caption("No food wash entries recorded for this day.")
-            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown("</div>", unsafe_allow_html=True)
 
     # -------------------------------------------------------------
     # TAB 2: 7-DAY SPLIT-CELL AUDIT GRID
@@ -251,7 +275,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                     f"<div style='text-align:center; font-weight:700; color:#0f172a; font-size:0.95rem; padding-top:6px;'>"
                     f"Showing: <b>{page_dates[0].strftime('%d/%m/%Y')}</b> to <b>{page_dates[-1].strftime('%d/%m/%Y')}</b> (Block {st.session_state.rec21_page + 1} of {max_page + 1})"
                     f"</div>",
-                    unsafe_allow_html=True
+                    unsafe_allow_html=True,
                 )
 
         st.write("")
@@ -265,7 +289,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
         """, unsafe_allow_html=True)
 
         for i, d in enumerate(page_dates):
-            cols[i+1].markdown(f"""
+            cols[i + 1].markdown(f"""
             <div style="background:#1e293b; color:#ffffff; font-weight:700; font-size:0.8rem; padding:10px 2px; border-radius:6px; text-align:center;">
                 {d.strftime('%d/%m (%a)')}
             </div>
@@ -273,7 +297,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
-        # Strict Dynamic Kitchen List (no Commissary or other hardcoded strings)
+        # Render ONLY active locations present in the parsed rows
         if not range_df.empty and "Location" in range_df.columns:
             active_kitchens = [k for k in sorted(list(range_df["Location"].dropna().unique())) if k.strip() != ""]
         else:
@@ -295,7 +319,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                 matches = k_df[k_df["Date_Str"] == d_str] if not k_df.empty else pd.DataFrame()
 
                 if matches.empty:
-                    row_cols[i+1].markdown("""
+                    row_cols[i + 1].markdown("""
                     <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:115px; display:flex; align-items:center; justify-content:center;">
                         <span style="color:#94a3b8; font-weight:600; font-size:0.82rem;">— Not Filled</span>
                     </div>
@@ -304,6 +328,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                     batch_count = len(matches)
                     has_day_breach = any(matches["Has_Breach"])
 
+                    # Extract all items washed on this day
                     foods_list = list(dict.fromkeys(matches["Food"].dropna().tolist()))
                     foods_formatted = ", ".join(foods_list)
 
@@ -314,7 +339,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                         badge = f'<span style="color:#16a34a; font-weight:800; font-size:1.15rem;">{batch_count}</span>'
                         border_style = "1.5px solid #0f172a"
 
-                    row_cols[i+1].markdown(f"""
+                    row_cols[i + 1].markdown(f"""
                     <div style="background:#ffffff; border:{border_style}; border-radius:8px; padding:8px 4px; text-align:center; min-height:115px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
                         <div>{badge}</div>
                         <div style="height:1px; background:#cbd5e1; margin:6px 0;"></div>
@@ -331,7 +356,9 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
 
         with st.expander("📋 View All Individual Chlorine Food Wash Records"):
             if not range_df.empty:
-                show_cols = [c for c in [
-                    "Date_Str", "Time", "Location", "Food", "PPM_Raw", "Minutes_Raw", "Sign"
-                ] if c in range_df.columns]
+                show_cols = [
+                    c for c in [
+                        "Date_Str", "Time", "Location", "Food", "PPM_Raw", "Minutes_Raw", "Sign"
+                    ] if c in range_df.columns
+                ]
                 st.dataframe(range_df[show_cols], use_container_width=True, hide_index=True)
