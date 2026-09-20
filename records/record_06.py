@@ -76,7 +76,7 @@ def parse_record_06_submissions(raw_df):
             or ""
         )[:8]
 
-        # 2. Location (Filia Restaurant)
+        # 2. Location
         location = str(
             sub.get("Location")
             or sub.get("location")
@@ -109,7 +109,7 @@ def parse_record_06_submissions(raw_df):
             or ""
         ).strip().capitalize()
 
-        # 5. Food Name Resolution (Hot, Cold, Other)
+        # 5. Food Name Resolution
         hot_name = str(sub.get("Name of Food (Hot)") or rec.get("submission.Name of Food (Hot)") or "").replace("•", "").strip()
         cold_name = str(sub.get("Name of Food (Cold)") or rec.get("submission.Name of Food (Cold)") or "").replace("•", "").strip()
         other_name = str(sub.get("Other Food") or rec.get("submission.Other Food") or extract_field(rec, ["otherfood", "foodname"]) or "").strip()
@@ -123,7 +123,18 @@ def parse_record_06_submissions(raw_df):
         else:
             final_food = "Buffet Item" if not is_no_buffet else "No Buffet Service"
 
-        # 6. Temperature Check
+        # 6. Temperature Declarations & Validation
+        hot_temp_raw = (
+            sub.get("Food Temperature °C (Hot)")
+            or rec.get("submission.Food Temperature °C (Hot)")
+            or extract_field(rec, ["foodtemperaturechot", "foodtemperaturehot", "temphot"])
+        )
+        cold_temp_raw = (
+            sub.get("Food Temperature °C (Cold)")
+            or rec.get("submission.Food Temperature °C (Cold)")
+            or extract_field(rec, ["foodtemperatureccold", "foodtemperaturecold", "tempcold"])
+        )
+
         hot_temp = pd.to_numeric(str(hot_temp_raw).replace("°C", "").strip(), errors="coerce")
         cold_temp = pd.to_numeric(str(cold_temp_raw).replace("°C", "").strip(), errors="coerce")
 
@@ -139,7 +150,7 @@ def parse_record_06_submissions(raw_df):
                 if pd.notna(cold_temp) and cold_temp > COLD_MAX_TEMP:
                     has_breach = True
 
-        # Sign
+        # 7. Sign
         sign = (
             sub.get("Sign (Initial)")
             or sub.get("Sign")
@@ -245,7 +256,7 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
                     <div class="check-card" style="border-left: 5px solid #dc2626;">
                         <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{b['Food']} • {b['Meal_Service']}</div>
                         <div style="font-size:0.8rem; color:#dc2626; font-weight:600; margin-top:3px;">
-                            Reading: {b['Temp_Disp']} (Out of Safe Holding Range)
+                            Reading: {b['Temp_Disp']} (Hot must be >= 70°C, Cold <= 5°C)
                         </div>
                         <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Time: {b['Time']} | By: {b['Sign']}</div>
                     </div>""",
@@ -364,11 +375,9 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
                         batch_count = len(active_matches)
                         has_day_breach = any(active_matches["Has_Breach"])
 
-                        # Group foods
                         foods = list(dict.fromkeys(active_matches["Food"].dropna().tolist()))
                         foods_txt = ", ".join(foods[:3]) + ("..." if len(foods) > 3 else "")
 
-                        # Meal services
                         meals = list(dict.fromkeys(active_matches["Meal_Service"].dropna().tolist()))
                         meals_txt = " / ".join(meals) if meals else "Service"
 
