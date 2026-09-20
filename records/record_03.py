@@ -2,61 +2,105 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
-MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge must be <= 4.0°C
+MAX_FRIDGE_TEMP = 4.0     # Coolroom/Fridge must be <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer must be <= -18.0°C
-MIN_GAP_HOURS = 5.0       # At least 5 hours gap between checks
+MIN_GAP_HOURS = 5.0       # At least 5 hours between shift checks
 
-# Master Units Catalog grouped by Kitchen Area and Type
+# MASTER INVENTORY OF 49 UNITS ACROSS 8 LOCATIONS
 UNIT_CATALOG = {
-    "Filia Bar": [
-        {"Unit_ID": "RMO/FB/UC/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FB/UC/02", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FB/VR/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FB/VR/02", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FB/UF/01", "Type": "Freezer"},
+    "Filia Kitchen": [
+        {"Unit_ID": "RMO/FK/UC/01", "Name": "Undercounter Chiller 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FK/UC/02", "Name": "Undercounter Chiller 02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FK/CR/01", "Name": "Walkin Chiller 01", "Type": "Coolroom"},
+        {"Unit_ID": "RMO/FK/CR/02", "Name": "Walkin Chiller 02", "Type": "Coolroom"},
+        {"Unit_ID": "RMO/FK/WF/01", "Name": "Walkin Freezer 01", "Type": "Freezer"},
+        {"Unit_ID": "RMO/FK/UF/01", "Name": "Undercounter Freezer 01", "Type": "Freezer"},
     ],
     "Filia Kitchen - Bakery": [
-        {"Unit_ID": "RMO/FKB/UC/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FKB/UC/02", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FKB/UC/03", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FKB/VF/01", "Type": "Freezer"},
+        {"Unit_ID": "RMO/FKB/UC/01", "Name": "Undercounter Chiller 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FKB/UC/02", "Name": "Undercounter Chiller 02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FKB/UC/03", "Name": "Undercounter Chiller 03", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FKB/VF/01", "Name": "Vertical Freezer 01", "Type": "Freezer"},
     ],
     "Filia Show Kitchen": [
-        {"Unit_ID": "RMO/FSK/UC/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FSK/UC/02", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FSK/UC/03", "Type": "Fridge"},
-        {"Unit_ID": "RMO/FSK/UC/04", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FSK/UC/01", "Name": "Undercounter Chiller 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FSK/UC/02", "Name": "Undercounter Chiller 02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FSK/UC/03", "Name": "Undercounter Chiller 03", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FSK/UC/04", "Name": "Undercounter Chiller 04", "Type": "Fridge"},
     ],
-    "Black Lacquer Bar": [
-        {"Unit_ID": "RMO/BL/UC/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BL/UC/02", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BL/UC/03", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BL/VR/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BL/UF/01", "Type": "Freezer"},
+    "Filia Restaurant": [
+        {"Unit_ID": "RMO/FR/VR/01", "Name": "Vertical Refrigerator - 2 Door 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FR/VR/02", "Name": "Vertical Refrigerator - 2 Door 02", "Type": "Fridge"},
+    ],
+    "Filia Bar": [
+        {"Unit_ID": "RMO/FB/UC/01", "Name": "Undercounter Chiller 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FB/UC/02", "Name": "Undercounter Chiller 02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FB/UC/03", "Name": "Undercounter Chiller 03", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FB/UC/04", "Name": "Undercounter Chiller 04", "Type": "Fridge"},
+        {"Unit_ID": "RMO/FB/UF/01", "Name": "Undercounter Freezer 01", "Type": "Freezer"},
+        {"Unit_ID": "RMO/FB/UF/02", "Name": "Undercounter Freezer 02", "Type": "Freezer"},
+    ],
+    "Third Room Kitchen": [
+        {"Unit_ID": "RMO/TRK/VR/01", "Name": "Vertical Refrigerator 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/TRK/UC/01", "Name": "Undercounter Chiller 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/TRK/UC/02", "Name": "Undercounter Chiller 02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/TRK/UC/03", "Name": "Undercounter Chiller 03", "Type": "Fridge"},
+        {"Unit_ID": "RMO/TRK/VF/01", "Name": "Vertical Freezer 01", "Type": "Freezer"},
+    ],
+    "Third Room": [
+        {"Unit_ID": "RMO/TRB/UC/01", "Name": "Undercounter Chiller 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/TRB/UC/02", "Name": "Undercounter Chiller 02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/TRB/UC/03", "Name": "Undercounter Chiller 03", "Type": "Fridge"},
+        {"Unit_ID": "RMO/TR/UF/01",  "Name": "Undercounter Freezer 01", "Type": "Freezer"},
     ],
     "Black Lacquer Kitchen": [
-        {"Unit_ID": "RMO/BLK/CR/01", "Type": "Coolroom"},
-        {"Unit_ID": "RMO/BLK/UC/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/BLK/UC/02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BLK/UC/01", "Name": "Undercounter Chiller 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BLK/VR/01", "Name": "Vertical Refrigerator 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BLK/UF/01", "Name": "Undercounter Freezer 01", "Type": "Freezer"},
+    ],
+    "Black Lacquer Bar": [
+        {"Unit_ID": "RMO/BL/UC/01", "Name": "Undercounter Chiller 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BL/UC/02", "Name": "Undercounter Chiller 02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BL/UC/03", "Name": "Undercounter Chiller 03", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BL/UC/04", "Name": "Undercounter Chiller 04", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BL/UC/05", "Name": "Undercounter Chiller 05", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BL/VR/01", "Name": "Vertical Refrigerator 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BL/VR/02", "Name": "Vertical Refrigerator 02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BL/VR/03", "Name": "Vertical Refrigerator - 2 Door 03", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BL/UF/01", "Name": "Undercounter Freezer 01", "Type": "Freezer"},
+        {"Unit_ID": "RMO/BL/UF/02", "Name": "Undercounter Freezer 02", "Type": "Freezer"},
+        {"Unit_ID": "RMO/BL/UF/03", "Name": "Undercounter Freezer 03", "Type": "Freezer"},
+        {"Unit_ID": "RMO/BL/UF/04", "Name": "Undercounter Freezer 04", "Type": "Freezer"},
+    ],
+    "Black Lacquer Speakeasy": [
+        {"Unit_ID": "RMO/BLS/UC/01", "Name": "Undercounter Chiller 01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BLS/UC/02", "Name": "Undercounter Chiller 02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/BLS/UF/01", "Name": "Undercounter Freezer 01", "Type": "Freezer"},
     ],
 }
 
 
-def clean_str(val):
+def clean_unit_str(val):
     if not val or pd.isna(val):
         return ""
     return str(val).replace("/", "").replace("_", "").replace(" ", "").replace("-", "").strip().upper()
 
 
 def parse_record_03_submissions(raw_df):
-    """Parses Record 03 submissions targeting exact OneBlink keys."""
+    """Parses Record 03 submissions against the 49-unit catalog."""
     if raw_df.empty:
         return pd.DataFrame()
 
     flat_master = []
     for loc, units in UNIT_CATALOG.items():
         for u in units:
-            flat_master.append({"Location": loc, "Unit_ID": u["Unit_ID"], "Type": u["Type"]})
+            flat_master.append({
+                "Location": loc,
+                "Unit_ID": u["Unit_ID"],
+                "Name": u["Name"],
+                "Type": u["Type"],
+                "Clean_ID": clean_unit_str(u["Unit_ID"]),
+            })
 
     rows = []
     for _, record in raw_df.iterrows():
@@ -94,7 +138,6 @@ def parse_record_03_submissions(raw_df):
         ).strip()
         time_clean = raw_time[:8]
 
-        # Full datetime timestamp for elapsed hour diff
         ts_dt = pd.to_datetime(f"{date_str} {raw_time}", format="%d/%m/%Y %I:%M %p", errors="coerce")
         if pd.isna(ts_dt):
             ts_dt = pd.to_datetime(f"{date_str} {raw_time}", errors="coerce")
@@ -121,13 +164,13 @@ def parse_record_03_submissions(raw_df):
             raw_unit = raw_unit[0]
         raw_unit_str = str(raw_unit).strip()
 
-        clean_unit = clean_str(raw_unit_str)
+        clean_unit = clean_unit_str(raw_unit_str)
         matched_id = None
         matched_loc = location
         matched_type = str(sub.get("Coolroom/Fridge/Freezer") or "Fridge").capitalize()
 
         for m in flat_master:
-            if clean_unit == clean_str(m["Unit_ID"]):
+            if clean_unit == m["Clean_ID"]:
                 matched_id = m["Unit_ID"]
                 matched_loc = m["Location"]
                 matched_type = m["Type"]
@@ -181,7 +224,7 @@ def parse_record_03_submissions(raw_df):
             "Time": time_clean,
             "Location": matched_loc,
             "Unit_ID": final_unit,
-            "Clean_Unit": clean_str(final_unit),
+            "Clean_Unit": clean_unit_str(final_unit),
             "Unit_Type": matched_type,
             "In_Use": is_in_use,
             "Temp": final_temp,
@@ -194,7 +237,7 @@ def parse_record_03_submissions(raw_df):
 
 
 def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
-    """Renders Record 03 with master catalog and clean 7-day layout."""
+    """Renders Record 03 with master catalog and clear 7-day grid."""
     df_items = parse_record_03_submissions(raw_df)
 
     if not df_items.empty and "Date_Obj" in df_items.columns and df_items["Date_Obj"].notna().any():
@@ -207,7 +250,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
 
     tab_day, tab_matrix = st.tabs([
         f"📅 Daily Unit Temperature Audit ({selected_day_str})",
-        "📈 7-Day Grouped Location Matrix"
+        "📈 7-Day Grouped Location Matrix (49 Units)"
     ])
 
     # -------------------------------------------------------------
@@ -280,7 +323,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             st.markdown('</div>', unsafe_allow_html=True)
 
     # -------------------------------------------------------------
-    # TAB 2: HIGH-READABILITY 7-DAY MATRIX WITH CATALOG
+    # TAB 2: HIGH-READABILITY 7-DAY MATRIX (49 UNITS)
     # -------------------------------------------------------------
     with tab_matrix:
         total_days = (end_date - start_date).days + 1
@@ -316,13 +359,12 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
-        # Area Quick Selection Filter
         all_catalog_locs = list(UNIT_CATALOG.keys())
-        sel_loc = st.selectbox("📍 Select Kitchen Area to Audit:", ["All Locations"] + all_catalog_locs)
+        sel_loc = st.selectbox("📍 Select Kitchen Area to Audit (or view All):", ["All Locations"] + all_catalog_locs)
         locations_to_show = all_catalog_locs if sel_loc == "All Locations" else [sel_loc]
 
         num_dates = len(page_dates)
-        col_ratios = [1.8] + [1.0] * num_dates
+        col_ratios = [2.0] + [1.0] * num_dates
 
         for location in locations_to_show:
             units = UNIT_CATALOG.get(location, [])
@@ -331,7 +373,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             st.markdown(f"""
             <div style="background:#0f172a; color:#ffffff; padding:10px 14px; border-radius:6px; margin-top:1.4rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-weight:700; font-size:0.98rem;">❄️ {location}</span>
-                <span style="font-size:0.8rem; background:#334155; padding:3px 10px; border-radius:12px;">{len(units)} Units Cataloged</span>
+                <span style="font-size:0.8rem; background:#334155; padding:3px 10px; border-radius:12px;">{len(units)} Assigned Units</span>
             </div>
             """, unsafe_allow_html=True)
 
@@ -345,10 +387,11 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             for u in units:
                 unit_id = u["Unit_ID"]
                 unit_type = u["Type"]
-                clean_target = clean_str(unit_id)
+                clean_target = clean_unit_str(unit_id)
 
                 row_cols = st.columns(col_ratios)
 
+                # Left Unit ID & Type Cell
                 row_cols[0].markdown(f"""
                 <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 8px; min-height:82px; display:flex; flex-direction:column; justify-content:center;">
                     <div style="font-weight:700; font-size:0.84rem; color:#0f172a;">{unit_id}</div>
@@ -376,7 +419,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                         entries = matches.sort_values(by="Time").to_dict("records")
                         has_day_breach = any(e["Has_Breach"] for e in entries)
 
-                        # Gap calculation
+                        # Gap between Shift 1 & Shift 2
                         gap_warning = False
                         gap_txt = ""
                         if len(entries) >= 2:
