@@ -20,11 +20,11 @@ ICE_MACHINE_CATALOG = {
 }
 
 
-def clean_unit_str(val):
-    """Strips slashes and spacing to guarantee 100% matching against payload."""
-    if not val:
+def clean_str(val):
+    """Normalizes string for bulletproof equality comparison."""
+    if not val or pd.isna(val):
         return ""
-    return str(val).replace("/", "").replace("_", "").replace(" ", "").strip().upper()
+    return str(val).replace("/", "").replace("_", "").replace(" ", "").replace("-", "").strip().upper()
 
 
 def extract_field(rec, keywords):
@@ -56,7 +56,7 @@ def extract_field(rec, keywords):
 
 
 def parse_record_25_submissions(raw_df):
-    """Parses Record 25 Ice Machine cleaning submissions."""
+    """Parses Record 25 Ice Machine cleaning submissions with robust normalizers."""
     if raw_df.empty:
         return pd.DataFrame()
 
@@ -69,7 +69,7 @@ def parse_record_25_submissions(raw_df):
     for _, record in raw_df.iterrows():
         rec = record.to_dict()
 
-        # Date normalization
+        # 1. Date normalization
         raw_date = (
             rec.get("submission.Date")
             or rec.get("Date")
@@ -89,14 +89,16 @@ def parse_record_25_submissions(raw_df):
             date_str = str(raw_date)[:10]
             date_obj = None
 
+        # 2. Location
         location = str(
             rec.get("submission.Location")
             or rec.get("Location")
+            or (rec.get("submission") or {}).get("Location")
             or extract_field(rec, ["locationother", "location"])
             or "General Area"
         ).strip()
 
-        # Raw Ice Machine Number
+        # 3. Ice Machine Number
         raw_unit = (
             rec.get("submission.Ice_Machine_Number")
             or rec.get("submission.Ice Machine Number")
@@ -105,19 +107,19 @@ def parse_record_25_submissions(raw_df):
             or ""
         )
 
-        clean_raw = clean_unit_str(raw_unit)
+        clean_raw_unit = clean_str(raw_unit)
         matched_id = None
         matched_loc = location
 
         for m in flat_master:
-            if clean_raw == clean_unit_str(m["Unit_ID"]):
+            if clean_raw_unit == clean_str(m["Unit_ID"]):
                 matched_id = m["Unit_ID"]
                 matched_loc = m["Location"]
                 break
 
         final_unit = matched_id if matched_id else str(raw_unit).strip()
 
-        # In Use / Not In Use
+        # 4. In Use / Not In Use
         status_raw = str(
             rec.get("submission.In_Use_Not_In_Use")
             or rec.get("In Use / Not In Use")
@@ -139,6 +141,7 @@ def parse_record_25_submissions(raw_df):
             "Date_Obj": date_obj,
             "Location": matched_loc,
             "Unit_ID": final_unit,
+            "Clean_Unit": clean_str(final_unit),
             "In_Use": is_in_use,
             "Status_Text": status_raw,
             "Sign": str(sign).strip(),
@@ -300,8 +303,11 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
         for location in locations_to_show:
             units = ICE_MACHINE_CATALOG[location]
+            
+            # Match location flexibly
+            loc_clean = clean_str(location)
             loc_df = (
-                range_df[range_df["Location"].str.lower() == location.lower()]
+                range_df[range_df["Location"].apply(clean_str).str.contains(loc_clean[:5])]
                 if not range_df.empty
                 else pd.DataFrame()
             )
@@ -335,21 +341,28 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
             st.write("")
 
             for u in units:
-                unit = u["Unit_ID"]
+                unit_id = u["Unit_ID"]
+                unit_clean = clean_str(unit_id)
+
                 row_cols = st.columns([1.6, 1, 1, 1, 1, 1, 1, 1])
 
                 row_cols[0].markdown(f"""
                 <div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:8px 6px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:105px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                    <div style="font-weight:700; color:#0f172a; font-size:0.85rem;">{unit}</div>
+                    <div style="font-weight:700; color:#0f172a; font-size:0.85rem;">{unit_id}</div>
                     <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">{location}</div>
                 </div>
                 """, unsafe_allow_html=True)
 
-                u_df = loc_df[loc_df["Unit_ID"] == unit] if not loc_df.empty else pd.DataFrame()
+                # Match by normalized unit string (e.g. RMOFKIM01 matches RMO/FK/IM/01)
+                u_df = loc_df[loc_df["Clean_Unit"] == unit_clean] if not loc_df.empty else pd.DataFrame()
 
                 for i, d in enumerate(page_dates):
-                    d_str = d.strftime("%d/%m/%Y")
-                    matches = u_df[u_df["Date_Str"] == d_str] if not u_df.empty else pd.DataFrame()
+                    # Match by date object or formatted string
+                    matches = (
+                        u_df[u_df["Date_Obj"] == d]
+                        if (not u_df.empty and "Date_Obj" in u_df.columns and pd.notna(d))
+                        else pd.DataFrame()
+                    )
 
                     if matches.empty:
                         row_cols[i + 1].markdown("""
