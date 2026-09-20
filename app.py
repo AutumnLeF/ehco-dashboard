@@ -177,6 +177,7 @@ elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
         unsafe_allow_html=True,
     )
     render_record_05_view(raw_records_df)
+    
 else:
     st.info(f"Module for {selected_record} will load here.")
 
