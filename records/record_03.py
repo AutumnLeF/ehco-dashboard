@@ -129,25 +129,22 @@ def parse_record_03_submissions(raw_df):
             or ""
         )
         
-        parsed_dt = pd.to_datetime(raw_date, errors="coerce")
-        if pd.isna(parsed_dt):
-            parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
-
+       parsed_dt = pd.to_datetime(raw_date, errors="coerce")
         if pd.notna(parsed_dt):
-            date_str = parsed_dt.strftime("%d/%m/%Y")
-            date_obj = parsed_dt.date()
+            # Convert UTC/naive timestamps to IST (Asia/Kolkata)
+            if parsed_dt.tzinfo is None:
+                parsed_dt = parsed_dt.tz_localize("UTC")
+            parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
+            
+            date_str = parsed_dt_ist.strftime("%d/%m/%Y")
+            date_obj = parsed_dt_ist.date()
+            time_clean = parsed_dt_ist.strftime("%I:%M %p")
+            ts_dt = parsed_dt_ist.tz_localize(None) # Strip tz for clean comparison
         else:
             date_str = str(raw_date)[:10]
             date_obj = None
-
-        raw_time_iso = str(sub.get("Time") or sub.get("time") or "").strip()
-        time_dt = pd.to_datetime(raw_time_iso, errors="coerce")
-        if pd.notna(time_dt):
-            time_clean = time_dt.strftime("%I:%M %p")
-            ts_dt = time_dt
-        else:
-            time_clean = raw_time_iso[:8]
-            ts_dt = pd.to_datetime(f"{date_str} {time_clean}", errors="coerce")
+            time_clean = ""
+            ts_dt = None
 
         location = str(sub.get("Location") or "").strip()
 
