@@ -299,9 +299,18 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
 
         # Render ONLY active locations present in the parsed rows
         if not range_df.empty and "Location" in range_df.columns:
-            active_kitchens = [k for k in sorted(list(range_df["Location"].dropna().unique())) if k.strip() != ""]
+            counts_by_loc = range_df["Location"].value_counts()
+          active_kitchens = [
+              loc
+              for loc in counts_by_loc.index
+              if loc and str(loc).strip() != ""
+          ]
         else:
-            active_kitchens = ["Black Lacquer Kitchen"]
+          active_kitchens = ["Black Lacquer Kitchen"]
+
+        # Ensure active_kitchens only contains valid entries
+        if not active_kitchens:
+          active_kitchens = ["Black Lacquer Kitchen"]
 
         for kitchen in active_kitchens:
             row_cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
