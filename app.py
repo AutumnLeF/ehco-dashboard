@@ -190,8 +190,11 @@ if api_token and api_url:
 # ROUTE TO RECORD MODULES
 # -------------------------------------------------------------
 if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
-    st.markdown('<div class="serif-title">Cooking & Reheating Shift Audit</div>', unsafe_allow_html=True)
-    render_record_04_view(raw_records_df)
+    st.markdown(
+        '<div class="serif-title">Record 04: Cooking & Reheating Shift Audit</div>',
+        unsafe_allow_html=True,
+    )
+    render_record_04_view(raw_records_df, date_slash)
 
 elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
     st.markdown('<div class="serif-title">Blast Chiller & Cooling Audit</div>', unsafe_allow_html=True)
