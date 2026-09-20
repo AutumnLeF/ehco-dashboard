@@ -245,7 +245,6 @@ with st.expander("🛠️ Raw Data & Date Diagnostic (Click to inspect)"):
     render_record_04_view(
         raw_records_df, selected_day_str, start_date, end_date
     )
-
 elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
     st.markdown('<div class="serif-title">Blast Chiller & Cooling Audit</div>', unsafe_allow_html=True)
     render_record_05_view(raw_records_df)
