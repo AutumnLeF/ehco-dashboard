@@ -103,21 +103,22 @@ st.markdown("""
 # -------------------------------------------------------------
 st.sidebar.title("⚙️ Inspection Controls")
 
+# In Section 2 of app.py:
 today = datetime.now(timezone.utc).date()
-default_start_30d = today - timedelta(days=30)
+default_start_7d = today - timedelta(days=6)  # Exactly 7 days
 
 date_selection = st.sidebar.date_input(
-    "Audit Date Range (1 Month)",
-    value=[default_start_30d, today],
+    "Audit Date Range (7 Days)",
+    value=[default_start_7d, today],
     max_value=today,
 )
 
 if isinstance(date_selection, (list, tuple)) and len(date_selection) == 2:
-    start_date, end_date = date_selection
+  start_date, end_date = date_selection
 elif isinstance(date_selection, (list, tuple)) and len(date_selection) == 1:
-    start_date = end_date = date_selection[0]
+  start_date = end_date = date_selection[0]
 else:
-    start_date = end_date = date_selection
+  start_date = end_date = date_selection
 
 delta_days = (end_date - start_date).days
 day_options = [
@@ -181,49 +182,56 @@ else:
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
 
-def fetch_submissions(url, token, form_id):
-    """Paginates form-store descending (newest first) up to 2000 records."""
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0",
-        "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
-        "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
+def fetch_submissions(url, token, form_id, start_dt):
+  """Fetches submissions scoped to the date window using pagination."""
+  headers = {
+      "Authorization": f"Bearer {token}",
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "User-Agent": "Mozilla/5.0",
+      "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
+      "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
+  }
+  all_rows = []
+  page_size = 50
+  offset = 0
+  iso_start = f"{start_dt.isoformat()}T00:00:00.000Z"
+
+  while True:
+    payload = {
+        "formId": form_id,
+        "limit": page_size,
+        "offset": offset,
+        "submissionTimestampFrom": iso_start,  # Scopes directly to the 7-day window
+        "unwindRepeatableSets": True,
     }
-    all_rows = []
-    page_size = 50
-    offset = 0
+    try:
+      res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
+      if res.status_code != 200:
+        # Fallback without submissionTimestampFrom if server rejects query param
+        payload.pop("submissionTimestampFrom", None)
+        res = requests.post(
+            url.strip(), headers=headers, json=payload, timeout=20
+        )
+        if res.status_code != 200:
+          break
 
-    while True:
-        payload = {
-            "formId": form_id,
-            "limit": page_size,
-            "offset": offset,
-            "sort": {"createdAt": -1},  # Force newest records first
-            "unwindRepeatableSets": True,
-        }
-        try:
-            res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
-            if res.status_code != 200:
-                break
-            data = res.json()
-            items = data.get("submissions", []) if isinstance(data, dict) else data
-            if not items:
-                break
+      data = res.json()
+      items = data.get("submissions", []) if isinstance(data, dict) else data
+      if not items:
+        break
 
-            all_rows.extend(items)
+      all_rows.extend(items)
+      if len(items) < page_size:
+        break
 
-            if len(items) < page_size:
-                break
+      offset += page_size
+      if offset >= 1000:
+        break
+    except Exception:
+      break
 
-            offset += page_size
-            if offset >= 2000:
-                break
-        except Exception:
-            break
-
-    return all_rows
+  return all_rows
 
 # Ingest data only if cache is empty or user manually pressed "Sync Live Feed"
 if st.session_state[cache_key].empty or force_refresh:
