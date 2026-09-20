@@ -54,13 +54,42 @@ selected_record = st.selectbox(
     ],
 )
 
-# Sidebar for date & token
+from datetime import datetime, timedelta, timezone
+
+# -------------------------------------------------------------
+# SIDEBAR DATE RANGE PICKER (DEFAULT: LAST 14 DAYS)
+# -------------------------------------------------------------
 st.sidebar.title("⚙️ Inspection Controls")
-target_date = st.sidebar.date_input(
-    "Audit Date", value=datetime.now(timezone.utc).date()
+
+today = datetime.now(timezone.utc).date()
+default_start = today - timedelta(days=14)
+
+# Passing a 2-element list creates a date range picker
+date_selection = st.sidebar.date_input(
+    "Audit Date Range (10-15 Days)",
+    value=[default_start, today],
+    max_value=today,
 )
-date_slash = target_date.strftime("%d/%m/%Y")  # e.g., 19/09/2026
-date_iso = target_date.strftime("%Y-%m-%d")    # e.g., 2026-09-19
+
+# Handle selection: user may click only 1 date while selecting the range
+if isinstance(date_selection, (list, tuple)) and len(date_selection) == 2:
+    start_date, end_date = date_selection
+elif isinstance(date_selection, (list, tuple)) and len(date_selection) == 1:
+    start_date = end_date = date_selection[0]
+else:
+    start_date = end_date = date_selection
+
+# Single-day drilldown selector within the chosen range
+delta_days = (end_date - start_date).days
+day_options = [
+    (start_date + timedelta(days=i)).strftime("%d/%m/%Y")
+    for i in range(delta_days + 1)
+]
+
+selected_day_str = st.sidebar.selectbox(
+    "Focus Day for Drill-down",
+    options=list(reversed(day_options)),  # Most recent first
+)
 
 if "raw_records_df" not in locals():
     raw_records_df = pd.DataFrame()
