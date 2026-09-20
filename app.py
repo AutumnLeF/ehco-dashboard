@@ -129,16 +129,16 @@ selected_day_str = st.sidebar.selectbox(
     "Focus Day for Drill-down", options=list(reversed(day_options)), key="sb_day_focus_select"
 )
 
-# Initialize session state for token if not present
+DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
+
+# Initialize session state for token persistence
 if "auth_token" not in st.session_state:
-active_token = st.session_state.get("auth_token", DEFAULT_TOKEN).strip()
-clean_token = active_token.replace("Bearer ", "").strip()
+    st.session_state["auth_token"] = DEFAULT_TOKEN.strip()
 
 api_url = st.sidebar.text_input(
     "Endpoint URL", value="https://auth-api.blinkm.io/form-store", key="sb_api_endpoint_input"
 )
 
-# Use a text_input or text_area that syncs with session state
 token_input = st.sidebar.text_area(
     "Bearer Token", 
     value=st.session_state["auth_token"], 
@@ -146,10 +146,12 @@ token_input = st.sidebar.text_area(
     key="sb_bearer_token_input"
 )
 
-# Update session state when user pastes a new token
 if token_input != st.session_state["auth_token"]:
     st.session_state["auth_token"] = token_input.strip()
-    
+
+active_token = st.session_state.get("auth_token", DEFAULT_TOKEN).strip()
+clean_token = active_token.replace("Bearer ", "").strip()
+
 # -------------------------------------------------------------
 # 3. RECORD SELECTOR & DYNAMIC FORM ID
 # -------------------------------------------------------------
