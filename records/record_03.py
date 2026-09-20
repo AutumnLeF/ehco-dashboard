@@ -2,11 +2,10 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
-MAX_FRIDGE_TEMP = 4.0     # Coolroom/Fridge must be <= 4.0°C
+MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge must be <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer must be <= -18.0°C
 MIN_GAP_HOURS = 5.0       # At least 5 hours between shift checks
 
-# MASTER INVENTORY OF 49 UNITS ACROSS 8 LOCATIONS
 UNIT_CATALOG = {
     "Filia Kitchen": [
         {"Unit_ID": "RMO/FK/UC/01", "Name": "Undercounter Chiller 01", "Type": "Fridge"},
@@ -80,7 +79,7 @@ UNIT_CATALOG = {
 }
 
 
-def clean_unit_str(val):
+def clean_unit_token(val):
     if not val or pd.isna(val):
         return ""
     return str(val).replace("/", "").replace("_", "").replace(" ", "").replace("-", "").strip().upper()
@@ -97,9 +96,8 @@ def parse_record_03_submissions(raw_df):
             flat_master.append({
                 "Location": loc,
                 "Unit_ID": u["Unit_ID"],
-                "Name": u["Name"],
                 "Type": u["Type"],
-                "Clean_ID": clean_unit_str(u["Unit_ID"]),
+                "Clean_ID": clean_unit_token(u["Unit_ID"]),
             })
 
     rows = []
@@ -142,7 +140,7 @@ def parse_record_03_submissions(raw_df):
         if pd.isna(ts_dt):
             ts_dt = pd.to_datetime(f"{date_str} {raw_time}", errors="coerce")
 
-        # 3. Location
+        # 3. Location from submission
         location = str(
             sub.get("Location")
             or rec.get("submission.Location")
@@ -164,13 +162,13 @@ def parse_record_03_submissions(raw_df):
             raw_unit = raw_unit[0]
         raw_unit_str = str(raw_unit).strip()
 
-        clean_unit = clean_unit_str(raw_unit_str)
+        clean_u = clean_unit_token(raw_unit_str)
         matched_id = None
         matched_loc = location
         matched_type = str(sub.get("Coolroom/Fridge/Freezer") or "Fridge").capitalize()
 
         for m in flat_master:
-            if clean_unit == m["Clean_ID"]:
+            if clean_u == m["Clean_ID"]:
                 matched_id = m["Unit_ID"]
                 matched_loc = m["Location"]
                 matched_type = m["Type"]
@@ -178,7 +176,7 @@ def parse_record_03_submissions(raw_df):
 
         final_unit = matched_id if matched_id else raw_unit_str
 
-        # 5. In Use / Not In Use
+        # 5. In Use
         status_raw = str(
             sub.get("In Use / Not In Use")
             or rec.get("submission.In Use / Not In Use")
@@ -224,7 +222,7 @@ def parse_record_03_submissions(raw_df):
             "Time": time_clean,
             "Location": matched_loc,
             "Unit_ID": final_unit,
-            "Clean_Unit": clean_unit_str(final_unit),
+            "Clean_Unit": clean_unit_token(final_unit),
             "Unit_Type": matched_type,
             "In_Use": is_in_use,
             "Temp": final_temp,
@@ -240,14 +238,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
     """Renders Record 03 with master catalog and clear 7-day grid."""
     df_items = parse_record_03_submissions(raw_df)
 
-    if not df_items.empty and "Date_Obj" in df_items.columns and df_items["Date_Obj"].notna().any():
-        range_df = df_items[
-            (df_items["Date_Obj"] >= start_date)
-            & (df_items["Date_Obj"] <= end_date)
-        ]
-    else:
-        range_df = df_items.copy()
-
     tab_day, tab_matrix = st.tabs([
         f"📅 Daily Unit Temperature Audit ({selected_day_str})",
         "📈 7-Day Grouped Location Matrix (49 Units)"
@@ -258,8 +248,8 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
     # -------------------------------------------------------------
     with tab_day:
         day_df = (
-            range_df[range_df["Date_Str"] == selected_day_str]
-            if not range_df.empty
+            df_items[df_items["Date_Str"] == selected_day_str]
+            if not df_items.empty
             else pd.DataFrame()
         )
 
@@ -368,7 +358,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
 
         for location in locations_to_show:
             units = UNIT_CATALOG.get(location, [])
-            loc_df = range_df[range_df["Location"].str.lower() == location.lower()] if not range_df.empty else pd.DataFrame()
 
             st.markdown(f"""
             <div style="background:#0f172a; color:#ffffff; padding:10px 14px; border-radius:6px; margin-top:1.4rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center;">
@@ -387,11 +376,10 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             for u in units:
                 unit_id = u["Unit_ID"]
                 unit_type = u["Type"]
-                clean_target = clean_unit_str(unit_id)
+                clean_target = clean_unit_token(unit_id)
 
                 row_cols = st.columns(col_ratios)
 
-                # Left Unit ID & Type Cell
                 row_cols[0].markdown(f"""
                 <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 8px; min-height:82px; display:flex; flex-direction:column; justify-content:center;">
                     <div style="font-weight:700; font-size:0.84rem; color:#0f172a;">{unit_id}</div>
@@ -399,7 +387,8 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 </div>
                 """, unsafe_allow_html=True)
 
-                u_df = loc_df[loc_df["Clean_Unit"] == clean_target] if not loc_df.empty else pd.DataFrame()
+                # Filter directly by Unit ID token across entire dataset
+                u_df = df_items[df_items["Clean_Unit"] == clean_target] if not df_items.empty else pd.DataFrame()
 
                 for i, d in enumerate(page_dates):
                     d_str = d.strftime("%d/%m/%Y")
@@ -419,7 +408,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                         entries = matches.sort_values(by="Time").to_dict("records")
                         has_day_breach = any(e["Has_Breach"] for e in entries)
 
-                        # Gap between Shift 1 & Shift 2
                         gap_warning = False
                         gap_txt = ""
                         if len(entries) >= 2:
@@ -461,14 +449,3 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                         )
 
             st.write("")
-
-        st.divider()
-
-        with st.expander("📋 View All Individual Temperature Records (Raw Log Table)"):
-            if not range_df.empty:
-                show_cols = [
-                    c for c in [
-                        "Date_Str", "Time", "Location", "Unit_Type", "Unit_ID", "Temp_Disp", "Sign"
-                    ] if c in range_df.columns
-                ]
-                st.dataframe(range_df[show_cols], use_container_width=True, hide_index=True)
