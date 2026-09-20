@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 import json
+import pytz
 import pandas as pd
 import requests
 import streamlit as st
@@ -14,6 +15,8 @@ from records.record_13 import render_record_13_view
 from records.record_15 import render_record_15_view
 from records.record_21 import render_record_21_view
 from records.record_25 import render_record_25_view
+
+IST = pytz.timezone("Asia/Kolkata")
 
 st.set_page_config(
     page_title="Kitchen Safety Core",
@@ -197,8 +200,8 @@ else:
     st.sidebar.caption("🕒 Cache: Pending Load")
 
 
-def fetch_submissions(url, token, form_id, start_dt, end_dt):
-    """Fetches submissions day-by-day to bypass broken server-side offsets."""
+def fetch_submissions(url, token, form_id):
+    """Paginates form-store using the exact nested paging & sorting payload from OneBlink portal."""
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -209,40 +212,50 @@ def fetch_submissions(url, token, form_id, start_dt, end_dt):
     }
 
     all_rows = []
+    current_offset = 0
     base_url = url.strip()
 
-    current_date = start_dt
-    while current_date <= end_dt:
-        next_date = current_date + timedelta(days=1)
-        
-        iso_from = f"{current_date.isoformat()}T00:00:00.000Z"
-        iso_to = f"{next_date.isoformat()}T00:00:00.000Z"
-
+    # Loop up to 20 pages (1,000 records) safely
+    for page in range(20):
         payload = {
             "formId": form_id,
-            "limit": 200,
-            "submissionTimestampFrom": iso_from,
-            "submissionTimestampTo": iso_to,
+            "paging": {
+                "limit": 50,
+                "offset": current_offset
+            },
+            "sorting": [
+                {
+                    "property": "dateTimeSubmitted",
+                    "direction": "descending"
+                }
+            ],
             "unwindRepeatableSets": True,
         }
 
         try:
             res = requests.post(base_url, headers=headers, json=payload, timeout=20)
-            if res.status_code == 200:
-                data = res.json()
-                items = data.get("submissions", []) if isinstance(data, dict) else data
-                if items:
-                    all_rows.extend(items)
-                    st.sidebar.text(f"📅 {current_date.strftime('%d/%m/%Y')}: +{len(items)} logs")
-            else:
-                st.sidebar.warning(f"Day {current_date} failed: HTTP {res.status_code}")
-        except Exception as e:
-            st.sidebar.error(f"Error on {current_date}: {e}")
+            if res.status_code != 200:
+                st.sidebar.error(f"Offset {current_offset} failed: HTTP {res.status_code}")
+                break
 
-        current_date = next_date
+            data = res.json()
+            items = data.get("submissions", []) if isinstance(data, dict) else data
+            if not items:
+                break
+
+            all_rows.extend(items)
+            st.sidebar.text(f"Offset {current_offset} ➔ Got {len(items)} rows")
+
+            if len(items) < 50:
+                break
+
+            current_offset += 50
+
+        except Exception as e:
+            st.sidebar.error(f"Error: {e}")
+            break
 
     return all_rows
-
 
 if cache_key not in st.session_state or st.session_state[cache_key].empty:
     active_token = token_input.strip() if token_input else DEFAULT_TOKEN.strip()
