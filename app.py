@@ -182,52 +182,48 @@ else:
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
 
 def fetch_submissions(url, token, form_id):
-  """Paginates form-store in 50-row chunks until all records are collected."""
-  headers = {
-      "Authorization": f"Bearer {token}",
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-      "User-Agent": "Mozilla/5.0",
-      "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
-      "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
-  }
-  all_rows = []
-  page_size = 50  # Hard ceiling enforced by auth-api.blinkm.io
-  offset = 0
-
-  while True:
-    payload = {
-        "formId": form_id,
-        "limit": page_size,
-        "offset": offset,
-        "unwindRepeatableSets": True,
+    """Paginates form-store descending (newest first) up to 2000 records."""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0",
+        "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
+        "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
     }
-    try:
-      res = requests.post(
-          url.strip(), headers=headers, json=payload, timeout=20
-      )
-      if res.status_code != 200:
-        break
-      data = res.json()
-      items = data.get("submissions", []) if isinstance(data, dict) else data
-      if not items:
-        break
+    all_rows = []
+    page_size = 50
+    offset = 0
 
-      all_rows.extend(items)
+    while True:
+        payload = {
+            "formId": form_id,
+            "limit": page_size,
+            "offset": offset,
+            "sort": {"createdAt": -1},  # Force newest records first
+            "unwindRepeatableSets": True,
+        }
+        try:
+            res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
+            if res.status_code != 200:
+                break
+            data = res.json()
+            items = data.get("submissions", []) if isinstance(data, dict) else data
+            if not items:
+                break
 
-      # If fewer than page_size items are returned, we have reached the end
-      if len(items) < page_size:
-        break
+            all_rows.extend(items)
 
-      offset += page_size
+            if len(items) < page_size:
+                break
 
-      # Safety boundary (up to 2,000 logs)
-      if offset >= 2000:
-        break
-    except Exception:
-      break
+            offset += page_size
+            if offset >= 2000:
+                break
+        except Exception:
+            break
 
-  return all_rows
+    return all_rows
 
 # Ingest data only if cache is empty or user manually pressed "Sync Live Feed"
 if st.session_state[cache_key].empty or force_refresh:
