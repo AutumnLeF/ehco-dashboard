@@ -15,8 +15,6 @@ from records.record_15 import render_record_15_view
 from records.record_21 import render_record_21_view
 from records.record_25 import render_record_25_view
 
-IST = pytz.timezone("Asia/Kolkata")
-
 st.set_page_config(
     page_title="Kitchen Safety Core",
     page_icon="🛡️",
