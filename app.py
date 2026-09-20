@@ -1,20 +1,24 @@
-from datetime import datetime, timezone
-import numpy as np
+import os
+import json
+from datetime import datetime, timedelta, timezone
 import pandas as pd
 import requests
 import streamlit as st
 
-# Import the Record 04 module
+# Import the Record 04 and Record 05 modules
 from records.record_04 import render_record_04_view
 from records.record_05 import render_record_05_view
 
 st.set_page_config(
-    page_title="Kitchen Safety Core", page_icon="🛡️", layout="wide"
+    page_title="Kitchen Safety Core",
+    page_icon="🛡️",
+    layout="wide"
 )
 
-# Custom Editorial Styling
-st.markdown(
-    """
+# -------------------------------------------------------------
+# 1. EDITORIAL STYLING
+# -------------------------------------------------------------
+st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500&family=Inter:wght@400;500;600&display=swap');
     .stApp { background-color: #fcfbf9; font-family: 'Inter', sans-serif; color: #2b2b2b; }
@@ -27,51 +31,34 @@ st.markdown(
     .kanban-h { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding-bottom: 0.6rem; border-bottom: 1px solid #f2eee9; margin-bottom: 1rem; }
     .check-card { padding: 0.85rem; border-radius: 8px; background: #ffffff; border: 1px solid #ede9e1; margin-bottom: 0.6rem; }
 </style>
-""",
-    unsafe_allow_html=True,
-)
+""", unsafe_allow_html=True)
 
 # Top Bar
-st.markdown(
-    '<div class="sub-head">Today • Food-Safety Core</div>',
-    unsafe_allow_html=True,
-)
+st.markdown('<div class="sub-head">Today • Food-Safety Core</div>', unsafe_allow_html=True)
 
 # Record Switcher
 selected_record = st.selectbox(
     "SELECT FOOD SAFETY RECORD",
     [
         "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD",
-        "RECORD 02 - FOOD DELIVERY RECORD",
-        "RECORD 03 - FOOD STORAGE TEMPERATURE RECORD",
-        "RECORD 05 - COOLING OF FOOD RECORD",
-        "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD",
-        "RECORD 12 - DEFROSTING RECORD",
-        "RECORD 13 - DISHWASHER / GLASSWASHER TEMPERATURE RECORD",
-        "RECORD 15 - PESTICIDE USAGE RECORD",
-        "RECORD 21 - FOOD WASHING RECORD",
-        "RECORD 25 - ICE MACHINE CLEANING RECORD",
-    ],
+        "RECORD 05 - COOLING OF FOOD RECORD"
+    ]
 )
 
-from datetime import datetime, timedelta, timezone
-
 # -------------------------------------------------------------
-# SIDEBAR DATE RANGE PICKER (DEFAULT: LAST 14 DAYS)
+# 2. SIDEBAR CONTROLS & DATE RANGE
 # -------------------------------------------------------------
 st.sidebar.title("⚙️ Inspection Controls")
 
 today = datetime.now(timezone.utc).date()
 default_start = today - timedelta(days=14)
 
-# Passing a 2-element list creates a date range picker
 date_selection = st.sidebar.date_input(
     "Audit Date Range (10-15 Days)",
     value=[default_start, today],
-    max_value=today,
+    max_value=today
 )
 
-# Handle selection: user may click only 1 date while selecting the range
 if isinstance(date_selection, (list, tuple)) and len(date_selection) == 2:
     start_date, end_date = date_selection
 elif isinstance(date_selection, (list, tuple)) and len(date_selection) == 1:
@@ -79,28 +66,21 @@ elif isinstance(date_selection, (list, tuple)) and len(date_selection) == 1:
 else:
     start_date = end_date = date_selection
 
-# Single-day drilldown selector within the chosen range
 delta_days = (end_date - start_date).days
 day_options = [
     (start_date + timedelta(days=i)).strftime("%d/%m/%Y")
     for i in range(delta_days + 1)
 ]
-
 selected_day_str = st.sidebar.selectbox(
     "Focus Day for Drill-down",
-    options=list(reversed(day_options)),  # Most recent first
+    options=list(reversed(day_options))
 )
 
-if "raw_records_df" not in locals():
-    raw_records_df = pd.DataFrame()
-
-api_token = st.sidebar.text_input("Cognito Bearer Token", type="password")
-api_url = st.sidebar.text_input(
-    "Endpoint URL", value="https://example.com/form-store"
-)
+api_url = st.sidebar.text_input("Endpoint URL", value="https://auth-api.blinkm.io/form-store")
+token_input = st.sidebar.text_area("Bearer Token", height=90, placeholder="Paste Cognito Bearer token here...")
 
 # -------------------------------------------------------------
-# LIVE DATA FETCHER & RESPONSE DEBUGGER
+# 3. LIVE DATA FETCHER & RESPONSE DEBUGGER
 # -------------------------------------------------------------
 raw_records_df = pd.DataFrame()
 api_status_code = None
@@ -111,9 +91,10 @@ if api_url and token_input:
     headers = {
         "Authorization": f"Bearer {clean_token}",
         "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0",
+        "User-Agent": "Mozilla/5.0"
     }
-    # Form 31374 for Record 04
+    
+    # Query parameters
     params = {"limit": 250, "formId": 31374}
 
     try:
@@ -138,38 +119,14 @@ if api_url and token_input:
                 raw_records_df = pd.json_normalize(items)
                 st.sidebar.success(f"✓ Retrieved {len(raw_records_df)} records")
             else:
-                st.sidebar.warning("API returned 200 OK, but no records list was found in payload.")
+                st.sidebar.warning("API returned 200 OK, but no items list was found in payload.")
         else:
             st.sidebar.error(f"API Error HTTP {res.status_code}")
     except Exception as e:
         st.sidebar.error(f"Connection failed: {e}")
-)
 
 # -------------------------------------------------------------
-# DATA RETRIEVAL / FALLBACK DEFINITION
-# -------------------------------------------------------------
-# 1. Initialize raw_records_df as an empty DataFrame by default
-raw_records_df = pd.DataFrame()
-
-# 2. If API token & URL are entered, fetch live submissions
-if api_token and api_url:
-    try:
-        headers = {
-            "Authorization": f"Bearer {api_token}",
-            "Accept": "application/json",
-            "User-Agent": "Mozilla/5.0"
-        }
-        res = requests.get(api_url, headers=headers, timeout=12)
-        if res.status_code == 200:
-            submissions = res.json().get("submissions", [])
-            raw_records_df = pd.json_normalize(submissions)
-        else:
-            st.sidebar.error(f"API Error: HTTP {res.status_code}")
-    except Exception as e:
-        st.sidebar.error(f"Fetch failed: {e}")
-
-# -------------------------------------------------------------
-# ROUTE TO RECORD MODULES
+# 4. ROUTE TO RECORD MODULES
 # -------------------------------------------------------------
 if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
     st.markdown('<div class="serif-title">Record 04: Cooking & Reheating Shift Audit</div>', unsafe_allow_html=True)
@@ -183,7 +140,7 @@ else:
     st.info(f"Module for {selected_record} will load here.")
 
 # -------------------------------------------------------------
-# DIAGNOSTIC PANEL
+# 5. DIAGNOSTIC PANEL
 # -------------------------------------------------------------
 st.divider()
 st.subheader("🛠️ Raw Data Diagnostic")
