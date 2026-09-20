@@ -227,19 +227,15 @@ if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
         '<div class="serif-title">Record 04: Cooking & Reheating Shift Audit</div>',
         unsafe_allow_html=True,
     )
-    with st.expander("🛠️ Raw Data & Date Diagnostic (Click to inspect)"):
-    st.write(f"Total raw records loaded: {len(raw_records_df)}")
-    if not raw_records_df.empty:
-        # Check potential formId columns
-        id_cols = [c for c in raw_records_df.columns if "formid" in c.lower()]
-        st.write("Form ID columns found:", id_cols)
-        if id_cols:
-            st.write("Unique Form IDs present:", raw_records_df[id_cols[0]].unique())
+   st.subheader("🛠️ Raw Data Diagnostic")
+st.write(f"Total raw records loaded: {len(raw_records_df)}")
 
-        # Check potential Date columns and raw sample values
-        date_cols = [c for c in raw_records_df.columns if "date" in c.lower() or "created" in c.lower()]
-        st.write("Date columns found:", date_cols)
-        st.dataframe(raw_records_df[date_cols + id_cols].head(5), use_container_width=True)
+if not raw_records_df.empty:
+    id_cols = [c for c in raw_records_df.columns if "formid" in c.lower()]
+    date_cols = [c for c in raw_records_df.columns if "date" in c.lower() or "created" in c.lower()]
+    st.write("Form ID columns found:", id_cols)
+    st.write("Date columns found:", date_cols)
+    st.dataframe(raw_records_df[date_cols + id_cols].head(5))
         
     render_record_04_view(
         raw_records_df, selected_day_str, start_date, end_date
