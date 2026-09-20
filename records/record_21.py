@@ -8,33 +8,34 @@ TARGET_MINUTES = 5.0    # Contact time must be 5 minutes
 
 def extract_field(rec, keywords):
     """Deep search for matching keywords across flat or nested keys."""
+    if not isinstance(rec, dict):
+        return None
     clean_targets = [k.lower().replace("_", "").replace(" ", "").replace(".", "") for k in keywords]
-    if isinstance(rec, dict):
-        for k, v in rec.items():
-            if v is None:
-                continue
-            k_norm = k.lower().replace("_", "").replace(" ", "").replace(".", "")
-            for target in clean_targets:
-                if target in k_norm:
-                    if not isinstance(v, (dict, list)):
-                        s_val = str(v).strip()
-                        if s_val and s_val.lower() not in ["none", "nan"]:
-                            return v
-            if isinstance(v, dict):
-                found = extract_field(v, keywords)
-                if found is not None:
-                    return found
-            elif isinstance(v, list):
-                for elem in v:
-                    if isinstance(elem, dict):
-                        found = extract_field(elem, keywords)
-                        if found is not None:
-                            return found
+    for k, v in rec.items():
+        if v is None:
+            continue
+        k_norm = k.lower().replace("_", "").replace(" ", "").replace(".", "")
+        for target in clean_targets:
+            if target in k_norm:
+                if not isinstance(v, (dict, list)):
+                    s_val = str(v).strip()
+                    if s_val and s_val.lower() not in ["none", "nan", ""]:
+                        return v
+        if isinstance(v, dict):
+            found = extract_field(v, keywords)
+            if found is not None:
+                return found
+        elif isinstance(v, list):
+            for elem in v:
+                if isinstance(elem, dict):
+                    found = extract_field(elem, keywords)
+                    if found is not None:
+                        return found
     return None
 
 
 def parse_record_21_submissions(raw_df):
-    """Parses Record 21 Chlorine Food Wash submissions."""
+    """Parses Record 21 Chlorine Food Wash submissions handling single or array entries."""
     if raw_df.empty:
         return pd.DataFrame()
 
@@ -43,7 +44,12 @@ def parse_record_21_submissions(raw_df):
         rec = record.to_dict()
 
         # Date normalization
-        raw_date = extract_field(rec, ["date", "createdat", "submissiondate"]) or ""
+        raw_date = (
+            rec.get("submission.Date")
+            or rec.get("Date")
+            or extract_field(rec, ["date", "createdat", "submissiondate"])
+            or ""
+        )
         parsed_dt = pd.to_datetime(raw_date, errors="coerce")
         if pd.isna(parsed_dt):
             parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
@@ -55,51 +61,91 @@ def parse_record_21_submissions(raw_df):
             date_str = str(raw_date)[:10]
             date_obj = None
 
-        time_str = str(extract_field(rec, ["time", "submissiontime"]) or "")[:8]
-        location = extract_field(rec, ["locationother", "location"]) or "Black Lacquer Kitchen"
+        time_str = str(rec.get("submission.Time") or rec.get("Time") or extract_field(rec, ["time"]) or "")[:8]
+        location = (
+            rec.get("submission.Location")
+            or rec.get("Location")
+            or extract_field(rec, ["locationother", "location"])
+            or "Black Lacquer Kitchen"
+        ).strip()
 
-        # Food item resolution (Checks 'Type of food (Other)' first if present, then 'Type of Food')
-        food_other = str(extract_field(rec, ["typeoffoodother", "foodother", "otherfood"]) or "").strip()
-        food_main = str(extract_field(rec, ["typeoffood", "foodtype", "food"]) or "").replace("•", "").strip()
+        sign = rec.get("submission.Sign") or rec.get("Sign") or extract_field(rec, ["signinitial", "sign", "initial"]) or "Staff"
 
-        if food_other and food_other.lower() not in ["none", "nan", ""]:
-            food_item = food_other
-        elif food_main and food_main.lower() not in ["other", "none", "nan", ""]:
-            food_item = food_main
-        else:
-            food_item = "Salad Greens"
+        # Check if form submission contains repeated sub-entries (like in Record 13)
+        sub_entries = (
+            rec.get("submission.Entry")
+            or rec.get("Entry")
+            or rec.get("submission.Items")
+            or rec.get("Items")
+            or []
+        )
+        if isinstance(sub_entries, dict):
+            sub_entries = [sub_entries]
+        elif not isinstance(sub_entries, list) or len(sub_entries) == 0:
+            sub_entries = [rec]
 
-        # Chemical PPM strength (must be 100)
-        ppm_raw = extract_field(rec, ["chemicalppmstrength", "ppmstrength", "ppm", "strength"])
-        ppm_num = pd.to_numeric(str(ppm_raw).replace("ppm", "").strip(), errors="coerce")
+        for item_dict in sub_entries:
+            if not isinstance(item_dict, dict):
+                continue
 
-        # Contact Time (must be 5 minutes)
-        time_raw = str(extract_field(rec, ["contacttimeinminutes", "contacttime", "timeinminutes", "minutes"]) or "")
-        time_clean = time_raw.lower().replace("minutes", "").replace("minute", "").replace("mins", "").replace("min", "").strip()
-        minutes_num = pd.to_numeric(time_clean, errors="coerce")
+            food_main = str(
+                item_dict.get("Type of Food")
+                or item_dict.get("typeoffood")
+                or extract_field(item_dict, ["typeoffood", "foodtype", "food"])
+                or ""
+            ).replace("•", "").strip()
 
-        sign = extract_field(rec, ["signinitial", "sign", "initial", "user.email"]) or "Staff"
+            food_other = str(
+                item_dict.get("Type of food (Other)")
+                or item_dict.get("typeoffoodother")
+                or extract_field(item_dict, ["typeoffoodother", "foodother"])
+                or ""
+            ).strip()
 
-        # Excursion checks
-        ppm_breach = pd.notna(ppm_num) and (ppm_num != TARGET_PPM)
-        time_breach = pd.notna(minutes_num) and (minutes_num < TARGET_MINUTES)
-        has_breach = ppm_breach or time_breach
+            # Resolution logic: If other is provided, use other; else main
+            if food_other and food_other.lower() not in ["none", "nan", ""]:
+                final_food = food_other
+            elif food_main and food_main.lower() not in ["other", "none", "nan", ""]:
+                final_food = food_main
+            else:
+                final_food = "Veg Item"
 
-        rows.append({
-            "Date_Str": date_str,
-            "Date_Obj": date_obj,
-            "Time": time_str,
-            "Location": location.strip(),
-            "Food": food_item,
-            "PPM": ppm_num,
-            "PPM_Raw": str(ppm_raw) if ppm_raw else "100",
-            "Minutes": minutes_num,
-            "Minutes_Raw": time_raw or "5 Minutes",
-            "PPM_Breach": ppm_breach,
-            "Time_Breach": time_breach,
-            "Has_Breach": has_breach,
-            "Sign": sign,
-        })
+            # PPM check (100)
+            ppm_raw = (
+                item_dict.get("Chemical ppm strength")
+                or item_dict.get("chemicalppmstrength")
+                or extract_field(item_dict, ["chemicalppmstrength", "ppmstrength", "ppm"])
+            )
+            ppm_num = pd.to_numeric(str(ppm_raw).replace("ppm", "").strip(), errors="coerce")
+
+            # Contact Time check (5)
+            time_raw = str(
+                item_dict.get("Contact Time in Minutes")
+                or item_dict.get("contacttimeinminutes")
+                or extract_field(item_dict, ["contacttimeinminutes", "contacttime", "minutes"])
+                or "5 Minutes"
+            )
+            time_clean = time_raw.lower().replace("minutes", "").replace("minute", "").replace("mins", "").replace("min", "").strip()
+            minutes_num = pd.to_numeric(time_clean, errors="coerce")
+
+            ppm_breach = pd.notna(ppm_num) and (ppm_num != TARGET_PPM)
+            time_breach = pd.notna(minutes_num) and (minutes_num < TARGET_MINUTES)
+
+            rows.append({
+                "Date_Str": date_str,
+                "Date_Obj": date_obj,
+                "Time": time_str,
+                "Location": location,
+                "Food": final_food,
+                "PPM": ppm_num,
+                "PPM_Raw": str(ppm_raw) if ppm_raw else "100",
+                "Minutes": minutes_num,
+                "Minutes_Raw": time_raw,
+                "PPM_Breach": ppm_breach,
+                "Time_Breach": time_breach,
+                "Has_Breach": (ppm_breach or time_breach),
+                "Sign": sign,
+            })
 
     return pd.DataFrame(rows)
 
@@ -215,8 +261,6 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
     # TAB 2: 7-DAY SPLIT-CELL AUDIT GRID
     # -------------------------------------------------------------
     with tab_matrix:
-        st.subheader("7-Day Chlorine Wash Completion Matrix")
-
         total_days = (end_date - start_date).days + 1
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
 
@@ -267,9 +311,9 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
-        # Only display locations that actually have records in the dataset
+        # STRICT DYNAMIC FILTER: ONLY locations that have records in the range
         if not range_df.empty and "Location" in range_df.columns:
-            active_kitchens = sorted(list(range_df["Location"].dropna().unique()))
+            active_kitchens = [k for k in sorted(list(range_df["Location"].dropna().unique())) if k.strip() != ""]
         else:
             active_kitchens = ["Black Lacquer Kitchen"]
 
@@ -282,11 +326,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
             </div>
             """, unsafe_allow_html=True)
 
-            k_df = (
-                range_df[range_df["Location"].str.lower() == kitchen.lower()]
-                if not range_df.empty
-                else pd.DataFrame()
-            )
+            k_df = range_df[range_df["Location"].str.lower() == kitchen.lower()] if not range_df.empty else pd.DataFrame()
 
             for i, d in enumerate(page_dates):
                 d_str = d.strftime("%d/%m/%Y")
@@ -299,7 +339,6 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                     </div>
                     """, unsafe_allow_html=True)
                 else:
-                    # Count ALL items washed on that day
                     batch_count = len(matches)
                     has_day_breach = any(matches["Has_Breach"])
 
