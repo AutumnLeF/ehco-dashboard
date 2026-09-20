@@ -6,6 +6,7 @@ import streamlit as st
 
 # Import the Record 04 module
 from records.record_04 import render_record_04_view
+from records.record_05 import render_record_05_view
 
 st.set_page_config(
     page_title="Kitchen Safety Core", page_icon="🛡️", layout="wide"
@@ -163,14 +164,19 @@ sample_data = pd.DataFrame(
 )
 
 # Route to the appropriate record module
-if (
-    selected_record
-    == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD"
-):
+if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
     st.markdown(
         '<div class="serif-title">Cooking & Reheating Shift Audit</div>',
         unsafe_allow_html=True,
     )
-    render_record_04_view(sample_data)
+    render_record_04_view(raw_records_df)
+
+elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
+    st.markdown(
+        '<div class="serif-title">Blast Chiller & Cooling Audit</div>',
+        unsafe_allow_html=True,
+    )
+    render_record_05_view(raw_records_df)
 else:
     st.info(f"Module for {selected_record} will load here.")
+
