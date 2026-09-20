@@ -109,7 +109,6 @@ def parse_record_03_submissions(raw_df):
         sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
         entry = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else {}
 
-        # 1. Date extraction
         raw_date = (
             sub.get("Date")
             or sub.get("date")
@@ -133,7 +132,6 @@ def parse_record_03_submissions(raw_df):
             date_obj = None
             parsed_dt_ist = datetime.now()
 
-        # 2. Robust time extraction
         raw_time = (
             sub.get("Time")
             or sub.get("time")
@@ -406,18 +404,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                                 if ent["Time"] != distinct_shifts[-1]["Time"]:
                                     distinct_shifts.append(ent)
 
-                        gap_txt = ""
-                        gap_warning = False
-                        if len(distinct_shifts) >= 2:
-                            dt1 = distinct_shifts[0].get("Timestamp_DT")
-                            dt2 = distinct_shifts[-1].get("Timestamp_DT")
-                            if pd.notna(dt1) and pd.notna(dt2):
-                                diff_hours = abs((dt2 - dt1).total_seconds()) / 3600.0
-                                gap_txt = f"{diff_hours:.1f}h gap"
-                                if diff_hours < MIN_GAP_HOURS:
-                                    gap_warning = True
-
-                      if has_day_breach:
+                        if has_day_breach:
                             status_tag = '<span style="color:#dc2626; font-weight:800; font-size:0.75rem;">🔴 BREACH</span>'
                             border_color = "#dc2626"
                         elif len(distinct_shifts) >= 2:
@@ -426,7 +413,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                         else:
                             status_tag = '<span style="color:#0284c7; font-weight:700; font-size:0.74rem;">1 of 2 Logged</span>'
                             border_color = "#94a3b8"
-        
+
                         readings_str = ""
                         for idx, ent in enumerate(distinct_shifts[:2]):
                             t_color = "#dc2626" if ent["Has_Breach"] else "#0f172a"
@@ -434,7 +421,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                             t_time = ent["Time"][:8]
                             readings_str += f'<div style="display:flex; justify-content:space-between; font-size:0.72rem; margin-top:2px;"><span style="color:#64748b;">#{idx+1} ({t_time})</span><b style="color:{t_color};">{t_val}</b></div>'
 
-                        footer_info = f"{gap_txt} • By: {distinct_shifts[0]['Sign']}" if gap_txt else f"By: {distinct_shifts[0]['Sign']}"
+                        footer_info = f"By: {distinct_shifts[0]['Sign']}"
 
                         row_cols[i + 1].markdown(
                             f'<div style="background:#ffffff; border:1.5px solid {border_color}; border-radius:6px; padding:6px 6px; min-height:82px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">'
