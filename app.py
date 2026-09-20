@@ -228,10 +228,11 @@ if active_token:
 
     # Query up to 500 records to cover the full 30-day window
     post_payload = {
-        "formId": active_form_id,
-        "limit": 500,
-        "offset": 0,
-    }
+    "formId": active_form_id,
+    "limit": 250,
+    "offset": 0,
+    "unwindRepeatableSets": True, # Required by OneBlink to separate repeatable entries
+}
 
     try:
         res = requests.post(
