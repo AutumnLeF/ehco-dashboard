@@ -417,20 +417,16 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                                 if diff_hours < MIN_GAP_HOURS:
                                     gap_warning = True
 
-                        if has_day_breach:
+                      if has_day_breach:
                             status_tag = '<span style="color:#dc2626; font-weight:800; font-size:0.75rem;">🔴 BREACH</span>'
                             border_color = "#dc2626"
                         elif len(distinct_shifts) >= 2:
-                            if gap_warning:
-                                status_tag = '<span style="color:#d97706; font-weight:800; font-size:0.74rem;">⚠️ 2 of 2 Logged</span>'
-                                border_color = "#d97706"
-                            else:
-                                status_tag = '<span style="color:#16a34a; font-weight:800; font-size:0.75rem;">✓ 2 of 2 Logged</span>'
-                                border_color = "#16a34a"
+                            status_tag = '<span style="color:#16a34a; font-weight:800; font-size:0.75rem;">✓ 2 of 2 Logged</span>'
+                            border_color = "#16a34a"
                         else:
                             status_tag = '<span style="color:#0284c7; font-weight:700; font-size:0.74rem;">1 of 2 Logged</span>'
                             border_color = "#94a3b8"
-
+        
                         readings_str = ""
                         for idx, ent in enumerate(distinct_shifts[:2]):
                             t_color = "#dc2626" if ent["Has_Breach"] else "#0f172a"
