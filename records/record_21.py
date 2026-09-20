@@ -48,14 +48,17 @@ def parse_record_21_submissions(raw_df):
             or "Black Lacquer Kitchen"
         ).strip()
 
+        # 2. Staff Sign / Initial
         sign = (
             rec.get("submission.Sign")
             or rec.get("Sign")
             or (rec.get("submission") or {}).get("Sign")
+            or rec.get("Sign (Initial)")
+            or rec.get("submission.Sign (Initial)")
             or "Staff"
         )
 
-        # 2. Extract CL object
+        # 3. Extract CL object
         cl_obj = (
             rec.get("submission.CL")
             or (rec.get("submission") or {}).get("CL")
@@ -92,7 +95,7 @@ def parse_record_21_submissions(raw_df):
             else:
                 food_name = "Salad Item"
 
-            # 3. Chemical PPM strength
+            # 4. Chemical PPM strength
             ppm_raw = (
                 cl.get("Chemical_ppm_strength")
                 or cl.get("Chemical ppm strength")
@@ -101,7 +104,7 @@ def parse_record_21_submissions(raw_df):
             )
             ppm_num = pd.to_numeric(str(ppm_raw).replace("ppm", "").strip(), errors="coerce")
 
-            # 4. Contact time
+            # 5. Contact time
             time_raw = str(
                 cl.get("Contact_Time_in_Minutes")
                 or cl.get("Contact Time in Minutes")
@@ -128,7 +131,7 @@ def parse_record_21_submissions(raw_df):
                 "PPM_Breach": ppm_breach,
                 "Time_Breach": time_breach,
                 "Has_Breach": (ppm_breach or time_breach),
-                "Sign": sign,
+                "Sign": str(sign).strip(),
             })
 
     return pd.DataFrame(rows)
@@ -294,10 +297,13 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
-        # Strictly discover locations that submitted actual records in the dataset
+        # STRICTLY include only locations that have actual submissions in range_df
+        # This completely eliminates 'Commissary' or other ghost locations
         if not range_df.empty and "Location" in range_df.columns:
-            counts_by_loc = range_df["Location"].value_counts()
-            active_kitchens = [loc for loc in counts_by_loc.index if loc and str(loc).strip() != ""]
+            active_kitchens = [
+                loc for loc in range_df["Location"].dropna().unique()
+                if str(loc).strip() != "" and len(range_df[range_df["Location"] == loc]) > 0
+            ]
         else:
             active_kitchens = ["Black Lacquer Kitchen"]
 
@@ -308,7 +314,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
             row_cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
 
             row_cols[0].markdown(f"""
-            <div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:12px 6px; font-weight:700; color:#0f172a; font-size:0.88rem; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:115px; display:flex; align-items:center; justify-content:center;">
+            <div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:12px 6px; font-weight:700; color:#0f172a; font-size:0.88rem; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:120px; display:flex; align-items:center; justify-content:center;">
                 {kitchen}
             </div>
             """, unsafe_allow_html=True)
@@ -321,7 +327,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
 
                 if matches.empty:
                     row_cols[i + 1].markdown("""
-                    <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:115px; display:flex; align-items:center; justify-content:center;">
+                    <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:120px; display:flex; align-items:center; justify-content:center;">
                         <span style="color:#94a3b8; font-weight:600; font-size:0.82rem;">— Not Filled</span>
                     </div>
                     """, unsafe_allow_html=True)
@@ -329,8 +335,13 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                     batch_count = len(matches)
                     has_day_breach = any(matches["Has_Breach"])
 
+                    # Unique items washed
                     foods_list = list(dict.fromkeys(matches["Food"].dropna().tolist()))
                     foods_formatted = ", ".join(foods_list)
+
+                    # Signatures / Initials for this day
+                    sign_list = [s for s in dict.fromkeys(matches["Sign"].dropna().tolist()) if s and s != "Staff"]
+                    sign_display = f"By: {', '.join(sign_list)}" if sign_list else "By: Staff"
 
                     if has_day_breach:
                         badge = '<span style="color:#dc2626; font-weight:800; font-size:0.88rem;">🔴 BREACH</span>'
@@ -340,13 +351,14 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                         border_style = "1.5px solid #0f172a"
 
                     row_cols[i + 1].markdown(f"""
-                    <div style="background:#ffffff; border:{border_style}; border-radius:8px; padding:8px 4px; text-align:center; min-height:115px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                    <div style="background:#ffffff; border:{border_style}; border-radius:8px; padding:8px 4px; text-align:center; min-height:120px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
                         <div>{badge}</div>
-                        <div style="height:1px; background:#cbd5e1; margin:6px 0;"></div>
+                        <div style="height:1px; background:#cbd5e1; margin:5px 0;"></div>
                         <div style="font-size:0.75rem; font-weight:600; color:#0f172a; line-height:1.25; word-wrap:break-word;">
                             {foods_formatted}
                         </div>
-                        <div style="font-size:0.65rem; color:#64748b; margin-top:4px;">100 PPM • 5m</div>
+                        <div style="font-size:0.65rem; color:#475569; margin-top:3px;">100 PPM • 5m</div>
+                        <div style="font-size:0.67rem; color:#64748b; font-weight:600; margin-top:3px;">{sign_display}</div>
                     </div>
                     """, unsafe_allow_html=True)
 
