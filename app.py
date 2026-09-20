@@ -183,72 +183,77 @@ else:
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
 
 def fetch_submissions(url, token, form_id, start_dt=None):
-  """Paginates form-store using clean JSON payload increments of 50."""
-  headers = {
-      "Authorization": f"Bearer {token}",
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-      "User-Agent": "Mozilla/5.0",
-      "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
-      "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
-  }
-
-  all_rows = []
-  current_offset = 0
-  max_records = 600  # Pulls ~12 pages (covers 7–10 days of entries)
-
-  while current_offset < max_records:
-    payload = {
-        "formId": form_id,
-        "limit": 50,
-        "offset": current_offset,
-        "unwindRepeatableSets": True,
+    """Paginates form-store and prints debug status per page."""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0",
+        "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
+        "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
     }
 
-    try:
-      res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
-      if res.status_code != 200:
-        break
+    all_rows = []
+    current_offset = 0
+    pages_to_fetch = 8  # 8 pages * 50 = 400 records (covers full week)
 
-      data = res.json()
-      items = data.get("submissions", []) if isinstance(data, dict) else data
+    for p in range(pages_to_fetch):
+        payload = {
+            "formId": form_id,
+            "limit": 50,
+            "offset": current_offset,
+            "unwindRepeatableSets": True,
+        }
+        
+        res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
+        
+        if res.status_code != 200:
+            st.sidebar.error(f"Page {p+1} (offset {current_offset}) failed: HTTP {res.status_code}")
+            break
 
-      if not items:
-        break
+        data = res.json()
+        items = data.get("submissions", []) if isinstance(data, dict) else data
 
-      all_rows.extend(items)
+        if not items:
+            st.sidebar.info(f"Page {p+1} returned 0 items. Stopping.")
+            break
 
-      # If fewer than 50 entries returned, we hit the final page
-      if len(items) < 50:
-        break
+        all_rows.extend(items)
+        st.sidebar.text(f"Page {p+1}: +{len(items)} rows (total: {len(all_rows)})")
 
-      # Step offset forward by 50 for the next batch
-      current_offset += 50
+        if len(items) < 50:
+            break
 
-    except Exception:
-      break
+        current_offset += 50
 
-  return all_rows
+    return all_rows
 
-# Ingest data only if cache is empty or user manually pressed "Sync Live Feed"
-if st.session_state[cache_key].empty or force_refresh:
+# In Section 4 of app.py:
+force_refresh = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
+
+if force_refresh:
+    # Clear the old cached DataFrame so it doesn't hold the stale 50 records
+    st.session_state.pop(cache_key, None)
+    st.session_state.pop(sync_time_key, None)
+
+if cache_key not in st.session_state or st.session_state[cache_key].empty:
     active_token = token_input.strip() if token_input else DEFAULT_TOKEN.strip()
     clean_token = active_token.replace("Bearer ", "").strip()
 
-    with st.spinner(f"Fetching records for Form {active_form_id}..."):
+    with st.spinner(f"Fetching weekly submissions for Form {active_form_id}..."):
         try:
-            items = fetch_submissions(api_url, clean_token, active_form_id, start_date)
+            items = fetch_submissions(api_url, clean_token, active_form_id)
             if items:
                 raw_df = pd.json_normalize(items)
                 st.session_state[cache_key] = raw_df
                 st.session_state[sync_time_key] = datetime.now()
-                st.sidebar.success(f"✓ Loaded {len(raw_df)} submissions")
+                st.sidebar.success(f"✓ Successfully stored {len(raw_df)} rows in memory")
             else:
-                st.sidebar.warning(f"Form {active_form_id} returned 0 submissions.")
+                st.sidebar.error("0 submissions returned from API.")
         except Exception as e:
             st.sidebar.error(f"Sync error: {e}")
 
-raw_records_df = st.session_state[cache_key]
+raw_records_df = st.session_state.get(cache_key, pd.DataFrame())
 
 # -------------------------------------------------------------
 # 5. ROUTE TO MODULAR RECORD AUDITORS
