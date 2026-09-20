@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
+from records.record_02 import render_record_02_view
 from records.record_03 import render_record_03_view
 from records.record_04 import render_record_04_view
 from records.record_05 import render_record_05_view
@@ -12,7 +13,6 @@ from records.record_13 import render_record_13_view
 from records.record_15 import render_record_15_view
 from records.record_21 import render_record_21_view
 from records.record_25 import render_record_25_view
-from records.record_02 import render_record_02_view
 from records.record_06 import render_record_06_view
 
 st.set_page_config(
