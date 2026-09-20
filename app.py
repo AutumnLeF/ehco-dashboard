@@ -227,8 +227,7 @@ if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
         '<div class="serif-title">Record 04: Cooking & Reheating Shift Audit</div>',
         unsafe_allow_html=True,
     )
-
-with st.expander("🛠️ Raw Data & Date Diagnostic (Click to inspect)"):
+    with st.expander("🛠️ Raw Data & Date Diagnostic (Click to inspect)"):
     st.write(f"Total raw records loaded: {len(raw_records_df)}")
     if not raw_records_df.empty:
         # Check potential formId columns
