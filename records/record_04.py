@@ -13,91 +13,72 @@ TEMP_THRESHOLD = 75.0
 
 
 def parse_all_record_04_dishes(raw_df):
-    """Unpacks all repeatable set dishes from formId 31374 across all dates."""
+    """Unpacks all repeatable set dishes from formId 31374 across all dates with resilient date coercion."""
     if raw_df.empty:
         return pd.DataFrame()
 
     df = raw_df.copy()
-    if "formId" in df.columns:
-        df = df[df["formId"] == RECORD_04_FORM_ID]
-    elif "submission.formId" in df.columns:
-        df = df[df["submission.formId"] == RECORD_04_FORM_ID]
+
+    # 1. Flexible Form ID matching (handles int, float, str, and nested column names)
+    form_col = next((c for c in df.columns if c.lower() in ["formid", "submission.formid"]), None)
+    if form_col:
+        df = df[df[form_col].astype(str) == str(RECORD_04_FORM_ID)]
 
     if df.empty:
         return pd.DataFrame()
 
     rows = []
     for _, record in df.iterrows():
-        location = (
-            record.get("submission.Location")
-            or record.get("Location")
-            or "Unknown"
-        )
-        sign = (
-            record.get("submission.Sign")
-            or record.get("Sign")
-            or record.get("user.email")
-            or "Staff"
-        )
+        location = record.get("submission.Location") or record.get("Location") or "Unknown"
+        sign = record.get("submission.Sign") or record.get("Sign") or record.get("user.email") or "Staff"
         time_str = record.get("submission.Time") or record.get("Time") or ""
 
-        # Normalize submission date to DD/MM/YYYY
+        # 2. Resilient multi-format Date parser
         raw_date = (
-            record.get("submission.Date")
-            or record.get("Date")
-            or record.get("createdAt")
+            record.get("submission.Date") 
+            or record.get("Date") 
+            or record.get("createdAt") 
+            or record.get("submission.createdAt") 
             or ""
         )
-        try:
-            parsed_date = pd.to_datetime(raw_date, dayfirst=True)
-            norm_date = parsed_date.strftime("%d/%m/%Y")
-            date_obj = parsed_date.date()
-        except Exception:
+        
+        parsed_dt = pd.to_datetime(raw_date, errors="coerce")
+        if pd.isna(parsed_dt):
+            # Try dayfirst if standard parsing fails
+            parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
+
+        if pd.notna(parsed_dt):
+            norm_date = parsed_dt.strftime("%d/%m/%Y")
+            date_obj = parsed_dt.date()
+        else:
             norm_date = str(raw_date)[:10]
             date_obj = None
 
-        entries = (
-            record.get("submission.set")
-            or record.get("set")
-            or record.get("submission.Entry")
-            or []
-        )
+        entries = record.get("submission.set") or record.get("set") or record.get("submission.Entry") or []
         if isinstance(entries, list):
             for entry in entries:
                 meal = entry.get("Meal_Service") or "Unassigned"
-                food = (
-                    entry.get("Food")
-                    or entry.get("Name_of_Food_Other")
-                    or "Food Item"
-                )
+                food = entry.get("Food") or entry.get("Name_of_Food_Other") or "Food Item"
                 temp_raw = (
-                    entry.get("Temperature_Cooking")
-                    or entry.get("Temperature")
-                    or entry.get("Temperature_Reheating")
+                    entry.get("Temperature_Cooking") 
+                    or entry.get("Temperature") 
+                    or entry.get("Temperature_Reheating") 
                     or entry.get("Temperature_copy")
                 )
-                temp_val = pd.to_numeric(
-                    str(temp_raw).replace("°C", "").strip(), errors="coerce"
-                )
-                corrective = (
-                    entry.get("Corrective_Actions_cooking")
-                    or entry.get("Corrective_Action")
-                    or ""
-                )
+                temp_val = pd.to_numeric(str(temp_raw).replace("°C", "").strip(), errors="coerce")
+                corrective = entry.get("Corrective_Actions_cooking") or entry.get("Corrective_Action") or ""
 
-                rows.append(
-                    {
-                        "Date_Str": norm_date,
-                        "Date_Obj": date_obj,
-                        "Time": time_str,
-                        "Location": location,
-                        "Meal_Service": meal,
-                        "Food": food,
-                        "Temp": temp_val,
-                        "Corrective_Action": corrective,
-                        "Sign": sign,
-                    }
-                )
+                rows.append({
+                    "Date_Str": norm_date,
+                    "Date_Obj": date_obj,
+                    "Time": time_str,
+                    "Location": location,
+                    "Meal_Service": meal,
+                    "Food": food,
+                    "Temp": temp_val,
+                    "Corrective_Action": corrective,
+                    "Sign": sign
+                })
 
     return pd.DataFrame(rows)
 
