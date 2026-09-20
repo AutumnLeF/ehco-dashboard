@@ -165,10 +165,10 @@ selected_record = st.selectbox(
 active_form_id = FORM_MAPPING[selected_record]
 
 # -------------------------------------------------------------
-# 4. INGESTION ENGINE WITH PAGINATION
+# 4. INGESTION ENGINE WITH DAY-BY-DAY CHUNKING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v3"
-sync_time_key = f"sync_time_{active_form_id}_v3"
+cache_key = f"cache_df_{active_form_id}_v4"
+sync_time_key = f"sync_time_{active_form_id}_v4"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -183,7 +183,7 @@ else:
     st.sidebar.caption("🕒 Cache: Pending Load")
 
 
-items = fetch_submissions(api_url, clean_token, active_form_id, start_date, end_date)
+def fetch_submissions(url, token, form_id, start_dt, end_dt):
     """Fetches submissions day-by-day to bypass broken server-side offsets."""
     headers = {
         "Authorization": f"Bearer {token}",
@@ -197,7 +197,6 @@ items = fetch_submissions(api_url, clean_token, active_form_id, start_date, end_
     all_rows = []
     base_url = url.strip()
 
-    # Generate every date in the selected range
     current_date = start_dt
     while current_date <= end_dt:
         next_date = current_date + timedelta(days=1)
@@ -207,7 +206,7 @@ items = fetch_submissions(api_url, clean_token, active_form_id, start_date, end_
 
         payload = {
             "formId": form_id,
-            "limit": 200,  # Generous limit per day
+            "limit": 200,
             "submissionTimestampFrom": iso_from,
             "submissionTimestampTo": iso_to,
             "unwindRepeatableSets": True,
@@ -229,26 +228,6 @@ items = fetch_submissions(api_url, clean_token, active_form_id, start_date, end_
         current_date = next_date
 
     return all_rows
-    
-# Store as raw list of dictionaries so nested parsing works correctly
-if cache_key not in st.session_state or st.session_state[cache_key].empty:
-    active_token = token_input.strip() if token_input else DEFAULT_TOKEN.strip()
-    clean_token = active_token.replace("Bearer ", "").strip()
-
-    with st.spinner(f"Fetching all historical logs for Form {active_form_id}..."):
-        try:
-            items = fetch_submissions(api_url, clean_token, active_form_id)
-            if items:
-                raw_df = pd.DataFrame({"raw_record": items})
-                st.session_state[cache_key] = raw_df
-                st.session_state[sync_time_key] = datetime.now()
-                st.sidebar.success(f"✓ Loaded {len(items)} total raw logs")
-            else:
-                st.sidebar.warning("0 entries returned.")
-        except Exception as e:
-            st.sidebar.error(f"Sync failed: {e}")
-
-raw_records_df = st.session_state.get(cache_key, pd.DataFrame())
 
 
 if cache_key not in st.session_state or st.session_state[cache_key].empty:
@@ -257,14 +236,14 @@ if cache_key not in st.session_state or st.session_state[cache_key].empty:
 
     with st.spinner(f"Fetching weekly logs for Form {active_form_id}..."):
         try:
-            items = fetch_submissions(api_url, clean_token, active_form_id)
+            items = fetch_submissions(api_url, clean_token, active_form_id, start_date, end_date)
             if items:
                 raw_df = pd.DataFrame({"raw_record": items})
                 st.session_state[cache_key] = raw_df
                 st.session_state[sync_time_key] = datetime.now()
-                st.sidebar.success(f"✓ Loaded {len(raw_df)} logs in memory")
+                st.sidebar.success(f"✓ Loaded {len(items)} total records")
             else:
-                st.sidebar.warning(f"Form {active_form_id} returned 0 entries.")
+                st.sidebar.warning(f"Form {active_form_id} returned 0 entries for this date range.")
         except Exception as e:
             st.sidebar.error(f"Sync failed: {e}")
 
