@@ -227,7 +227,7 @@ if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
         '<div class="serif-title">Record 04: Cooking & Reheating Shift Audit</div>',
         unsafe_allow_html=True,
     )
-   st.subheader("🛠️ Raw Data Diagnostic")
+st.subheader("🛠️ Raw Data Diagnostic")
 st.write(f"Total raw records loaded: {len(raw_records_df)}")
 
 if not raw_records_df.empty:
