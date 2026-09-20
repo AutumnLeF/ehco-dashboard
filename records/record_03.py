@@ -138,27 +138,27 @@ def parse_record_03_submissions(raw_df):
             date_obj = None
 
         # 2. Time extraction (actual shift time logged by staff)
-        raw_time = str(sub.get("Time") or sub.get("time") or entry.get("Time") or "").strip()
-        
-        # If time is in 24hr format or ISO, parse it nicely; otherwise keep clean string
-        time_clean = raw_time
-        ts_dt = parsed_dt
-        
-        if raw_time:
+        # Clean time display extraction
+        raw_time = str(sub.get("Time") or sub.get("time") or "").strip()
+        if not raw_time or len(raw_time) < 3:
+            if pd.notna(parsed_dt):
+                if parsed_dt.tzinfo is None:
+                    dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
+                else:
+                    dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
+                time_clean = dt_ist.strftime("%I:%M %p")
+                ts_dt = dt_ist
+            else:
+                time_clean = "08:00 AM"
+                ts_dt = parsed_dt
+        else:
             time_dt = pd.to_datetime(f"{date_str} {raw_time}", dayfirst=True, errors="coerce")
             if pd.notna(time_dt):
                 time_clean = time_dt.strftime("%I:%M %p")
                 ts_dt = time_dt
             else:
-                time_clean = raw_time
-        elif pd.notna(parsed_dt):
-            # Fallback to submission timestamp time converted to IST (+5:30 if UTC naive)
-            if parsed_dt.tzinfo is None:
-                dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
-            else:
-                dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
-            time_clean = dt_ist.strftime("%I:%M %p")
-            ts_dt = dt_ist
+                time_clean = raw_time[:8]
+                ts_dt = parsed_dt
 
         location = str(sub.get("Location") or "").strip()
 
