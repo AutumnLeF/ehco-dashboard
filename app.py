@@ -8,12 +8,12 @@ from records.record_02 import render_record_02_view
 from records.record_03 import render_record_03_view
 from records.record_04 import render_record_04_view
 from records.record_05 import render_record_05_view
+from records.record_06 import render_record_06_view
 from records.record_12 import render_record_12_view
 from records.record_13 import render_record_13_view
 from records.record_15 import render_record_15_view
 from records.record_21 import render_record_21_view
 from records.record_25 import render_record_25_view
-from records.record_06 import render_record_06_view
 
 st.set_page_config(
     page_title="Kitchen Safety Core",
@@ -28,7 +28,6 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     
-    /* Clean, crisp high-contrast base */
     .stApp { 
         background-color: #f8fafc; 
         font-family: 'Inter', sans-serif; 
@@ -51,7 +50,6 @@ st.markdown("""
         margin-bottom: 0.4rem; 
     }
     
-    /* Solid KPI stat cards */
     .kpi-box { 
         background: #ffffff;
         padding: 1rem 1.2rem; 
@@ -73,7 +71,6 @@ st.markdown("""
         margin-top: 0.35rem; 
     }
     
-    /* Solid Kanban columns */
     .kanban-col { 
         background: #ffffff; 
         border-radius: 10px; 
@@ -97,52 +94,6 @@ st.markdown("""
         background: #f8fafc; 
         border: 1px solid #cbd5e1; 
         margin-bottom: 0.65rem; 
-    }
-
-    /* Structured Matrix Table Styles */
-    .audit-table {
-        width: 100%;
-        border-collapse: collapse;
-        margin-top: 0.75rem;
-        background: #ffffff;
-        border: 2px solid #334155;
-    }
-    .audit-table th {
-        background-color: #f1f5f9;
-        color: #0f172a;
-        font-weight: 700;
-        font-size: 0.85rem;
-        text-align: center;
-        padding: 10px 8px;
-        border: 1px solid #334155;
-    }
-    .audit-table td {
-        border: 1px solid #334155;
-        padding: 8px;
-        vertical-align: top;
-        font-size: 0.82rem;
-        color: #0f172a;
-    }
-    .cell-count {
-        text-align: center;
-        font-size: 1.15rem;
-        font-weight: 700;
-        color: #0f172a;
-        padding-bottom: 6px;
-        border-bottom: 1px solid #cbd5e1;
-        margin-bottom: 6px;
-    }
-    .cell-foods {
-        font-size: 0.78rem;
-        color: #1e293b;
-        line-height: 1.35;
-        font-weight: 500;
-    }
-    .cell-empty {
-        text-align: center;
-        color: #94a3b8;
-        font-weight: 600;
-        padding-top: 12px;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -177,7 +128,6 @@ selected_day_str = st.sidebar.selectbox(
     "Focus Day for Drill-down", options=list(reversed(day_options))
 )
 
-# Active Bearer Token
 DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
 
 api_url = st.sidebar.text_input(
@@ -186,7 +136,6 @@ api_url = st.sidebar.text_input(
 token_input = st.sidebar.text_area(
     "Bearer Token", value=DEFAULT_TOKEN, height=90
 )
-sync_button = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
 
 # -------------------------------------------------------------
 # 3. RECORD SELECTOR & DYNAMIC FORM ID
@@ -215,185 +164,135 @@ selected_record = st.selectbox(
 active_form_id = FORM_MAPPING[selected_record]
 
 # -------------------------------------------------------------
-# 4. LIVE INGESTION (POST TO BLINKM FORM-STORE)
+# 4. INCREMENTAL CACHING ENGINE
 # -------------------------------------------------------------
-raw_records_df = pd.DataFrame()
-api_status_code = None
-api_response_text = ""
+cache_key = f"cache_df_{active_form_id}"
+sync_time_key = f"sync_time_{active_form_id}"
 
-active_token = token_input.strip() if token_input else DEFAULT_TOKEN.strip()
+if cache_key not in st.session_state:
+    st.session_state[cache_key] = pd.DataFrame()
+    st.session_state[sync_time_key] = None
 
-if active_token:
-    clean_token = active_token.replace("Bearer ", "").strip()
+last_sync_display = st.session_state.get(sync_time_key)
+if last_sync_display:
+    st.sidebar.caption(f"🕒 Cache synched: {last_sync_display.strftime('%H:%M:%S')}")
+else:
+    st.sidebar.caption("🕒 Cache: Not yet loaded")
+
+force_refresh = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
+
+def fetch_submissions(url, token, form_id):
+    """Paginates form-store to retrieve all submissions without dropping records."""
     headers = {
-        "Authorization": f"Bearer {clean_token}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
         "Accept": "application/json",
         "User-Agent": "Mozilla/5.0",
         "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
         "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
     }
+    all_rows = []
+    page_size = 250
+    offset = 0
 
-    # Query up to 500 records to cover the full 30-day window
-    post_payload = {
-    "formId": active_form_id,
-    "limit": 250,
-    "offset": 0,
-    "unwindRepeatableSets": True, # Required by OneBlink to separate repeatable entries
-}
+    while True:
+        payload = {
+            "formId": form_id,
+            "limit": page_size,
+            "offset": offset,
+            "unwindRepeatableSets": True,
+        }
+        res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
+        if res.status_code != 200:
+            break
+        data = res.json()
+        items = data.get("submissions", []) if isinstance(data, dict) else data
+        if not items:
+            break
+        all_rows.extend(items)
+        if len(items) < page_size:
+            break
+        offset += page_size
+        if offset >= 2000:  # Safeguard ceiling
+            break
 
-    try:
-        res = requests.post(
-            api_url.strip(), headers=headers, json=post_payload, timeout=15
-        )
-        api_status_code = res.status_code
-        api_response_text = res.text
+    return all_rows
 
-        if res.status_code == 200:
-            data = res.json()
-            items = (
-                data.get("submissions", [])
-                if isinstance(data, dict)
-                else data
-            )
+# Ingest data only if cache is empty or user manually pressed "Sync Live Feed"
+if st.session_state[cache_key].empty or force_refresh:
+    active_token = token_input.strip() if token_input else DEFAULT_TOKEN.strip()
+    clean_token = active_token.replace("Bearer ", "").strip()
+
+    with st.spinner(f"Fetching records for Form {active_form_id}..."):
+        try:
+            items = fetch_submissions(api_url, clean_token, active_form_id)
             if items:
-                raw_records_df = pd.json_normalize(items)
-                st.sidebar.success(
-                    f"✓ Retrieved {len(raw_records_df)} records for Form {active_form_id}"
-                )
+                raw_df = pd.json_normalize(items)
+                st.session_state[cache_key] = raw_df
+                st.session_state[sync_time_key] = datetime.now()
+                st.sidebar.success(f"✓ Loaded {len(raw_df)} submissions")
             else:
                 st.sidebar.warning(f"Form {active_form_id} returned 0 submissions.")
-        else:
-            st.sidebar.error(f"API Error HTTP {res.status_code}")
-    except Exception as e:
-        st.sidebar.error(f"Connection failed: {e}")
+        except Exception as e:
+            st.sidebar.error(f"Sync error: {e}")
+
+raw_records_df = st.session_state[cache_key]
 
 # -------------------------------------------------------------
-# 5. ROUTE TO MODULAR RECORD AUDITORS (EXACT TITLES)
+# 5. ROUTE TO MODULAR RECORD AUDITORS
 # -------------------------------------------------------------
 if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
-    st.markdown(
-        f'<div class="serif-title">{selected_record}</div>',
-        unsafe_allow_html=True,
-    )
-    render_record_04_view(
-        raw_records_df, selected_day_str, start_date, end_date
-    )
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
-    st.markdown(
-        f'<div class="serif-title">{selected_record}</div>',
-        unsafe_allow_html=True,
-    )
-    render_record_05_view(
-        raw_records_df, selected_day_str, start_date, end_date
-    )
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif selected_record == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
-    st.markdown(
-        f'<div class="serif-title">{selected_record}</div>',
-        unsafe_allow_html=True,
-    )
-    render_record_12_view(
-        raw_records_df, selected_day_str, start_date, end_date
-    )
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_12_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif selected_record == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
-    st.markdown(
-        f'<div class="serif-title">{selected_record}</div>',
-        unsafe_allow_html=True,
-    )
-    render_record_13_view(
-        raw_records_df, selected_day_str, start_date, end_date
-    )
-    
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_13_view(raw_records_df, selected_day_str, start_date, end_date)
+
 elif selected_record == "RECORD 15 - PESTICIDE USAGE RECORD":
-    st.markdown(
-        f'<div class="serif-title">{selected_record}</div>',
-        unsafe_allow_html=True,
-    )
-    render_record_15_view(
-        raw_records_df, selected_day_str, start_date, end_date
-    )
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_15_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif selected_record == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
-    st.markdown(
-        f'<div class="serif-title">{selected_record}</div>',
-        unsafe_allow_html=True,
-    )
-    render_record_21_view(
-        raw_records_df, selected_day_str, start_date, end_date
-    )
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_21_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif selected_record == "RECORD 25 - ICE MACHINE CLEANING RECORD":
-    st.markdown(
-        f'<div class="serif-title">{selected_record}</div>',
-        unsafe_allow_html=True,
-    )
-    render_record_25_view(
-        raw_records_df, selected_day_str, start_date, end_date
-    )
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif selected_record == "RECORD 02 - FOOD DELIVERY RECORD":
-    st.markdown(
-        f'<div class="serif-title">{selected_record}</div>',
-        unsafe_allow_html=True,
-    )
-    render_record_02_view(
-        raw_records_df, selected_day_str, start_date, end_date
-    )
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif selected_record == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
-    st.markdown(
-        f'<div class="serif-title">{selected_record}</div>',
-        unsafe_allow_html=True,
-    )
-    render_record_06_view(
-        raw_records_df, selected_day_str, start_date, end_date
-    )
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif selected_record == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
-    st.markdown(
-        f'<div class="serif-title">{selected_record}</div>',
-        unsafe_allow_html=True,
-    )
-    render_record_03_view(
-        raw_records_df, selected_day_str, start_date, end_date
-    )
-    
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
+
 # -------------------------------------------------------------
 # 6. DIAGNOSTIC PANEL
 # -------------------------------------------------------------
 st.divider()
 st.subheader("🛠️ Raw Data Diagnostic")
 st.write(f"**Active Form ID:** `{active_form_id}`")
-st.write(f"**HTTP Status Code:** {api_status_code}")
-st.write(f"**Total Submissions Loaded:** {len(raw_records_df)}")
+st.write(f"**Total Submissions in Memory:** {len(raw_records_df)}")
 
 if not raw_records_df.empty:
     sample_cols = [
-        c
-        for c in raw_records_df.columns
-        if any(
-            k in c.lower()
-            for k in [
-                "date",
-                "food",
-                "temp",
-                "location",
-                "method",
-                "sign",
-            ]
-        )
+        c for c in raw_records_df.columns
+        if any(k in c.lower() for k in ["date", "food", "temp", "location", "fridge", "coolroom", "freezer", "sign"])
     ]
     if sample_cols:
         st.dataframe(raw_records_df[sample_cols].head(3), use_container_width=True)
-
-def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
-    # --- TEMPORARY DIAGNOSTIC BAR ---
-    with st.expander("🛠️ Debug Live Submissions Received from API"):
-        st.write(f"Total raw rows received from API: **{len(raw_df)}**")
-        if not raw_df.empty:
-            # Show raw columns and sample rows
-            st.dataframe(raw_df.head(10), use_container_width=True)
-    # --------------------------------
