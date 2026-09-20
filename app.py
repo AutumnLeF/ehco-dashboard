@@ -91,10 +91,6 @@ selected_day_str = st.sidebar.selectbox(
     options=list(reversed(day_options)),  # Most recent first
 )
 
-# Define both date formats explicitly
-date_slash = target_date.strftime("%d/%m/%Y")  # e.g., 19/09/2026
-date_iso = target_date.strftime("%Y-%m-%d")    # e.g., 2026-09-19
-
 if "raw_records_df" not in locals():
     raw_records_df = pd.DataFrame()
 
