@@ -54,9 +54,9 @@ UNIT_CATALOG = {
         {"Unit_ID": "RMO/TRK/VF/01", "Type": "Freezer"},
     ],
     "Third Room": [
-        {"Unit_ID": "RMO/TRB/UC/01", "Type": "Fridge"},
-        {"Unit_ID": "RMO/TRB/UC/02", "Type": "Fridge"},
-        {"Unit_ID": "RMO/TRB/UC/03", "Type": "Fridge"},
+        {"Unit_ID": "RMO/TR/UC/01", "Type": "Fridge"},
+        {"Unit_ID": "RMO/TR/UC/02", "Type": "Fridge"},
+        {"Unit_ID": "RMO/TR/UC/03", "Type": "Fridge"},
     ],
 }
 
