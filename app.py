@@ -184,7 +184,7 @@ else:
 
 
 def fetch_submissions(url, token, form_id):
-    """Paginates form-store automatically using OneBlink's nextOffset cursor."""
+    """Paginates form-store by passing offset in both URL query params and JSON payload."""
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -196,8 +196,12 @@ def fetch_submissions(url, token, form_id):
 
     all_rows = []
     current_offset = 0
+    base_url = url.strip()
 
     while True:
+        # Pass offset and limit as URL query parameters so the server accepts them
+        req_url = f"{base_url}?limit=50&offset={current_offset}"
+        
         payload = {
             "formId": form_id,
             "limit": 50,
@@ -206,7 +210,7 @@ def fetch_submissions(url, token, form_id):
         }
         
         try:
-            res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
+            res = requests.post(req_url, headers=headers, json=payload, timeout=20)
             if res.status_code != 200:
                 st.sidebar.error(f"API request failed at offset {current_offset}: HTTP {res.status_code}")
                 break
@@ -217,18 +221,13 @@ def fetch_submissions(url, token, form_id):
                 break
 
             all_rows.extend(items)
+            st.sidebar.text(f"Offset {current_offset} ➔ Got {len(items)} rows")
 
-            # Read the nextOffset directly from OneBlink's metadata response
-            meta = data.get("meta", {}) if isinstance(data, dict) else {}
-            next_offset = meta.get("nextOffset")
-
-            st.sidebar.text(f"Offset {current_offset} ➔ Got {len(items)} rows (Next: {next_offset})")
-
-            # If there's no nextOffset or it hasn't advanced, we've reached the end
-            if not next_offset or next_offset <= current_offset:
+            if len(items) < 50:
                 break
 
-            current_offset = next_offset
+            # Manually step forward by 50 to ensure reliable pagination
+            current_offset += 50
 
             # Safety ceiling (up to 1,000 records / 20 pages)
             if current_offset >= 1000:
