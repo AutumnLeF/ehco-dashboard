@@ -6,15 +6,23 @@ WASH_MIN_TEMP = 55.0   # Wash Cycle >= 55°C
 RINSE_MIN_TEMP = 82.0  # Final Rinse Cycle >= 82°C
 
 
-def find_val(row_dict, keywords):
-    """Finds first matching non-null value for loose key names."""
-    for k, v in row_dict.items():
-        k_clean = k.lower().replace("_", "").replace(" ", "").replace(".", "")
-        for kw in keywords:
-            kw_clean = kw.lower().replace("_", "").replace(" ", "")
-            if kw_clean in k_clean:
-                if pd.notna(v) and str(v).strip() != "":
-                    return v
+def get_deep_val(rec, possible_keys):
+    """Searches both flat keys and nested dictionaries for keys matching any possible_keys substring."""
+    clean_targets = [p.lower().replace("_", "").replace(" ", "").replace(".", "") for p in possible_keys]
+
+    for k, v in rec.items():
+        if pd.isna(v) or str(v).strip() == "":
+            continue
+        k_norm = k.lower().replace("_", "").replace(" ", "").replace(".", "")
+        for t in clean_targets:
+            if t in k_norm:
+                return v
+
+        # If the value is a nested dict (e.g., submission dictionary)
+        if isinstance(v, dict):
+            sub_res = get_deep_val(v, possible_keys)
+            if sub_res is not None:
+                return sub_res
     return None
 
 
@@ -27,8 +35,8 @@ def parse_record_13_submissions(raw_df):
     for _, record in raw_df.iterrows():
         rec = record.to_dict()
 
-        # Date normalization
-        raw_date = find_val(rec, ["date", "createdat", "submissiondate"]) or ""
+        # 1. Date normalization
+        raw_date = get_deep_val(rec, ["date", "createdat", "submissiondate"]) or ""
         parsed_dt = pd.to_datetime(raw_date, errors="coerce")
         if pd.isna(parsed_dt):
             parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
@@ -40,31 +48,56 @@ def parse_record_13_submissions(raw_df):
             date_str = str(raw_date)[:10]
             date_obj = None
 
-        time_str = str(find_val(rec, ["time", "submissiontime"]) or "")[:8]
-        location = find_val(rec, ["locationother", "location"]) or "General Kitchen"
-        machine_type = find_val(rec, ["dishwasherglasswasher", "machinetype", "type"]) or "Machine"
+        time_str = str(get_deep_val(rec, ["time", "submissiontime"]) or "")[:8]
+        location = get_deep_val(rec, ["locationother", "location"]) or "General Kitchen"
+        machine_type = get_deep_val(rec, ["dishwasherglasswasher", "machinetype", "type"]) or "Machine"
 
-        # Unit ID resolution
+        # 2. Unit ID Resolution (checks specific DW, GW, and generic Unit ID fields)
         unit_id = (
-            find_val(rec, ["unitiddishwasher", "unitidglasswasher", "unitid", "unit_id"])
+            get_deep_val(rec, [
+                "unitiddishwasher", 
+                "unitidglasswasher", 
+                "unit_id_dishwasher", 
+                "unit_id_glasswasher", 
+                "unitid", 
+                "unit_id"
+            ])
             or "Unspecified Unit"
         )
 
-        in_use_raw = str(find_val(rec, ["inusenotinuse", "inuse", "status"]) or "IN USE").strip().upper()
+        in_use_raw = str(get_deep_val(rec, ["inusenotinuse", "inuse", "status"]) or "IN USE").strip().upper()
         is_in_use = "NOT" not in in_use_raw
 
-        # Temperatures
-        wash_temp_raw = find_val(rec, ["washcycletemperature", "washtemperature", "washtemp"])
-        wash_temp = pd.to_numeric(str(wash_temp_raw).replace("°C", "").strip(), errors="coerce")
+        # 3. Temperatures (Wash & Rinse)
+        wash_raw = get_deep_val(rec, [
+            "washcycletemperature", 
+            "washtemperature", 
+            "washcycle", 
+            "washtemp", 
+            "wash"
+        ])
+        wash_temp = pd.to_numeric(str(wash_raw).replace("°C", "").strip(), errors="coerce")
 
-        rinse_temp_raw = find_val(rec, ["finalrinsecycletemperature", "rinsetemperature", "rinsetemp"])
-        rinse_temp = pd.to_numeric(str(rinse_temp_raw).replace("°C", "").strip(), errors="coerce")
+        rinse_raw = get_deep_val(rec, [
+            "finalrinsecycletemperature", 
+            "rinsetemperature", 
+            "finalrinse", 
+            "rinsetemp", 
+            "rinse"
+        ])
+        rinse_temp = pd.to_numeric(str(rinse_raw).replace("°C", "").strip(), errors="coerce")
 
-        sign = find_val(rec, ["signinitial", "sign", "initial", "user.email"]) or "Staff"
+        sign = get_deep_val(rec, ["signinitial", "sign", "initial", "user.email"]) or "Staff"
 
-        # Excursion checks
-        wash_breach = is_in_use and pd.notna(wash_temp) and (wash_temp < WASH_MIN_TEMP)
-        rinse_breach = is_in_use and pd.notna(rinse_temp) and (rinse_temp < RINSE_MIN_TEMP)
+        # 4. Excursion logic (Requires valid temperatures when IN USE)
+        wash_breach = False
+        rinse_breach = False
+        if is_in_use:
+            if pd.notna(wash_temp) and (wash_temp < WASH_MIN_TEMP):
+                wash_breach = True
+            if pd.notna(rinse_temp) and (rinse_temp < RINSE_MIN_TEMP):
+                rinse_breach = True
+
         has_breach = wash_breach or rinse_breach
 
         rows.append({
@@ -73,7 +106,7 @@ def parse_record_13_submissions(raw_df):
             "Time": time_str,
             "Location": location,
             "Machine_Type": machine_type,
-            "Unit_ID": unit_id,
+            "Unit_ID": str(unit_id).strip(),
             "In_Use": is_in_use,
             "Status_Text": in_use_raw,
             "Wash_Temp": wash_temp,
@@ -186,12 +219,14 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
             )
             if verified_units:
                 for ok in verified_units:
+                    w_disp = f"{ok['Wash_Temp']}°C" if pd.notna(ok['Wash_Temp']) else "—"
+                    r_disp = f"{ok['Rinse_Temp']}°C" if pd.notna(ok['Rinse_Temp']) else "—"
                     st.markdown(
                         f"""
                     <div class="check-card" style="border-left: 5px solid #16a34a;">
                         <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{ok['Unit_ID']}</div>
                         <div style="font-size:0.8rem; color:#334155; margin-top:3px;">
-                            Wash: <b>{ok['Wash_Temp']}°C</b> &nbsp;|&nbsp; Rinse: <b style="color:#16a34a;">{ok['Rinse_Temp']}°C</b>
+                            Wash: <b>{w_disp}</b> &nbsp;|&nbsp; Rinse: <b style="color:#16a34a;">{r_disp}</b>
                         </div>
                         <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Area: {ok['Location']} | Sign: {ok['Sign']}</div>
                     </div>""",
@@ -260,7 +295,7 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
-        # 8 Columns (1 for Unit/Location + 7 Days)
+        # 8 Columns
         cols = st.columns([2.0, 1, 1, 1, 1, 1, 1, 1])
         cols[0].markdown("""
         <div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.85rem; padding:10px 4px; border-radius:6px; text-align:center;">
@@ -277,11 +312,16 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
-        # Discovers all locations and units dynamically (supports Maid Pantry HK and future additions)
+        # Dynamic Discovery of all Location & Unit pairs across the dataset
         if not range_df.empty and "Unit_ID" in range_df.columns:
-            unit_pairs = range_df[["Location", "Unit_ID"]].drop_duplicates().sort_values(by=["Location", "Unit_ID"]).values.tolist()
+            unit_pairs = (
+                range_df[["Location", "Unit_ID"]]
+                .drop_duplicates()
+                .sort_values(by=["Location", "Unit_ID"])
+                .values.tolist()
+            )
         else:
-            unit_pairs = [("Filia Kitchen", "RMO/FK/DW/01"), ("Third Room Kitchen", "RMO/TRK/DW/01")]
+            unit_pairs = []
 
         for location, unit in unit_pairs:
             row_cols = st.columns([2.0, 1, 1, 1, 1, 1, 1, 1])
@@ -293,7 +333,11 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
             </div>
             """, unsafe_allow_html=True)
 
-            u_df = range_df[(range_df["Location"] == location) & (range_df["Unit_ID"] == unit)] if not range_df.empty else pd.DataFrame()
+            u_df = (
+                range_df[(range_df["Location"] == location) & (range_df["Unit_ID"] == unit)]
+                if not range_df.empty
+                else pd.DataFrame()
+            )
 
             for i, d in enumerate(page_dates):
                 d_str = d.strftime("%d/%m/%Y")
@@ -307,17 +351,20 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
                     """, unsafe_allow_html=True)
                 else:
                     latest = matches.iloc[-1]
+                    w_val = f"{latest['Wash_Temp']}°" if pd.notna(latest['Wash_Temp']) else "—"
+                    r_val = f"{latest['Rinse_Temp']}°" if pd.notna(latest['Rinse_Temp']) else "—"
+
                     if not latest["In_Use"]:
                         status_badge = '<span style="color:#64748b; font-weight:700; font-size:0.85rem;">STANDBY</span>'
                         temp_detail = 'Not In Use'
                         card_border = "1.5px solid #94a3b8"
                     elif latest["Has_Breach"]:
                         status_badge = '<span style="color:#dc2626; font-weight:800; font-size:0.9rem;">🔴 BREACH</span>'
-                        temp_detail = f"W: {latest['Wash_Temp']}° | R: {latest['Rinse_Temp']}°"
+                        temp_detail = f"W: {w_val} | R: {r_val}"
                         card_border = "2px solid #dc2626"
                     else:
                         status_badge = '<span style="color:#16a34a; font-weight:800; font-size:0.9rem;">✓ PASS</span>'
-                        temp_detail = f"W: {latest['Wash_Temp']}° | R: {latest['Rinse_Temp']}°"
+                        temp_detail = f"W: {w_val} | R: {r_val}"
                         card_border = "1.5px solid #0f172a"
 
                     row_cols[i + 1].markdown(f"""
