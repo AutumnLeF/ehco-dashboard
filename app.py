@@ -184,51 +184,61 @@ else:
 
 
 def fetch_submissions(url, token, form_id):
-  """Paginates form-store safely and handles expired tokens."""
-  headers = {
-      "Authorization": f"Bearer {token}",
-      "Content-Type": "application/json",
-      "Accept": "application/json",
-      "User-Agent": "Mozilla/5.0",
-      "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
-      "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
-  }
-
-  all_rows = []
-  current_offset = 0
-  pages_to_fetch = 8
-
-  for p in range(pages_to_fetch):
-    payload = {
-        "formId": form_id,
-        "limit": 50,
-        "offset": current_offset,
-        "unwindRepeatableSets": True,
+    """Paginates form-store automatically using OneBlink's nextOffset cursor."""
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0",
+        "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
+        "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
     }
-    try:
-      res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
-      if res.status_code == 401:
-        st.sidebar.error(
-            "⚠️ Bearer Token has expired! Please paste a fresh token."
-        )
-        break
-      if res.status_code != 200:
-        break
 
-      data = res.json()
-      items = data.get("submissions", []) if isinstance(data, dict) else data
-      if not items:
-        break
+    all_rows = []
+    current_offset = 0
 
-      all_rows.extend(items)
-      if len(items) < 50:
-        break
+    while True:
+        payload = {
+            "formId": form_id,
+            "limit": 50,
+            "offset": current_offset,
+            "unwindRepeatableSets": True,
+        }
+        
+        try:
+            res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
+            if res.status_code != 200:
+                st.sidebar.error(f"API request failed at offset {current_offset}: HTTP {res.status_code}")
+                break
 
-      current_offset += 50
-    except Exception:
-      break
+            data = res.json()
+            items = data.get("submissions", []) if isinstance(data, dict) else data
+            if not items:
+                break
 
-  return all_rows
+            all_rows.extend(items)
+
+            # Read the nextOffset directly from OneBlink's metadata response
+            meta = data.get("meta", {}) if isinstance(data, dict) else {}
+            next_offset = meta.get("nextOffset")
+
+            st.sidebar.text(f"Offset {current_offset} ➔ Got {len(items)} rows (Next: {next_offset})")
+
+            # If there's no nextOffset or it hasn't advanced, we've reached the end
+            if not next_offset or next_offset <= current_offset:
+                break
+
+            current_offset = next_offset
+
+            # Safety ceiling (up to 1,000 records / 20 pages)
+            if current_offset >= 1000:
+                break
+
+        except Exception as e:
+            st.sidebar.error(f"Pagination error: {e}")
+            break
+
+    return all_rows
 
 
 if cache_key not in st.session_state or st.session_state[cache_key].empty:
