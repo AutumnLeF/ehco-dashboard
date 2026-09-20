@@ -77,8 +77,6 @@ def extract_temp_value(entry, sub, rec):
         entry.get("temperature"),
         sub.get("Temperature °C (Coolroom 4°C or below / Fridge 4°C or below)"),
         sub.get("Temperature °C (Freezer -18°C or colder)"),
-        sub.get("CRTemperature"),
-        sub.get("FreezerTemp"),
         rec.get("submission.Entry.CRTemperature"),
         rec.get("submission.Entry.FreezerTemp"),
         rec.get("submission.Entry.Temperature"),
@@ -113,13 +111,14 @@ def parse_record_03_submissions(raw_df):
         sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else {}
         entry = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else {}
 
-        # 1. Date
+        # 1. Date normalization (extracting both date string and strict datetime.date)
         raw_date = (
             sub.get("Date")
             or sub.get("date")
             or rec.get("submission.Date")
             or rec.get("submission.date")
             or rec.get("createdAt")
+            or rec.get("dateTimeSubmitted")
             or ""
         )
         parsed_dt = pd.to_datetime(raw_date, errors="coerce")
@@ -133,7 +132,7 @@ def parse_record_03_submissions(raw_df):
             date_str = str(raw_date)[:10]
             date_obj = None
 
-        # 2. Time
+        # 2. Time parsing
         raw_time_iso = str(
             sub.get("Time")
             or sub.get("time")
@@ -246,6 +245,16 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
     """Renders Record 03 with master catalog and clean 7-day grid."""
     df_items = parse_record_03_submissions(raw_df)
 
+    # --- TOP DIAGNOSTIC BAR ---
+    with st.expander("🔍 Date Diagnostic (Inspect dates loaded in memory)"):
+        st.write(f"Total parsed records: **{len(df_items)}**")
+        if not df_items.empty and "Date_Obj" in df_items.columns:
+            date_counts = df_items["Date_Obj"].dropna().value_counts().sort_index(ascending=False).to_dict()
+            st.write("Records per date found in this batch:", {str(k): v for k, v in date_counts.items()})
+        else:
+            st.write("No valid dates found in the payload.")
+    # --------------------------
+
     tab_day, tab_matrix = st.tabs([
         f"📅 Daily Unit Temperature Audit ({selected_day_str})",
         "📈 7-Day Grouped Location Matrix"
@@ -321,15 +330,13 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             st.markdown('</div>', unsafe_allow_html=True)
 
     # -------------------------------------------------------------
-    # TAB 2: 7-DAY MATRIX
+    # TAB 2: 7-DAY MATRIX (USES STRICT DATE OBJECT COMPARISONS)
     # -------------------------------------------------------------
     with tab_matrix:
         total_days = max(1, (end_date - start_date).days + 1)
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
-
         max_page = max(0, (total_days - 1) // 7)
 
-        # Ensure pagination index is within bounds of active date range
         if "rec03_page" not in st.session_state or st.session_state.rec03_page > max_page:
             st.session_state.rec03_page = max_page
 
@@ -347,7 +354,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         p_start_idx = st.session_state.rec03_page * 7
         page_dates = all_dates[p_start_idx : p_start_idx + 7]
 
-        # Failsafe: if page_dates is somehow empty, default to last 7 days
         if not page_dates:
             page_dates = all_dates[-7:]
 
@@ -402,13 +408,10 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 u_df = df_items[df_items["Clean_Unit"] == clean_target] if not df_items.empty else pd.DataFrame()
 
                 for i, d in enumerate(page_dates):
-                    d_str = d.strftime("%d/%m/%Y")
+                    # Strict python date object matching
                     matches = pd.DataFrame()
-                    if not u_df.empty:
-                        if "Date_Obj" in u_df.columns:
-                            matches = u_df[u_df["Date_Obj"] == d]
-                        if matches.empty and "Date_Str" in u_df.columns:
-                            matches = u_df[u_df["Date_Str"] == d_str]
+                    if not u_df.empty and "Date_Obj" in u_df.columns:
+                        matches = u_df[u_df["Date_Obj"] == d]
 
                     if matches.empty:
                         row_cols[i + 1].markdown(
@@ -419,7 +422,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                         entries = matches.sort_values(by="Time").to_dict("records")
                         has_day_breach = any(e["Has_Breach"] for e in entries)
 
-                        # Separate distinct checks by >= 15 min gap
                         distinct_shifts = []
                         for ent in entries:
                             if not distinct_shifts:
