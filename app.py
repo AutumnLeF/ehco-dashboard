@@ -343,3 +343,12 @@ if not raw_records_df.empty:
     ]
     if sample_cols:
         st.dataframe(raw_records_df[sample_cols].head(3), use_container_width=True)
+
+def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
+    # --- TEMPORARY DIAGNOSTIC BAR ---
+    with st.expander("🛠️ Debug Live Submissions Received from API"):
+        st.write(f"Total raw rows received from API: **{len(raw_df)}**")
+        if not raw_df.empty:
+            # Show raw columns and sample rows
+            st.dataframe(raw_df.head(10), use_container_width=True)
+    # --------------------------------
