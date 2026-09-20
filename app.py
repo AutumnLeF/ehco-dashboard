@@ -226,10 +226,10 @@ if active_token:
         "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
     }
 
-    # Query up to 250 records to cover the full 30-day window
+    # Query up to 500 records to cover the full 30-day window
     post_payload = {
         "formId": active_form_id,
-        "limit": 250,
+        "limit": 500,
         "offset": 0,
     }
 
