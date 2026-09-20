@@ -183,55 +183,52 @@ else:
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
 
 def fetch_submissions(url, token, form_id, start_dt=None):
-    """Paginates form-store using OneBlink's native meta.nextOffset."""
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0",
-        "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
-        "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
+  """Paginates form-store using clean JSON payload increments of 50."""
+  headers = {
+      "Authorization": f"Bearer {token}",
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "User-Agent": "Mozilla/5.0",
+      "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
+      "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
+  }
+
+  all_rows = []
+  current_offset = 0
+  max_records = 600  # Pulls ~12 pages (covers 7–10 days of entries)
+
+  while current_offset < max_records:
+    payload = {
+        "formId": form_id,
+        "limit": 50,
+        "offset": current_offset,
+        "unwindRepeatableSets": True,
     }
-    all_rows = []
-    current_offset = 0
 
-    while True:
-        payload = {
-            "formId": form_id,
-            "limit": 50,
-            "offset": current_offset,
-            "unwindRepeatableSets": True,
-        }
-        try:
-            res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
-            if res.status_code != 200:
-                break
-            
-            data = res.json()
-            items = data.get("submissions", []) if isinstance(data, dict) else data
-            if not items:
-                break
+    try:
+      res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
+      if res.status_code != 200:
+        break
 
-            all_rows.extend(items)
+      data = res.json()
+      items = data.get("submissions", []) if isinstance(data, dict) else data
 
-            # Check OneBlink's pagination pointer
-            meta = data.get("meta", {}) if isinstance(data, dict) else {}
-            next_offset = meta.get("nextOffset")
+      if not items:
+        break
 
-            # If no nextOffset or it hasn't advanced, we have reached the end
-            if not next_offset or next_offset <= current_offset:
-                break
+      all_rows.extend(items)
 
-            current_offset = next_offset
+      # If fewer than 50 entries returned, we hit the final page
+      if len(items) < 50:
+        break
 
-            # Safety cap: fetch up to 1,500 distinct items (approx 2-3 weeks of logs)
-            if current_offset >= 1500:
-                break
+      # Step offset forward by 50 for the next batch
+      current_offset += 50
 
-        except Exception as e:
-            break
+    except Exception:
+      break
 
-    return all_rows
+  return all_rows
 
 # Ingest data only if cache is empty or user manually pressed "Sync Live Feed"
 if st.session_state[cache_key].empty or force_refresh:
