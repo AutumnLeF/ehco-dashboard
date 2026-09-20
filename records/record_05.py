@@ -1,233 +1,243 @@
+from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-RECORD_05_LOCATION = "Filia Kitchen"
-MAX_COOLING_2HR_TEMP = 5.0  # Must be <= 5.0°C after 2 hours in blast chiller
+RECORD_05_FORM_ID = 31375
+CRITICAL_LIMIT_2HR = 5.0  # Blast chiller target: <= 5.0°C after 2 hours
 
 
-def audit_record_05(df_today):
-    """Audits Record 05 (Cooling of Food Record) for daily completion and 2-hour limits."""
-    if df_today.empty:
-        return {
-            "status": "empty",
-            "pending": [
-                {
-                    "Kitchen": RECORD_05_LOCATION,
-                    "Task": "Daily Blast Chilling Log",
-                    "Details": "No cooling cycles logged today",
-                }
-            ],
-            "excursions": [],
-            "completed": [],
-        }
+def parse_record_05_submissions(raw_df):
+    """Parses Record 05 (Blast Chiller / Food Cooling) submissions into a clean DataFrame."""
+    if raw_df.empty:
+        return pd.DataFrame()
 
-    df = df_today.copy()
-    df.columns = [c.strip() for c in df.columns]
+    df = raw_df.copy()
 
-    loc_col = next(
-        (c for c in df.columns if c.lower() in ["location", "submission.location"]),
+    # Match formId loosely
+    form_col = next(
+        (c for c in df.columns if c.lower() in ["formid", "submission.formid"]),
         None,
     )
-    food_col = next(
-        (c for c in df.columns if "food" in c.lower() or "item" in c.lower()),
-        None,
-    )
-    start_temp_col = next(
-        (c for c in df.columns if "start temp" in c.lower()),
-        None,
-    )
-    end_temp_col = next(
-        (
-            c
-            for c in df.columns
-            if "after 2 hours" in c.lower() or "blast chiller" in c.lower()
-        ),
-        None,
-    )
-    staff_col = next(
-        (
-            c
-            for c in df.columns
-            if "sign" in c.lower() or "initial" in c.lower() or "inspector" in c.lower()
-        ),
-        None,
-    )
+    if form_col:
+        df = df[df[form_col].astype(str) == str(RECORD_05_FORM_ID)]
 
-    if not (loc_col and end_temp_col):
-        return {
-            "status": "error",
-            "message": "Required columns (Location or Temperature after 2 Hours) not found.",
-        }
+    rows = []
+    for _, record in df.iterrows():
+        # Date parsing
+        raw_date = (
+            record.get("submission.Start_Date")
+            or record.get("Start Date")
+            or record.get("submission.Date")
+            or record.get("Date")
+            or record.get("createdAt")
+            or ""
+        )
 
-    # Clean numeric 2-hour end temperature
-    df["Clean_End_Temp"] = pd.to_numeric(
-        df[end_temp_col].astype(str).str.replace("°C", "").str.strip(),
-        errors="coerce",
-    )
+        parsed_dt = pd.to_datetime(raw_date, errors="coerce")
+        if pd.isna(parsed_dt):
+            parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
 
-    filia_records = df[df[loc_col].str.strip().str.lower() == RECORD_05_LOCATION.lower()]
+        if pd.notna(parsed_dt):
+            norm_date = parsed_dt.strftime("%d/%m/%Y")
+            date_obj = parsed_dt.date()
+        else:
+            norm_date = str(raw_date)[:10]
+            date_obj = None
 
-    pending = []
-    completed = []
-    excursions = []
+        time_str = (
+            record.get("submission.Start_Time")
+            or record.get("Start Time")
+            or record.get("submission.Time")
+            or ""
+        )
+        location = (
+            record.get("submission.Location")
+            or record.get("Location")
+            or "Filia Kitchen"
+        )
+        method = (
+            record.get("submission.Method")
+            or record.get("Method")
+            or "Blast Chiller"
+        )
+        food = (
+            record.get("submission.Name_of_Food")
+            or record.get("Name of Food")
+            or record.get("Food")
+            or "Item"
+        )
 
-    # 1. Completion Check
-    if filia_records.empty:
-        pending.append(
+        # Temperature parsing
+        start_temp_raw = (
+            record.get("submission.Start_Temperature")
+            or record.get("Start Temperature °C")
+            or record.get("submission.Start_Temperature_C")
+        )
+        start_temp = pd.to_numeric(
+            str(start_temp_raw).replace("°C", "").strip(), errors="coerce"
+        )
+
+        end_temp_raw = (
+            record.get("submission.Temperature_after_2_Hours")
+            or record.get("Temperature after 2 Hours (°C) - Blast Chiller")
+            or record.get("submission.Temp_After_2_Hours")
+        )
+        end_temp = pd.to_numeric(
+            str(end_temp_raw).replace("°C", "").strip(), errors="coerce"
+        )
+
+        sign = (
+            record.get("submission.Sign")
+            or record.get("Sign (Initial)")
+            or record.get("Sign")
+            or "Staff"
+        )
+
+        rows.append(
             {
-                "Kitchen": RECORD_05_LOCATION,
-                "Task": "Daily Blast Chilling Log",
-                "Details": "Zero cooling cycles logged today",
+                "Date_Str": norm_date,
+                "Date_Obj": date_obj,
+                "Time": time_str,
+                "Location": location,
+                "Method": method,
+                "Food": food,
+                "Start_Temp": start_temp,
+                "End_Temp": end_temp,
+                "Sign": sign,
             }
         )
+
+    return pd.DataFrame(rows)
+
+
+def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
+    """Renders both 30-day timeline matrix and daily drilldown for Record 05."""
+    df_items = parse_record_05_submissions(raw_df)
+
+    if not df_items.empty and "Date_Obj" in df_items.columns:
+        range_df = df_items[
+            (df_items["Date_Obj"] >= start_date)
+            & (df_items["Date_Obj"] <= end_date)
+        ]
     else:
-        completed.append(
-            {
-                "Kitchen": RECORD_05_LOCATION,
-                "Task": "Blast Chiller Cycle",
-                "Items_Logged": len(filia_records),
-                "Inspector": (
-                    filia_records[staff_col].iloc[0]
-                    if staff_col and not filia_records.empty
-                    else "Staff"
-                ),
-            }
+        range_df = df_items.copy()
+
+    tab_day, tab_range = st.tabs(
+        [f"📅 Daily Pull-Down ({selected_day_str})", "📈 30-Day Completion Matrix"]
+    )
+
+    with tab_day:
+        day_df = (
+            range_df[range_df["Date_Str"] == selected_day_str]
+            if not range_df.empty
+            else pd.DataFrame()
         )
 
-    # 2. Temperature Limit Check (> 5.0°C after 2 hours)
-    for _, row in filia_records.iterrows():
-        end_temp = row["Clean_End_Temp"]
-        food_name = row[food_col] if food_col else "Item"
-        staff = row[staff_col] if staff_col else "Staff"
-        start_temp = row[start_temp_col] if start_temp_col else "N/A"
+        excursions = []
+        compliant_logs = []
 
-        if pd.isna(end_temp):
-            excursions.append(
-                {
-                    "Kitchen": RECORD_05_LOCATION,
-                    "Food": food_name,
-                    "Details": "Missing 2-hour pull-down temperature reading",
-                    "Severity": "Warning",
-                    "Staff": staff,
-                }
+        if not day_df.empty:
+            for _, r in day_df.iterrows():
+                if pd.notna(r["End_Temp"]) and r["End_Temp"] > CRITICAL_LIMIT_2HR:
+                    excursions.append(r.to_dict())
+                else:
+                    compliant_logs.append(r.to_dict())
+
+        # KPIs
+        k1, k2, k3 = st.columns(3)
+        with k1:
+            st.markdown(
+                f'<div class="kpi-box"><div class="kpi-num" style="color:#b91c1c;">{len(excursions)}</div><div class="kpi-lbl">Cooling Excursions (&gt; 5.0°C)</div></div>',
+                unsafe_allow_html=True,
             )
-        elif end_temp > MAX_COOLING_2HR_TEMP:
-            excursions.append(
-                {
-                    "Kitchen": RECORD_05_LOCATION,
-                    "Food": food_name,
-                    "Details": f"Failed 2h pull-down: {end_temp}°C (Start: {start_temp}°C, Limit ≤ {MAX_COOLING_2HR_TEMP}°C)",
-                    "Severity": "Critical Violation",
-                    "Staff": staff,
-                }
+        with k2:
+            st.markdown(
+                f'<div class="kpi-box"><div class="kpi-num" style="color:#15803d;">{len(compliant_logs)}</div><div class="kpi-lbl">Verified Pulled-Down (≤ 5.0°C)</div></div>',
+                unsafe_allow_html=True,
+            )
+        with k3:
+            st.markdown(
+                f'<div class="kpi-box"><div class="kpi-num" style="color:#1a1a1a;">{len(day_df)}</div><div class="kpi-lbl">Total Batches Chilled</div></div>',
+                unsafe_allow_html=True,
             )
 
-    return {
-        "status": "ok",
-        "pending": pending,
-        "completed": completed,
-        "excursions": excursions,
-    }
+        st.write("")
 
+        c1, c2 = st.columns([1, 1])
+        with c1:
+            st.markdown(
+                f'<div class="kanban-col"><div class="kanban-h" style="color:#b91c1c;">🔴 Excursions (&gt; 5.0°C at 2h) ({len(excursions)})</div>',
+                unsafe_allow_html=True,
+            )
+            if excursions:
+                for exc in excursions:
+                    st.markdown(
+                        f"""
+                    <div class="check-card" style="border-left: 4px solid #b91c1c;">
+                        <div style="font-weight:600; font-size:0.85rem;">{exc['Food']} • {exc['Location']}</div>
+                        <div style="font-size:0.75rem; color:#b91c1c; margin-top:2px;">
+                            Start: <b>{exc['Start_Temp']}°C</b> &nbsp;➔&nbsp; After 2h: <b>{exc['End_Temp']}°C</b> (Limit ≤ 5.0°C)
+                        </div>
+                        <div style="font-size:0.7rem; color:#8c8983; margin-top:3px;">Time: {exc['Time']} | Initial: {exc['Sign']}</div>
+                    </div>""",
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.caption("No cooling excursions on this day.")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-def render_record_05_view(df_today):
-    """Renders the UI for Record 05."""
-    results = audit_record_05(df_today)
+        with c2:
+            st.markdown(
+                f'<div class="kanban-col"><div class="kanban-h" style="color:#15803d;">🟢 Successfully Chilled ({len(compliant_logs)})</div>',
+                unsafe_allow_html=True,
+            )
+            if compliant_logs:
+                for ok in compliant_logs:
+                    st.markdown(
+                        f"""
+                    <div class="check-card" style="border-left: 4px solid #15803d;">
+                        <div style="font-weight:600; font-size:0.85rem;">{ok['Food']}</div>
+                        <div style="font-size:0.75rem; color:#403d39; margin-top:2px;">
+                            Start: <b>{ok['Start_Temp']}°C</b> &nbsp;➔&nbsp; After 2h: <b style="color:#15803d;">{ok['End_Temp']}°C</b>
+                        </div>
+                        <div style="font-size:0.7rem; color:#8c8983; margin-top:3px;">Method: {ok['Method']} | Signed: {ok['Sign']}</div>
+                    </div>""",
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.caption("No blast chilling logs recorded for this day.")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-    if results["status"] == "error":
-        st.error(results["message"])
-        return
-
-    pending = results["pending"]
-    completed = results["completed"]
-    excursions = results["excursions"]
-
-    # Metrics Strip
-    m1, m2, m3 = st.columns(3)
-    with m1:
-        st.markdown(
-            f'<div class="kpi-box"><div class="kpi-num" style="color:#b91c1c;">{len(excursions)}</div><div class="kpi-lbl">Pull-down Excursions (&gt; 5.0°C)</div></div>',
-            unsafe_allow_html=True,
+    with tab_range:
+        st.subheader(
+            f"Blast Chiller Compliance Matrix ({start_date.strftime('%d/%m/%Y')} to {end_date.strftime('%d/%m/%Y')})"
         )
-    with m2:
-        st.markdown(
-            f'<div class="kpi-box"><div class="kpi-num" style="color:#d97706;">{len(pending)}</div><div class="kpi-lbl">Pending Submission</div></div>',
-            unsafe_allow_html=True,
-        )
-    with m3:
-        st.markdown(
-            f'<div class="kpi-box"><div class="kpi-num" style="color:#15803d;">{len(completed)}</div><div class="kpi-lbl">Verified Cycles</div></div>',
-            unsafe_allow_html=True,
-        )
-
-    st.write("")
-
-    # Status Lanes
-    c1, c2, c3 = st.columns(3)
-
-    # Lane 1: Excursions
-    with c1:
-        st.markdown(
-            f'<div class="kanban-col"><div class="kanban-h" style="color:#b91c1c;">🔴 Cooling Excursions ({len(excursions)})</div>',
-            unsafe_allow_html=True,
-        )
-        if excursions:
-            for exc in excursions:
-                st.markdown(
-                    f"""
-                <div class="check-card" style="border-left: 4px solid #b91c1c;">
-                    <div style="font-weight:600; font-size:0.85rem;">{exc['Kitchen']} • {exc['Food']}</div>
-                    <div style="font-size:0.75rem; color:#b91c1c; margin-top:3px;">{exc['Details']}</div>
-                    <div style="font-size:0.7rem; color:#8c8983; margin-top:3px;">Initial: {exc['Staff']}</div>
-                </div>
-                """,
-                    unsafe_allow_html=True,
-                )
+        if range_df.empty:
+            st.info("No blast chiller records found for this 30-day window.")
         else:
-            st.caption("All batches pulled down to safe temperatures within 2 hours.")
-        st.markdown("</div>", unsafe_allow_html=True)
+            # Batch count by food and date
+            matrix = range_df.pivot_table(
+                index=["Location", "Food"],
+                columns="Date_Str",
+                values="End_Temp",
+                aggfunc="count",
+                fill_value=0,
+            )
+            st.dataframe(matrix, use_container_width=True)
 
-    # Lane 2: Pending
-    with c2:
-        st.markdown(
-            f'<div class="kanban-col"><div class="kanban-h" style="color:#d97706;">🟡 Pending Checklist ({len(pending)})</div>',
-            unsafe_allow_html=True,
-        )
-        if pending:
-            for item in pending:
-                st.markdown(
-                    f"""
-                <div class="check-card" style="border-left: 4px solid #d97706;">
-                    <div style="font-weight:600; font-size:0.85rem;">{item['Kitchen']}</div>
-                    <div style="font-size:0.8rem; color:#d97706; margin-top:2px;">{item['Task']}</div>
-                    <div style="font-size:0.7rem; color:#8c8983; margin-top:4px;">{item['Details']}</div>
-                </div>
-                """,
-                    unsafe_allow_html=True,
-                )
-        else:
-            st.caption("Daily cooling log completed!")
-        st.markdown("</div>", unsafe_allow_html=True)
-
-    # Lane 3: Completed
-    with c3:
-        st.markdown(
-            f'<div class="kanban-col"><div class="kanban-h" style="color:#15803d;">🟢 Verified Complete ({len(completed)})</div>',
-            unsafe_allow_html=True,
-        )
-        if completed:
-            for item in completed:
-                st.markdown(
-                    f"""
-                <div class="check-card" style="border-left: 4px solid #15803d;">
-                    <div style="font-weight:600; font-size:0.85rem;">{item['Kitchen']}</div>
-                    <div style="font-size:0.8rem; color:#15803d; margin-top:2px;">{item['Task']}</div>
-                    <div style="font-size:0.75rem; color:#403d39; margin-top:2px;">{item['Items_Logged']} batches chilled & verified</div>
-                    <div style="font-size:0.7rem; color:#8c8983; margin-top:2px;">Signed by: {item['Inspector']}</div>
-                </div>
-                """,
-                    unsafe_allow_html=True,
-                )
-        else:
-            st.caption("No cooling cycles recorded today.")
-        st.markdown("</div>", unsafe_allow_html=True)
+            # High-level full log table
+            st.write(f"**Total Cooling Records in Period:** {len(range_df)}")
+            display_cols = [
+                "Date_Str",
+                "Time",
+                "Location",
+                "Food",
+                "Start_Temp",
+                "End_Temp",
+                "Sign",
+            ]
+            st.dataframe(
+                range_df[display_cols],
+                use_container_width=True,
+                hide_index=True,
+            )
