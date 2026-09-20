@@ -3,13 +3,13 @@ import pandas as pd
 import streamlit as st
 
 RECORD_05_FORM_ID = 31375
-CRITICAL_LIMIT_2HR = 5.0  # Blast chiller target: <= 5.0°C after 2 hours
+CRITICAL_LIMIT_2HR = 5.0  # Limit: <= 5.0°C after 2 hours
 
 RECORD_05_KITCHENS = ["Filia Kitchen"]
 
 
 def find_val(row_dict, keywords):
-    """Finds the first matching non-null value for loose key names."""
+    """Finds first matching non-null value for loose key names."""
     for k, v in row_dict.items():
         k_clean = k.lower().replace("_", "").replace(" ", "").replace(".", "")
         for kw in keywords:
@@ -21,7 +21,7 @@ def find_val(row_dict, keywords):
 
 
 def parse_record_05_submissions(raw_df):
-    """Parses Record 05 blast chiller submissions with clean date objects."""
+    """Parses Record 05 blast chiller submissions."""
     if raw_df.empty:
         return pd.DataFrame()
 
@@ -35,7 +35,6 @@ def parse_record_05_submissions(raw_df):
     for _, record in df.iterrows():
         rec = record.to_dict()
 
-        # Date normalization
         raw_date = find_val(rec, ["startdate", "date", "createdat"]) or ""
         parsed_dt = pd.to_datetime(raw_date, errors="coerce")
         if pd.isna(parsed_dt):
@@ -53,7 +52,6 @@ def parse_record_05_submissions(raw_df):
         method = find_val(rec, ["method"]) or "Blast Chiller"
         food = find_val(rec, ["nameoffood", "fooditem", "food"]) or "Batch Item"
 
-        # Temperatures
         start_raw = find_val(rec, ["starttemperature", "starttemp", "tempstart"])
         start_temp = pd.to_numeric(
             str(start_raw).replace("°C", "").strip(), errors="coerce"
@@ -92,8 +90,116 @@ def parse_record_05_submissions(raw_df):
     return pd.DataFrame(rows)
 
 
-# -------------------------------------------------------------
-    # TAB 2: 7-DAY SPLIT-CELL AUDIT GRID
+def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
+    """Renders daily drilldown and paged 7-day compliance grid."""
+    df_items = parse_record_05_submissions(raw_df)
+
+    if not df_items.empty and "Date_Obj" in df_items.columns:
+        range_df = df_items[
+            (df_items["Date_Obj"] >= start_date)
+            & (df_items["Date_Obj"] <= end_date)
+        ]
+    else:
+        range_df = df_items.copy()
+
+    tab_day, tab_matrix = st.tabs(
+        [
+            f"📅 Daily Pull-Down ({selected_day_str})",
+            "📈 7-Day Matrix (1-Month Browser)",
+        ]
+    )
+
+    # -------------------------------------------------------------
+    # TAB 1: DAILY DRILLDOWN
+    # -------------------------------------------------------------
+    with tab_day:
+        day_df = (
+            range_df[range_df["Date_Str"] == selected_day_str]
+            if not range_df.empty
+            else pd.DataFrame()
+        )
+
+        excursions = []
+        compliant_logs = []
+
+        if not day_df.empty:
+            for _, r in day_df.iterrows():
+                if pd.notna(r["End_Temp"]) and r["End_Temp"] > CRITICAL_LIMIT_2HR:
+                    excursions.append(r.to_dict())
+                else:
+                    compliant_logs.append(r.to_dict())
+
+        k1, k2, k3 = st.columns(3)
+        with k1:
+            st.markdown(
+                f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div><div class="kpi-lbl">Excursions (&gt; 5.0°C)</div></div>',
+                unsafe_allow_html=True,
+            )
+        with k2:
+            st.markdown(
+                f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{len(compliant_logs)}</div><div class="kpi-lbl">Verified Pulled-Down (≤ 5.0°C)</div></div>',
+                unsafe_allow_html=True,
+            )
+        with k3:
+            st.markdown(
+                f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Batches Chilled</div></div>',
+                unsafe_allow_html=True,
+            )
+
+        st.write("")
+
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown(
+                f'<div class="kanban-col"><div class="kanban-h" style="color:#dc2626;">🔴 Core Temp Breaches ({len(excursions)})</div>',
+                unsafe_allow_html=True,
+            )
+            if excursions:
+                for exc in excursions:
+                    st.markdown(
+                        f"""
+                    <div class="check-card" style="border-left: 5px solid #dc2626;">
+                        <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{exc['Food']} • {exc['Location']}</div>
+                        <div style="font-size:0.8rem; color:#dc2626; font-weight:600; margin-top:3px;">
+                            Start: {exc['Start_Temp']}°C &nbsp;➔&nbsp; After 2h: {exc['End_Temp']}°C (Limit ≤ 5.0°C)
+                        </div>
+                        <div style="font-size:0.75rem; color:#64748b; margin-top:3px;">Time: {exc['Time']} | Sign: {exc['Sign']}</div>
+                    </div>""",
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.caption("No cooling excursions on this day.")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+        with c2:
+            st.markdown(
+                f'<div class="kanban-col"><div class="kanban-h" style="color:#16a34a;">🟢 Verified Pulled-Down ({len(compliant_logs)})</div>',
+                unsafe_allow_html=True,
+            )
+            if compliant_logs:
+                for ok in compliant_logs:
+                    temp_txt = (
+                        f"{ok['End_Temp']}°C"
+                        if pd.notna(ok["End_Temp"])
+                        else "Done"
+                    )
+                    st.markdown(
+                        f"""
+                    <div class="check-card" style="border-left: 5px solid #16a34a;">
+                        <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{ok['Food']}</div>
+                        <div style="font-size:0.8rem; color:#334155; margin-top:3px;">
+                            Start: <b>{ok['Start_Temp']}°C</b> &nbsp;➔&nbsp; After 2h: <b style="color:#16a34a;">{temp_txt}</b>
+                        </div>
+                        <div style="font-size:0.75rem; color:#64748b; margin-top:3px;">Method: {ok['Method']} | Sign: {ok['Sign']}</div>
+                    </div>""",
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.caption("No blast chiller records for this day.")
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    # -------------------------------------------------------------
+    # TAB 2: 7-DAY SPLIT-CELL AUDIT GRID (ZERO RAW HTML LEAKS)
     # -------------------------------------------------------------
     with tab_matrix:
         st.subheader("7-Day Kitchen Completion Matrix")
@@ -119,15 +225,15 @@ def parse_record_05_submissions(raw_df):
                 st.rerun()
 
         p_start_idx = st.session_state.rec05_page * 7
-        page_dates = all_dates[p_start_idx:p_start_idx + 7]
+        page_dates = all_dates[p_start_idx : p_start_idx + 7]
 
         with col_status:
             if page_dates:
                 st.markdown(
                     f"<div style='text-align:center; font-weight:700; color:#0f172a; font-size:0.95rem; padding-top:6px;'>"
-                    f"Showing: {page_dates[0].strftime('%d/%m/%Y')} to {page_dates[-1].strftime('%d/%m/%Y')} (Page {st.session_state.rec05_page + 1} of {max_page + 1})"
+                    f"Showing: {page_dates[0].strftime('%d/%m/%Y')} to {page_dates[-1].strftime('%d/%m/%Y')} (Block {st.session_state.rec05_page + 1} of {max_page + 1})"
                     f"</div>",
-                    unsafe_allow_html=True
+                    unsafe_allow_html=True,
                 )
 
         st.write("")
@@ -137,14 +243,14 @@ def parse_record_05_submissions(raw_df):
 
         # Header row
         cols[0].markdown("""
-        <div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.85rem; padding:10px; border-radius:6px; text-align:center;">
+        <div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.85rem; padding:10px 4px; border-radius:6px; text-align:center;">
             Kitchen Area
         </div>
         """, unsafe_allow_html=True)
 
         for i, d in enumerate(page_dates):
-            cols[i+1].markdown(f"""
-            <div style="background:#1e293b; color:#ffffff; font-weight:700; font-size:0.8rem; padding:10px 4px; border-radius:6px; text-align:center;">
+            cols[i + 1].markdown(f"""
+            <div style="background:#1e293b; color:#ffffff; font-weight:700; font-size:0.8rem; padding:10px 2px; border-radius:6px; text-align:center;">
                 {d.strftime('%d/%m (%a)')}
             </div>
             """, unsafe_allow_html=True)
@@ -152,29 +258,41 @@ def parse_record_05_submissions(raw_df):
         st.write("")
 
         # Data rows per kitchen
-        all_kitchens = sorted(list(range_df["Location"].unique())) if not range_df.empty and "Location" in range_df.columns else RECORD_05_KITCHENS
+        all_kitchens = (
+            sorted(list(range_df["Location"].unique()))
+            if not range_df.empty and "Location" in range_df.columns
+            else RECORD_05_KITCHENS
+        )
 
         for kitchen in all_kitchens:
             row_cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
 
             # Column 1: Kitchen Name
             row_cols[0].markdown(f"""
-            <div style="background:#ffffff; border:1px solid #94a3b8; border-radius:8px; padding:14px 10px; font-weight:700; color:#0f172a; font-size:0.9rem; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:105px; display:flex; align-items:center; justify-content:center;">
+            <div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:12px 6px; font-weight:700; color:#0f172a; font-size:0.88rem; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:115px; display:flex; align-items:center; justify-content:center;">
                 {kitchen}
             </div>
             """, unsafe_allow_html=True)
 
-            k_df = range_df[range_df["Location"] == kitchen] if not range_df.empty else pd.DataFrame()
+            k_df = (
+                range_df[range_df["Location"] == kitchen]
+                if not range_df.empty
+                else pd.DataFrame()
+            )
 
             # Columns 2 to 8: Days
             for i, d in enumerate(page_dates):
                 d_str = d.strftime("%d/%m/%Y")
-                matches = k_df[k_df["Date_Str"] == d_str] if not k_df.empty else pd.DataFrame()
+                matches = (
+                    k_df[k_df["Date_Str"] == d_str]
+                    if not k_df.empty
+                    else pd.DataFrame()
+                )
 
                 if matches.empty:
-                    row_cols[i+1].markdown("""
-                    <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:10px; text-align:center; min-height:105px; display:flex; align-items:center; justify-content:center;">
-                        <span style="color:#94a3b8; font-weight:600; font-size:1.1rem;">—</span>
+                    row_cols[i + 1].markdown("""
+                    <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:115px; display:flex; align-items:center; justify-content:center;">
+                        <span style="color:#94a3b8; font-weight:700; font-size:1.2rem;">—</span>
                     </div>
                     """, unsafe_allow_html=True)
                 else:
@@ -182,12 +300,12 @@ def parse_record_05_submissions(raw_df):
                     foods_list = matches["Food"].dropna().tolist()
                     foods_text = ", ".join(foods_list)
 
-                    # High-contrast 2-tier card: Top number, divider, bottom foods
-                    row_cols[i+1].markdown(f"""
-                    <div style="background:#ffffff; border:1.5px solid #0f172a; border-radius:8px; padding:8px 6px; text-align:center; min-height:105px; box-shadow:0 2px 4px rgba(0,0,0,0.06);">
-                        <div style="font-size:1.25rem; font-weight:800; color:#0f172a; line-height:1.1;">{count}</div>
-                        <div style="height:1px; background:#e2e8f0; margin:6px 0;"></div>
-                        <div style="font-size:0.75rem; font-weight:600; color:#1e293b; line-height:1.25; word-wrap:break-word;">
+                    # High-contrast 2-tier card: Top number, border divider, bottom food items
+                    row_cols[i + 1].markdown(f"""
+                    <div style="background:#ffffff; border:1.5px solid #0f172a; border-radius:8px; padding:8px 4px; text-align:center; min-height:115px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                        <div style="font-size:1.3rem; font-weight:800; color:#0f172a; line-height:1;">{count}</div>
+                        <div style="height:1px; background:#cbd5e1; margin:6px 0;"></div>
+                        <div style="font-size:0.75rem; font-weight:600; color:#0f172a; line-height:1.3; word-wrap:break-word;">
                             {foods_text}
                         </div>
                     </div>
@@ -197,12 +315,23 @@ def parse_record_05_submissions(raw_df):
 
         st.divider()
 
-        # Detailed expandable raw list
         with st.expander("📋 View All Individual Chilling Records (Selected Window)"):
             if not range_df.empty:
                 show_cols = [
-                    c for c in [
-                        "Date_Str", "Time", "Location", "Food", "Start_Temp", "End_Temp", "Sign"
-                    ] if c in range_df.columns
+                    c
+                    for c in [
+                        "Date_Str",
+                        "Time",
+                        "Location",
+                        "Food",
+                        "Start_Temp",
+                        "End_Temp",
+                        "Sign",
+                    ]
+                    if c in range_df.columns
                 ]
-                st.dataframe(range_df[show_cols], use_container_width=True, hide_index=True)
+                st.dataframe(
+                    range_df[show_cols],
+                    use_container_width=True,
+                    hide_index=True,
+                )
