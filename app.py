@@ -76,8 +76,17 @@ selected_day_str = st.sidebar.selectbox(
     options=list(reversed(day_options))
 )
 
+# Persistent inputs
+if "saved_token" not in st.session_state:
+    st.session_state.saved_token = ""
+
 api_url = st.sidebar.text_input("Endpoint URL", value="https://auth-api.blinkm.io/form-store")
-token_input = st.sidebar.text_area("Bearer Token", height=90, placeholder="Paste Cognito Bearer token here...")
+token_input = st.sidebar.text_area("Bearer Token", value=st.session_state.saved_token, height=90, placeholder="Paste Cognito Bearer token here...")
+
+if token_input:
+    st.session_state.saved_token = token_input
+
+sync_button = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
 
 # -------------------------------------------------------------
 # 3. LIVE DATA FETCHER & RESPONSE DEBUGGER
@@ -86,15 +95,19 @@ raw_records_df = pd.DataFrame()
 api_status_code = None
 api_response_text = ""
 
-if api_url and token_input:
-    clean_token = token_input.replace("Bearer ", "").strip()
+active_token = token_input.strip() or st.session_state.saved_token.strip()
+
+if not active_token:
+    st.warning("⚠️ No Bearer Token detected. Please paste your Cognito Bearer Token into the sidebar on the left.")
+else:
+    clean_token = active_token.replace("Bearer ", "").strip()
     headers = {
         "Authorization": f"Bearer {clean_token}",
         "Accept": "application/json",
         "User-Agent": "Mozilla/5.0"
     }
     
-    # Query parameters
+    # Query parameters - pulling form 31374
     params = {"limit": 250, "formId": 31374}
 
     try:
@@ -119,7 +132,7 @@ if api_url and token_input:
                 raw_records_df = pd.json_normalize(items)
                 st.sidebar.success(f"✓ Retrieved {len(raw_records_df)} records")
             else:
-                st.sidebar.warning("API returned 200 OK, but no items list was found in payload.")
+                st.sidebar.warning("API returned 200 OK, but no submissions found inside payload.")
         else:
             st.sidebar.error(f"API Error HTTP {res.status_code}")
     except Exception as e:
