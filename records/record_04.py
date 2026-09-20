@@ -13,14 +13,17 @@ TEMP_THRESHOLD = 75.0
 
 
 def parse_all_record_04_dishes(raw_df):
-    """Unpacks all repeatable set dishes from formId 31374 across all dates with resilient date coercion."""
+    """Unpacks all dishes from formId 31374 across all dates."""
     if raw_df.empty:
         return pd.DataFrame()
 
     df = raw_df.copy()
 
-    # 1. Flexible Form ID matching (handles int, float, str, and nested column names)
-    form_col = next((c for c in df.columns if c.lower() in ["formid", "submission.formid"]), None)
+    # Match formId loosely (string or int, or submission.formId)
+    form_col = next(
+        (c for c in df.columns if c.lower() in ["formid", "submission.formid"]),
+        None,
+    )
     if form_col:
         df = df[df[form_col].astype(str) == str(RECORD_04_FORM_ID)]
 
@@ -29,22 +32,30 @@ def parse_all_record_04_dishes(raw_df):
 
     rows = []
     for _, record in df.iterrows():
-        location = record.get("submission.Location") or record.get("Location") or "Unknown"
-        sign = record.get("submission.Sign") or record.get("Sign") or record.get("user.email") or "Staff"
+        location = (
+            record.get("submission.Location")
+            or record.get("Location")
+            or "Unknown"
+        )
+        sign = (
+            record.get("submission.Sign")
+            or record.get("Sign")
+            or record.get("user.email")
+            or "Staff"
+        )
         time_str = record.get("submission.Time") or record.get("Time") or ""
 
-        # 2. Resilient multi-format Date parser
+        # Normalize submission date
         raw_date = (
-            record.get("submission.Date") 
-            or record.get("Date") 
-            or record.get("createdAt") 
-            or record.get("submission.createdAt") 
+            record.get("submission.Date")
+            or record.get("Date")
+            or record.get("createdAt")
+            or record.get("submission.createdAt")
             or ""
         )
-        
+
         parsed_dt = pd.to_datetime(raw_date, errors="coerce")
         if pd.isna(parsed_dt):
-            # Try dayfirst if standard parsing fails
             parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
 
         if pd.notna(parsed_dt):
@@ -54,8 +65,14 @@ def parse_all_record_04_dishes(raw_df):
             norm_date = str(raw_date)[:10]
             date_obj = None
 
-       entries = record.get("submission.set") or record.get("set") or []
-        # Convert single dict to a list of one item
+        # Handle 'set' whether it is a dict, list, or under submission.set
+        entries = (
+            record.get("submission.set")
+            or record.get("set")
+            or record.get("submission.Entry")
+            or []
+        )
+
         if isinstance(entries, dict):
             entries = [entries]
 
@@ -63,28 +80,41 @@ def parse_all_record_04_dishes(raw_df):
             for entry in entries:
                 if not isinstance(entry, dict):
                     continue
+
                 meal = entry.get("Meal_Service") or "Unassigned"
-                food = entry.get("Food") or entry.get("Name_of_Food_Other") or "Food Item"
+                food = (
+                    entry.get("Food")
+                    or entry.get("Name_of_Food_Other")
+                    or "Food Item"
+                )
                 temp_raw = (
-                    entry.get("Temperature_Cooking") 
-                    or entry.get("Temperature") 
-                    or entry.get("Temperature_Reheating") 
+                    entry.get("Temperature_Cooking")
+                    or entry.get("Temperature")
+                    or entry.get("Temperature_Reheating")
                     or entry.get("Temperature_copy")
                 )
-                temp_val = pd.to_numeric(str(temp_raw).replace("°C", "").strip(), errors="coerce")
-                corrective = entry.get("Corrective_Actions_cooking") or entry.get("Corrective_Action") or ""
+                temp_val = pd.to_numeric(
+                    str(temp_raw).replace("°C", "").strip(), errors="coerce"
+                )
+                corrective = (
+                    entry.get("Corrective_Actions_cooking")
+                    or entry.get("Corrective_Action")
+                    or ""
+                )
 
-                rows.append({
-                    "Date_Str": norm_date,
-                    "Date_Obj": date_obj,
-                    "Time": time_str,
-                    "Location": location,
-                    "Meal_Service": meal,
-                    "Food": food,
-                    "Temp": temp_val,
-                    "Corrective_Action": corrective,
-                    "Sign": sign
-                })
+                rows.append(
+                    {
+                        "Date_Str": norm_date,
+                        "Date_Obj": date_obj,
+                        "Time": time_str,
+                        "Location": location,
+                        "Meal_Service": meal,
+                        "Food": food,
+                        "Temp": temp_val,
+                        "Corrective_Action": corrective,
+                        "Sign": sign,
+                    }
+                )
 
     return pd.DataFrame(rows)
 
@@ -93,7 +123,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
     """Renders both multi-day summary matrix and focused single-day drilldown."""
     all_dishes_df = parse_all_record_04_dishes(raw_df)
 
-    # Filter to chosen date range
     if not all_dishes_df.empty and "Date_Obj" in all_dishes_df.columns:
         range_df = all_dishes_df[
             (all_dishes_df["Date_Obj"] >= start_date)
@@ -102,9 +131,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
     else:
         range_df = all_dishes_df.copy()
 
-    # -------------------------------------------------------------
-    # TAB 1: FOCUS DAY DRILLDOWN | TAB 2: 14-DAY RANGE AUDIT MATRIX
-    # -------------------------------------------------------------
     tab_day, tab_range = st.tabs(
         [f"📅 Daily Audit ({selected_day_str})", "📈 14-Day Completion Matrix"]
     )
@@ -164,7 +190,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                     }
                 )
 
-        # KPIs
         m1, m2, m3 = st.columns(3)
         with m1:
             st.markdown(
@@ -184,7 +209,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
-        # Kanban Lanes
         c1, c2, c3 = st.columns(3)
         with c1:
             st.markdown(
@@ -255,7 +279,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         if range_df.empty:
             st.info("No logs found for this date range.")
         else:
-            # Pivot table showing checks completed per day
             matrix = range_df.pivot_table(
                 index=["Location", "Meal_Service"],
                 columns="Date_Str",
@@ -265,7 +288,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             )
             st.dataframe(matrix, use_container_width=True)
 
-            # High-level excursion history across the entire range
             range_violations = range_df[range_df["Temp"] < TEMP_THRESHOLD]
             st.write(
                 f"**Total Excursions Across Window:** {len(range_violations)}"
