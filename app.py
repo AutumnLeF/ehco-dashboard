@@ -183,7 +183,7 @@ else:
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
 
 def fetch_submissions(url, token, form_id, start_dt=None):
-    """Paginates form-store to retrieve all submissions without dropping records."""
+    """Paginates form-store using OneBlink's native meta.nextOffset."""
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -193,33 +193,42 @@ def fetch_submissions(url, token, form_id, start_dt=None):
         "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
     }
     all_rows = []
-    page_size = 50
-    offset = 0
+    current_offset = 0
 
     while True:
         payload = {
             "formId": form_id,
-            "limit": page_size,
-            "offset": offset,
+            "limit": 50,
+            "offset": current_offset,
             "unwindRepeatableSets": True,
         }
         try:
             res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
             if res.status_code != 200:
                 break
+            
             data = res.json()
             items = data.get("submissions", []) if isinstance(data, dict) else data
             if not items:
                 break
 
             all_rows.extend(items)
-            if len(items) < page_size:
+
+            # Check OneBlink's pagination pointer
+            meta = data.get("meta", {}) if isinstance(data, dict) else {}
+            next_offset = meta.get("nextOffset")
+
+            # If no nextOffset or it hasn't advanced, we have reached the end
+            if not next_offset or next_offset <= current_offset:
                 break
 
-            offset += page_size
-            if offset >= 2000:
+            current_offset = next_offset
+
+            # Safety cap: fetch up to 1,500 distinct items (approx 2-3 weeks of logs)
+            if current_offset >= 1500:
                 break
-        except Exception:
+
+        except Exception as e:
             break
 
     return all_rows
