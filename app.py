@@ -163,16 +163,6 @@ sample_data = pd.DataFrame(
     ]
 )
 
-
-# Temporary sample data fallback if no live API data is connected yet
-if raw_records_df.empty and selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
-    raw_records_df = pd.DataFrame([
-        {"Start Date": "19/09/2026", "Start Time": "8:18 PM", "Location": "Filia Kitchen", "Method": "Blast Chiller", "Name of Food": "Parmesan cream", "Start Temperature °C": 79.1, "Temperature after 2 Hours (°C) - Blast Chiller": 3.2, "Sign (Initial)": "Yashika"},
-        {"Start Date": "19/09/2026", "Start Time": "8:17 PM", "Location": "Filia Kitchen", "Method": "Blast Chiller", "Name of Food": "Bisque", "Start Temperature °C": 75.5, "Temperature after 2 Hours (°C) - Blast Chiller": 2.5, "Sign (Initial)": "Yashika"},
-        {"Start Date": "19/09/2026", "Start Time": "8:16 PM", "Location": "Filia Kitchen", "Method": "Blast Chiller", "Name of Food": "Lamb jus", "Start Temperature °C": 79.2, "Temperature after 2 Hours (°C) - Blast Chiller": 1.8, "Sign (Initial)": "Yashika"}
-    ])[cite: 6]
-
-
 # -------------------------------------------------------------
 # DATA RETRIEVAL / FALLBACK DEFINITION
 # -------------------------------------------------------------
