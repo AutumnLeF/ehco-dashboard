@@ -6,7 +6,6 @@ MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge must be <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer must be <= -18.0°C
 MIN_GAP_HOURS = 5.0       # At least 5 hours between shift checks
 
-# REVISED MASTER INVENTORY MATCHING YOUR TABLE
 UNIT_CATALOG = {
     "Filia Kitchen": [
         {"Unit_ID": "RMO/FK/UC/01", "Type": "Fridge"},
@@ -66,6 +65,31 @@ def clean_unit_token(val):
     if not val or pd.isna(val):
         return ""
     return str(val).replace("/", "").replace("_", "").replace(" ", "").replace("-", "").strip().upper()
+
+
+def extract_temp_value(entry, sub, rec):
+    """Deep extraction for the numeric temperature value across all OneBlink keys."""
+    candidates = [
+        entry.get("CRTemperature"),
+        entry.get("FreezerTemp"),
+        entry.get("FZTemperature"),
+        entry.get("Temperature"),
+        entry.get("temperature"),
+        sub.get("Temperature °C (Coolroom 4°C or below / Fridge 4°C or below)"),
+        sub.get("Temperature °C (Freezer -18°C or colder)"),
+        sub.get("CRTemperature"),
+        sub.get("FreezerTemp"),
+        rec.get("submission.Entry.CRTemperature"),
+        rec.get("submission.Entry.FreezerTemp"),
+        rec.get("submission.Entry.Temperature"),
+    ]
+    for c in candidates:
+        if c is not None:
+            val_clean = str(c).replace("°C", "").replace("°", "").strip()
+            num = pd.to_numeric(val_clean, errors="coerce")
+            if pd.notna(num):
+                return float(num)
+    return None
 
 
 def parse_record_03_submissions(raw_df):
@@ -175,25 +199,11 @@ def parse_record_03_submissions(raw_df):
         is_in_use = "NOT" not in status_raw
 
         # 6. Temperature Check
-        temp_val_raw = (
-            entry.get("FreezerTemp")
-            or entry.get("CRTemperature")
-            or entry.get("FZTemperature")
-            or entry.get("Temperature")
-            or entry.get("temperature")
-            or rec.get("submission.Entry.FreezerTemp")
-            or rec.get("submission.Entry.CRTemperature")
-            or rec.get("submission.Entry.FZTemperature")
-            or sub.get("Temperature °C (Coolroom 4°C or below / Fridge 4°C or below)")
-            or sub.get("Temperature °C (Freezer -18°C or colder)")
-        )
-
-        num_temp = pd.to_numeric(str(temp_val_raw).replace("°C", "").strip(), errors="coerce")
-
+        num_temp = extract_temp_value(entry, sub, rec)
         has_breach = False
         temp_disp = "—"
 
-        if is_in_use and pd.notna(num_temp):
+        if is_in_use and num_temp is not None:
             temp_disp = f"{num_temp}°C"
             if "freezer" in matched_type.lower():
                 if num_temp > MAX_FREEZER_TEMP:
@@ -227,7 +237,6 @@ def parse_record_03_submissions(raw_df):
         })
 
     df = pd.DataFrame(rows)
-    # Deduplicate unwound duplicate rows that share the same unit and timestamp
     if not df.empty:
         df = df.drop_duplicates(subset=["Date_Str", "Time", "Clean_Unit", "Temp"], keep="first")
     return df
@@ -239,12 +248,10 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
 
     tab_day, tab_matrix = st.tabs([
         f"📅 Daily Unit Temperature Audit ({selected_day_str})",
-        "📈 7-Day Grouped Location Matrix (Monitored Units)"
+        "📈 7-Day Grouped Location Matrix"
     ])
 
-    # -------------------------------------------------------------
     # TAB 1: DAILY DRILLDOWN
-    # -------------------------------------------------------------
     with tab_day:
         day_df = (
             df_items[df_items["Date_Str"] == selected_day_str]
@@ -311,9 +318,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 st.caption("No compliant logs recorded for this day.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # -------------------------------------------------------------
-    # TAB 2: HIGH-READABILITY 7-DAY MATRIX
-    # -------------------------------------------------------------
+    # TAB 2: 7-DAY MATRIX (HEADING = 2 OF 2 LOGGED)
     with tab_matrix:
         total_days = (end_date - start_date).days + 1
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
@@ -341,7 +346,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             if page_dates:
                 st.markdown(
                     f"<div style='text-align:center; font-weight:700; color:#0f172a; font-size:0.95rem; padding-top:6px;'>"
-                    f"Showing: <b>{page_dates[0].strftime('%d/%m/%Y')}</b> to <b>{page_dates[-1].strftime('%d/%m/%Y')}</b> (Block {st.session_state.rec03_page + 1} of {max_page + 1})"
+                    f"Showing: <b>{page_dates[0].strftime('%d/%m/%Y')}</b> to <b>{page_dates[-1].strftime('%d/%m/%Y')}</b>"
                     f"</div>",
                     unsafe_allow_html=True
                 )
@@ -379,7 +384,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
 
                 row_cols = st.columns(col_ratios)
 
-                # Unit ID Label Card
                 row_cols[0].markdown(f"""
                 <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 8px; min-height:82px; display:flex; flex-direction:column; justify-content:center;">
                     <div style="font-weight:700; font-size:0.84rem; color:#0f172a;">{unit_id}</div>
@@ -407,7 +411,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                         entries = matches.sort_values(by="Time").to_dict("records")
                         has_day_breach = any(e["Has_Breach"] for e in entries)
 
-                        # Filter down to distinct checks separated by at least 15 minutes
+                        # Consolidate checks separated by at least 15 minutes
                         distinct_shifts = []
                         for ent in entries:
                             if not distinct_shifts:
@@ -416,14 +420,14 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                                 prev_dt = distinct_shifts[-1].get("Timestamp_DT")
                                 curr_dt = ent.get("Timestamp_DT")
                                 if pd.notna(prev_dt) and pd.notna(curr_dt):
-                                    if abs((curr_dt - prev_dt).total_seconds()) > 900:  # > 15 mins
+                                    if abs((curr_dt - prev_dt).total_seconds()) > 900:
                                         distinct_shifts.append(ent)
                                 else:
                                     if ent["Time"] != distinct_shifts[-1]["Time"]:
                                         distinct_shifts.append(ent)
 
-                        gap_warning = False
                         gap_txt = ""
+                        gap_warning = False
                         if len(distinct_shifts) >= 2:
                             dt1 = distinct_shifts[0].get("Timestamp_DT")
                             dt2 = distinct_shifts[-1].get("Timestamp_DT")
@@ -433,15 +437,17 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                                 if diff_hours < MIN_GAP_HOURS:
                                     gap_warning = True
 
+                        # Header tag: marks "✓ 2 of 2 Logged" instead of gap
                         if has_day_breach:
                             status_tag = '<span style="color:#dc2626; font-weight:800; font-size:0.75rem;">🔴 BREACH</span>'
                             border_color = "#dc2626"
-                        elif gap_warning:
-                            status_tag = f'<span style="color:#d97706; font-weight:800; font-size:0.74rem;">⚠️ {gap_txt}</span>'
-                            border_color = "#d97706"
                         elif len(distinct_shifts) >= 2:
-                            status_tag = f'<span style="color:#16a34a; font-weight:800; font-size:0.75rem;">✓ {gap_txt or "2/2 OK"}</span>'
-                            border_color = "#16a34a"
+                            if gap_warning:
+                                status_tag = '<span style="color:#d97706; font-weight:800; font-size:0.74rem;">⚠️ 2 of 2 Logged</span>'
+                                border_color = "#d97706"
+                            else:
+                                status_tag = '<span style="color:#16a34a; font-weight:800; font-size:0.75rem;">✓ 2 of 2 Logged</span>'
+                                border_color = "#16a34a"
                         else:
                             status_tag = '<span style="color:#0284c7; font-weight:700; font-size:0.74rem;">1 of 2 Logged</span>'
                             border_color = "#94a3b8"
@@ -453,11 +459,13 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                             t_time = ent["Time"][:8]
                             readings_str += f'<div style="display:flex; justify-content:space-between; font-size:0.72rem; margin-top:2px;"><span style="color:#64748b;">#{idx+1} ({t_time})</span><b style="color:{t_color};">{t_val}</b></div>'
 
+                        footer_info = f"{gap_txt} • By: {distinct_shifts[0]['Sign']}" if gap_txt else f"By: {distinct_shifts[0]['Sign']}"
+
                         row_cols[i + 1].markdown(
                             f'<div style="background:#ffffff; border:1.5px solid {border_color}; border-radius:6px; padding:6px 6px; min-height:82px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">'
                             f'<div style="text-align:center; padding-bottom:3px; border-bottom:1px solid #f1f5f9;">{status_tag}</div>'
                             f'{readings_str}'
-                            f'<div style="font-size:0.65rem; color:#64748b; text-align:right; margin-top:3px;">By: {distinct_shifts[0]["Sign"]}</div>'
+                            f'<div style="font-size:0.65rem; color:#64748b; text-align:right; margin-top:3px;">{footer_info}</div>'
                             f'</div>',
                             unsafe_allow_html=True
                         )
