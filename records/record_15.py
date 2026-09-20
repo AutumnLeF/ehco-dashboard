@@ -31,7 +31,7 @@ def extract_field(rec, keywords):
 
 
 def parse_record_15_submissions(raw_df):
-    """Parses Record 15 Pesticide Usage submissions."""
+    """Parses Record 15 Pesticide Usage submissions into a normalized DataFrame."""
     if raw_df.empty:
         return pd.DataFrame()
 
@@ -78,7 +78,7 @@ def parse_record_15_submissions(raw_df):
 
 
 def render_record_15_view(raw_df, selected_day_str, start_date, end_date):
-    """Renders Record 15 single-day inspection and resilient 7-day treatment matrix."""
+    """Renders Record 15 single-day inspection and high-level 7-day facility matrix."""
     df_items = parse_record_15_submissions(raw_df)
 
     if not df_items.empty and "Date_Obj" in df_items.columns:
@@ -91,7 +91,7 @@ def render_record_15_view(raw_df, selected_day_str, start_date, end_date):
 
     tab_day, tab_matrix = st.tabs([
         f"📅 Daily Service Visit ({selected_day_str})",
-        "📈 7-Day Treatment Board (1-Month Browser)"
+        "📈 7-Day Matrix (1-Month Browser)"
     ])
 
     # -------------------------------------------------------------
@@ -147,9 +147,11 @@ def render_record_15_view(raw_df, selected_day_str, start_date, end_date):
             st.info("No pest control treatment logged for this date.")
 
     # -------------------------------------------------------------
-    # TAB 2: RESILIENT 7-DAY TREATMENT BOARD
+    # TAB 2: 7-DAY EXECUTIVE FACILITY MATRIX
     # -------------------------------------------------------------
     with tab_matrix:
+        st.subheader("Facility Pest Control Audit")
+
         total_days = (end_date - start_date).days + 1
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
 
@@ -183,90 +185,94 @@ def render_record_15_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
-        # Area & Keyword Search Filter Bar
-        s_col1, s_col2 = st.columns([3, 1])
-        with s_col1:
-            search_query = st.text_input(
-                "🔍 Filter by Treated Area, Chemical, or Technician",
-                placeholder="e.g. Filia, Basement, Kitchen, Lobby, Solfac...",
-                key="r15_search",
-            )
-        with s_col2:
-            st.write("")
-            total_window_treatments = len(range_df) if not range_df.empty else 0
-            st.markdown(
-                f"<div style='padding-top:10px; font-weight:600; color:#475569; font-size:0.85rem;'>Total in Window: <b>{total_window_treatments}</b></div>",
-                unsafe_allow_html=True,
-            )
+        # 8 Columns: Facility Status Header + 7 Dates
+        cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
+        cols[0].markdown("""
+        <div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.85rem; padding:10px 4px; border-radius:6px; text-align:center;">
+            Scope
+        </div>
+        """, unsafe_allow_html=True)
 
-        # Apply search filter if typed
-        filtered_df = range_df.copy()
-        if search_query.strip():
-            q = search_query.strip().lower()
-            filtered_df = filtered_df[
-                filtered_df["Areas_Treated"].str.lower().str.contains(q, na=False)
-                | filtered_df["Chemical"].str.lower().str.contains(q, na=False)
-                | filtered_df["Technician"].str.lower().str.contains(q, na=False)
-            ]
-
-        st.write("")
-
-        # 7-Column Day Board (No row fragmentation!)
-        cols = st.columns(7)
-
-        # Headers
         for i, d in enumerate(page_dates):
-            cols[i].markdown(f"""
-            <div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.82rem; padding:8px 2px; border-radius:6px; text-align:center; margin-bottom:10px;">
+            cols[i + 1].markdown(f"""
+            <div style="background:#1e293b; color:#ffffff; font-weight:700; font-size:0.8rem; padding:10px 2px; border-radius:6px; text-align:center;">
                 {d.strftime('%d/%m (%a)')}
             </div>
             """, unsafe_allow_html=True)
 
-        # Day Column Cards
+        st.write("")
+
+        # Single Unified Row: Hotel Pest Management Activity
+        row_cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
+
+        row_cols[0].markdown("""
+        <div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:12px 6px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:120px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
+            <div style="font-weight:700; color:#0f172a; font-size:0.88rem;">Hotel Premises</div>
+            <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">Rentokil PCI</div>
+        </div>
+        """, unsafe_allow_html=True)
+
         for i, d in enumerate(page_dates):
             d_str = d.strftime("%d/%m/%Y")
-            matches = filtered_df[filtered_df["Date_Str"] == d_str] if not filtered_df.empty else pd.DataFrame()
+            matches = range_df[range_df["Date_Str"] == d_str] if not range_df.empty else pd.DataFrame()
 
-            with cols[i]:
-                if matches.empty:
-                    st.markdown("""
-                    <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:14px 6px; text-align:center; margin-bottom:8px;">
-                        <span style="color:#94a3b8; font-weight:600; font-size:0.8rem;">— No Treatment</span>
+            if matches.empty:
+                row_cols[i + 1].markdown("""
+                <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:120px; display:flex; align-items:center; justify-content:center;">
+                    <span style="color:#94a3b8; font-weight:600; font-size:0.82rem;">— No Service</span>
+                </div>
+                """, unsafe_allow_html=True)
+            else:
+                count = len(matches)
+                # Summarize distinct chemicals and methods
+                chem_summary = []
+                for _, r in matches.iterrows():
+                    chem_summary.append(f"{r['Chemical']} ({r['Method']})")
+                chem_text = "<br>".join(list(dict.fromkeys(chem_summary))[:2])
+                tech_names = ", ".join(list(dict.fromkeys(matches["Technician"].dropna().tolist())))
+
+                row_cols[i + 1].markdown(f"""
+                <div style="background:#ffffff; border:1.5px solid #0f172a; border-radius:8px; padding:8px 4px; text-align:center; min-height:120px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                    <div style="font-size:1.15rem; font-weight:800; color:#16a34a; line-height:1;">✓ {count} Done</div>
+                    <div style="height:1px; background:#cbd5e1; margin:6px 0;"></div>
+                    <div style="font-size:0.75rem; font-weight:700; color:#0f172a; line-height:1.25;">
+                        {chem_text}
                     </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    for _, r in matches.iterrows():
-                        chem_txt = r["Chemical"]
-                        method_txt = r["Method"]
-                        amount_txt = r["Amount"]
-                        area_txt = r["Areas_Treated"]
-                        tech_txt = r["Technician"]
+                    <div style="font-size:0.68rem; color:#64748b; margin-top:4px;">By: {tech_names}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-                        st.markdown(f"""
-                        <div style="background:#ffffff; border:1.5px solid #0f172a; border-radius:8px; padding:8px 6px; text-align:center; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
-                            <div style="color:#16a34a; font-weight:800; font-size:0.82rem;">✓ TREATED</div>
-                            <div style="height:1px; background:#e2e8f0; margin:4px 0;"></div>
-                            <div style="font-size:0.8rem; font-weight:700; color:#0f172a; line-height:1.2;">
-                                {chem_txt}
-                            </div>
-                            <div style="font-size:0.72rem; color:#475569; margin-top:2px;">
-                                {method_txt} • {amount_txt}
-                            </div>
-                            <div style="height:1px; background:#f1f5f9; margin:4px 0;"></div>
-                            <div style="font-size:0.72rem; font-weight:600; color:#1e293b; line-height:1.25; word-wrap:break-word;">
-                                📍 {area_txt}
-                            </div>
-                            <div style="font-size:0.68rem; color:#64748b; margin-top:4px;">By: {tech_txt}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
-
+        st.write("")
         st.divider()
 
-        with st.expander("📋 View All Individual Pest Treatment Records (Table View)"):
-            if not range_df.empty:
-                show_cols = [
-                    c for c in [
-                        "Date_Str", "Company", "Technician", "Areas_Treated", "Chemical", "Amount", "Method", "Batch", "Sign"
-                    ] if c in range_df.columns
-                ]
-                st.dataframe(range_df[show_cols], use_container_width=True, hide_index=True)
+        # 7-Day Activity Feed (Audit Detail without messy rows)
+        st.markdown(f"#### 📋 Service Log for Selected 7-Day Block")
+        p_start_str = page_dates[0].strftime("%d/%m/%Y")
+        p_end_str = page_dates[-1].strftime("%d/%m/%Y")
+
+        block_df = range_df[
+            (range_df["Date_Obj"] >= page_dates[0])
+            & (range_df["Date_Obj"] <= page_dates[-1])
+        ] if not range_df.empty and "Date_Obj" in range_df.columns else pd.DataFrame()
+
+        if block_df.empty:
+            st.info("No pest treatments recorded during this 7-day period.")
+        else:
+            # Display clean structured audit table sorted chronologically
+            display_table = block_df[[
+                "Date_Str", "Areas_Treated", "Chemical", "Amount", "Method", "Batch", "Technician", "Sign"
+            ]].rename(columns={
+                "Date_Str": "Date",
+                "Areas_Treated": "Areas Treated",
+                "Chemical": "Chemical",
+                "Amount": "Dosage",
+                "Method": "Method",
+                "Batch": "Batch No.",
+                "Technician": "Technician",
+                "Sign": "Sign"
+            })
+            st.dataframe(
+                display_table,
+                use_container_width=True,
+                hide_index=True,
+            )
