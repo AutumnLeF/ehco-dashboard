@@ -240,7 +240,7 @@ if st.session_state[cache_key].empty or force_refresh:
 
     with st.spinner(f"Fetching records for Form {active_form_id}..."):
         try:
-            items = fetch_submissions(api_url, clean_token, active_form_id)
+            items = fetch_submissions(api_url, clean_token, active_form_id, start_date)
             if items:
                 raw_df = pd.json_normalize(items)
                 st.session_state[cache_key] = raw_df
