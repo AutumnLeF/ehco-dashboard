@@ -67,7 +67,7 @@ def clean_unit_token(val):
     return str(val).replace("/", "").replace("_", "").replace(" ", "").replace("-", "").strip().upper()
 
 
-def extract_temp_value(entry, sub, rec):
+def extract_temp_value(entry, sub):
     """Deep extraction for numeric temperature value across all OneBlink keys."""
     candidates = [
         entry.get("CRTemperature"),
@@ -77,9 +77,8 @@ def extract_temp_value(entry, sub, rec):
         entry.get("temperature"),
         sub.get("Temperature °C (Coolroom 4°C or below / Fridge 4°C or below)"),
         sub.get("Temperature °C (Freezer -18°C or colder)"),
-        rec.get("submission.Entry.CRTemperature"),
-        rec.get("submission.Entry.FreezerTemp"),
-        rec.get("submission.Entry.Temperature"),
+        sub.get("CRTemperature"),
+        sub.get("FreezerTemp"),
     ]
     for c in candidates:
         if c is not None and str(c).strip() not in ["", "None", "nan"]:
@@ -91,7 +90,7 @@ def extract_temp_value(entry, sub, rec):
 
 
 def parse_record_03_submissions(raw_df):
-    """Parses Record 03 submissions targeting exact OneBlink nested keys."""
+    """Parses Record 03 submissions from raw dictionary objects."""
     if raw_df.empty:
         return pd.DataFrame()
 
@@ -107,16 +106,17 @@ def parse_record_03_submissions(raw_df):
 
     rows = []
     for _, record in raw_df.iterrows():
-        rec = record.to_dict()
+        rec = record.get("raw_record") if "raw_record" in record else record.to_dict()
+        if not isinstance(rec, dict):
+            continue
+
         sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else {}
         entry = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else {}
 
-        # 1. Date normalization (extracting both date string and strict datetime.date)
+        # 1. Date normalization
         raw_date = (
             sub.get("Date")
             or sub.get("date")
-            or rec.get("submission.Date")
-            or rec.get("submission.date")
             or rec.get("createdAt")
             or rec.get("dateTimeSubmitted")
             or ""
@@ -133,13 +133,7 @@ def parse_record_03_submissions(raw_df):
             date_obj = None
 
         # 2. Time parsing
-        raw_time_iso = str(
-            sub.get("Time")
-            or sub.get("time")
-            or rec.get("submission.Time")
-            or ""
-        ).strip()
-
+        raw_time_iso = str(sub.get("Time") or sub.get("time") or "").strip()
         time_dt = pd.to_datetime(raw_time_iso, errors="coerce")
         if pd.notna(time_dt):
             time_clean = time_dt.strftime("%I:%M %p")
@@ -149,21 +143,13 @@ def parse_record_03_submissions(raw_df):
             ts_dt = pd.to_datetime(f"{date_str} {time_clean}", errors="coerce")
 
         # 3. Location
-        location = str(
-            sub.get("Location")
-            or rec.get("submission.Location")
-            or rec.get("Location")
-            or ""
-        ).strip()
+        location = str(sub.get("Location") or "").strip()
 
         # 4. Unit ID
         raw_unit = (
             entry.get("Fridge")
             or entry.get("Freezer")
             or entry.get("Coolroom")
-            or rec.get("submission.Entry.Fridge")
-            or rec.get("submission.Entry.Freezer")
-            or rec.get("submission.Entry.Coolroom")
             or sub.get("Fridge")
             or sub.get("Freezer")
             or sub.get("Coolroom")
@@ -188,17 +174,11 @@ def parse_record_03_submissions(raw_df):
         final_unit = matched_id if matched_id else raw_unit_str
 
         # 5. In Use
-        status_raw = str(
-            entry.get("USE")
-            or sub.get("USE")
-            or rec.get("submission.Entry.USE")
-            or sub.get("In Use / Not In Use")
-            or "IN USE"
-        ).strip().upper()
+        status_raw = str(entry.get("USE") or sub.get("USE") or "IN USE").strip().upper()
         is_in_use = "NOT" not in status_raw
 
         # 6. Temperature Check
-        num_temp = extract_temp_value(entry, sub, rec)
+        num_temp = extract_temp_value(entry, sub)
         has_breach = False
         temp_disp = "—"
 
@@ -212,12 +192,7 @@ def parse_record_03_submissions(raw_df):
                     has_breach = True
 
         # 7. Sign
-        sign = (
-            sub.get("Sign")
-            or sub.get("sign")
-            or rec.get("submission.Sign")
-            or "Staff"
-        )
+        sign = str(sub.get("Sign") or sub.get("sign") or "Staff").strip()
 
         rows.append({
             "Date_Str": date_str,
@@ -232,7 +207,7 @@ def parse_record_03_submissions(raw_df):
             "Temp": num_temp,
             "Temp_Disp": temp_disp,
             "Has_Breach": has_breach,
-            "Sign": str(sign).strip(),
+            "Sign": sign,
         })
 
     df = pd.DataFrame(rows)
@@ -250,7 +225,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         st.write(f"Total parsed records: **{len(df_items)}**")
         if not df_items.empty and "Date_Obj" in df_items.columns:
             date_counts = df_items["Date_Obj"].dropna().value_counts().sort_index(ascending=False).to_dict()
-            st.write("Records per date found in this batch:", {str(k): v for k, v in date_counts.items()})
+            st.write("Records per date found:", {str(k): v for k, v in date_counts.items()})
         else:
             st.write("No valid dates found in the payload.")
     # --------------------------
@@ -260,9 +235,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         "📈 7-Day Grouped Location Matrix"
     ])
 
-    # -------------------------------------------------------------
-    # TAB 1: DAILY DRILLDOWN
-    # -------------------------------------------------------------
     with tab_day:
         day_df = (
             df_items[df_items["Date_Str"] == selected_day_str]
@@ -302,7 +274,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 for exc in excursions:
                     limit_txt = "<= 4°C" if "freezer" not in exc["Unit_Type"].lower() else "<= -18°C"
                     st.markdown(f"""
-                    <div class="check-card" style="border-left: 5px solid #dc2626; padding:10px; margin-bottom:8px; background:#ffffff; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                    <div class="check-card" style="border-left: 5px solid #dc2626; padding:10px; margin-bottom:8px; background:#ffffff; border-radius:6px;">
                         <div style="font-weight:700; font-size:0.92rem; color:#0f172a;">{exc['Unit_ID']} • {exc['Location']}</div>
                         <div style="font-size:0.82rem; color:#dc2626; font-weight:700; margin-top:3px;">
                             Reading: {exc['Temp_Disp']} (Breaches {limit_txt})
@@ -318,7 +290,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             if compliant_logs:
                 for ok in compliant_logs:
                     st.markdown(f"""
-                    <div class="check-card" style="border-left: 5px solid #16a34a; padding:10px; margin-bottom:8px; background:#ffffff; border-radius:6px; box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                    <div class="check-card" style="border-left: 5px solid #16a34a; padding:10px; margin-bottom:8px; background:#ffffff; border-radius:6px;">
                         <div style="font-weight:700; font-size:0.92rem; color:#0f172a;">{ok['Unit_ID']}</div>
                         <div style="font-size:0.82rem; color:#334155; margin-top:3px;">
                             Temp: <b style="color:#16a34a;">{ok['Temp_Disp']}</b> &nbsp;|&nbsp; Location: <b>{ok['Location']}</b>
@@ -329,9 +301,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 st.caption("No compliant logs recorded for this day.")
             st.markdown('</div>', unsafe_allow_html=True)
 
-    # -------------------------------------------------------------
-    # TAB 2: 7-DAY MATRIX (USES STRICT DATE OBJECT COMPARISONS)
-    # -------------------------------------------------------------
     with tab_matrix:
         total_days = max(1, (end_date - start_date).days + 1)
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
@@ -385,9 +354,9 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             """, unsafe_allow_html=True)
 
             cols = st.columns(col_ratios)
-            cols[0].markdown('<div style="font-weight:700; font-size:0.8rem; color:#475569; padding:6px 2px;">Appliance Unit</div>', unsafe_allow_html=True)
+            cols[0].markdown('<div style="font-weight:700; font-size:0.80rem; color:#475569; padding:6px 2px;">Appliance Unit</div>', unsafe_allow_html=True)
             for i, d in enumerate(page_dates):
-                cols[i + 1].markdown(f'<div style="background:#f1f5f9; font-weight:700; font-size:0.8rem; text-align:center; padding:6px 2px; border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>', unsafe_allow_html=True)
+                cols[i + 1].markdown(f'<div style="background:#f1f5f9; font-weight:700; font-size:0.80rem; text-align:center; padding:6px 2px; border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>', unsafe_allow_html=True)
 
             st.write("")
 
@@ -408,7 +377,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 u_df = df_items[df_items["Clean_Unit"] == clean_target] if not df_items.empty else pd.DataFrame()
 
                 for i, d in enumerate(page_dates):
-                    # Strict python date object matching
                     matches = pd.DataFrame()
                     if not u_df.empty and "Date_Obj" in u_df.columns:
                         matches = u_df[u_df["Date_Obj"] == d]
