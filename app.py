@@ -248,7 +248,7 @@ if cache_key not in st.session_state or st.session_state[cache_key].empty:
         try:
             items = fetch_submissions(api_url, clean_token, active_form_id)
             if items:
-                raw_df = pd.json_normalize(items)
+                raw_df = pd.DataFrame({"raw_record": items})
                 st.session_state[cache_key] = raw_df
                 st.session_state[sync_time_key] = datetime.now()
                 st.sidebar.success(f"✓ Loaded {len(raw_df)} logs in memory")
