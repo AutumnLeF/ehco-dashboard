@@ -54,9 +54,15 @@ def parse_all_record_04_dishes(raw_df):
             norm_date = str(raw_date)[:10]
             date_obj = None
 
-        entries = record.get("submission.set") or record.get("set") or record.get("submission.Entry") or []
+       entries = record.get("submission.set") or record.get("set") or []
+        # Convert single dict to a list of one item
+        if isinstance(entries, dict):
+            entries = [entries]
+
         if isinstance(entries, list):
             for entry in entries:
+                if not isinstance(entry, dict):
+                    continue
                 meal = entry.get("Meal_Service") or "Unassigned"
                 food = entry.get("Food") or entry.get("Name_of_Food_Other") or "Food Item"
                 temp_raw = (
