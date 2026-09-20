@@ -163,21 +163,49 @@ sample_data = pd.DataFrame(
     ]
 )
 
-# Route to the appropriate record module
+
+# Temporary sample data fallback if no live API data is connected yet
+if raw_records_df.empty and selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
+    raw_records_df = pd.DataFrame([
+        {"Start Date": "19/09/2026", "Start Time": "8:18 PM", "Location": "Filia Kitchen", "Method": "Blast Chiller", "Name of Food": "Parmesan cream", "Start Temperature °C": 79.1, "Temperature after 2 Hours (°C) - Blast Chiller": 3.2, "Sign (Initial)": "Yashika"},
+        {"Start Date": "19/09/2026", "Start Time": "8:17 PM", "Location": "Filia Kitchen", "Method": "Blast Chiller", "Name of Food": "Bisque", "Start Temperature °C": 75.5, "Temperature after 2 Hours (°C) - Blast Chiller": 2.5, "Sign (Initial)": "Yashika"},
+        {"Start Date": "19/09/2026", "Start Time": "8:16 PM", "Location": "Filia Kitchen", "Method": "Blast Chiller", "Name of Food": "Lamb jus", "Start Temperature °C": 79.2, "Temperature after 2 Hours (°C) - Blast Chiller": 1.8, "Sign (Initial)": "Yashika"}
+    ])[cite: 6]
+
+
+# -------------------------------------------------------------
+# DATA RETRIEVAL / FALLBACK DEFINITION
+# -------------------------------------------------------------
+# 1. Initialize raw_records_df as an empty DataFrame by default
+raw_records_df = pd.DataFrame()
+
+# 2. If API token & URL are entered, fetch live submissions
+if api_token and api_url:
+    try:
+        headers = {
+            "Authorization": f"Bearer {api_token}",
+            "Accept": "application/json",
+            "User-Agent": "Mozilla/5.0"
+        }
+        res = requests.get(api_url, headers=headers, timeout=12)
+        if res.status_code == 200:
+            submissions = res.json().get("submissions", [])
+            raw_records_df = pd.json_normalize(submissions)
+        else:
+            st.sidebar.error(f"API Error: HTTP {res.status_code}")
+    except Exception as e:
+        st.sidebar.error(f"Fetch failed: {e}")
+
+# -------------------------------------------------------------
+# ROUTE TO RECORD MODULES
+# -------------------------------------------------------------
 if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
-    st.markdown(
-        '<div class="serif-title">Cooking & Reheating Shift Audit</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="serif-title">Cooking & Reheating Shift Audit</div>', unsafe_allow_html=True)
     render_record_04_view(raw_records_df)
 
 elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
-    st.markdown(
-        '<div class="serif-title">Blast Chiller & Cooling Audit</div>',
-        unsafe_allow_html=True,
-    )
+    st.markdown('<div class="serif-title">Blast Chiller & Cooling Audit</div>', unsafe_allow_html=True)
     render_record_05_view(raw_records_df)
-    
-else:
-    st.info(f"Module for {selected_record} will load here.")
 
+else:
+    st.info(f"Module for {selected_record} is currently in progress.")
