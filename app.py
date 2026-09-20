@@ -1,6 +1,5 @@
 from datetime import datetime, timedelta, timezone
 import json
-import pytz
 import pandas as pd
 import requests
 import streamlit as st
