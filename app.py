@@ -182,8 +182,8 @@ else:
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
 
-def fetch_submissions(url, token, form_id, start_dt):
-  """Fetches submissions scoped to the date window using pagination."""
+def fetch_submissions(url, token, form_id):
+  """Paginates form-store to retrieve all submissions without dropping records."""
   headers = {
       "Authorization": f"Bearer {token}",
       "Content-Type": "application/json",
@@ -195,27 +195,18 @@ def fetch_submissions(url, token, form_id, start_dt):
   all_rows = []
   page_size = 50
   offset = 0
-  iso_start = f"{start_dt.isoformat()}T00:00:00.000Z"
 
   while True:
     payload = {
         "formId": form_id,
         "limit": page_size,
         "offset": offset,
-        "submissionTimestampFrom": iso_start,  # Scopes directly to the 7-day window
         "unwindRepeatableSets": True,
     }
     try:
       res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
       if res.status_code != 200:
-        # Fallback without submissionTimestampFrom if server rejects query param
-        payload.pop("submissionTimestampFrom", None)
-        res = requests.post(
-            url.strip(), headers=headers, json=payload, timeout=20
-        )
-        if res.status_code != 200:
-          break
-
+        break
       data = res.json()
       items = data.get("submissions", []) if isinstance(data, dict) else data
       if not items:
@@ -226,7 +217,7 @@ def fetch_submissions(url, token, form_id, start_dt):
         break
 
       offset += page_size
-      if offset >= 1000:
+      if offset >= 2000:
         break
     except Exception:
       break
