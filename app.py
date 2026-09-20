@@ -187,7 +187,12 @@ else:
 # -------------------------------------------------------------
 st.divider()
 st.subheader("🛠️ Raw Data Diagnostic")
-st.write(f"Total raw records loaded: {len(raw_records_df)}")
+st.write(f"**HTTP Status Code:** {api_status_code}")
+st.write(f"**Total raw records loaded into DataFrame:** {len(raw_records_df)}")
+
+if api_response_text:
+    with st.expander("🔍 View Raw API Server Response", expanded=(len(raw_records_df) == 0)):
+        st.code(api_response_text[:1000], language="json")
 
 if not raw_records_df.empty:
     id_cols = [c for c in raw_records_df.columns if "formid" in c.lower()]
