@@ -15,7 +15,7 @@ def parse_record_21_submissions(raw_df):
     for _, record in raw_df.iterrows():
         rec = record.to_dict()
 
-        # 1. Date normalization (Direct paths)
+        # 1. Date normalization
         raw_date = (
             rec.get("submission.Date")
             or rec.get("Date")
@@ -55,7 +55,7 @@ def parse_record_21_submissions(raw_df):
             or "Staff"
         )
 
-        # 2. Direct extraction of CL structure
+        # 2. Extract CL object
         cl_obj = (
             rec.get("submission.CL")
             or (rec.get("submission") or {}).get("CL")
@@ -63,11 +63,9 @@ def parse_record_21_submissions(raw_df):
             or {}
         )
 
-        # Handle both dictionary and list forms of CL
         cl_items = [cl_obj] if isinstance(cl_obj, dict) else (cl_obj if isinstance(cl_obj, list) else [{}])
 
         for cl in cl_items:
-            # Type resolution (ignoring user.providerType!)
             raw_type = (
                 cl.get("Type")
                 or rec.get("submission.CL.Type")
@@ -87,7 +85,6 @@ def parse_record_21_submissions(raw_df):
                 or ""
             ).replace("•", "").strip()
 
-            # If other is specified or type is "Other", use other_val
             if other_val and other_val.lower() not in ["none", "nan", ""]:
                 food_name = other_val
             elif type_val and type_val.lower() not in ["other", "none", "nan", "cognito", ""]:
@@ -104,7 +101,7 @@ def parse_record_21_submissions(raw_df):
             )
             ppm_num = pd.to_numeric(str(ppm_raw).replace("ppm", "").strip(), errors="coerce")
 
-            # 4. Contact time in minutes
+            # 4. Contact time
             time_raw = str(
                 cl.get("Contact_Time_in_Minutes")
                 or cl.get("Contact Time in Minutes")
@@ -297,20 +294,15 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
-        # Render ONLY active locations present in the parsed rows
+        # Strictly discover locations that submitted actual records in the dataset
         if not range_df.empty and "Location" in range_df.columns:
             counts_by_loc = range_df["Location"].value_counts()
-          active_kitchens = [
-              loc
-              for loc in counts_by_loc.index
-              if loc and str(loc).strip() != ""
-          ]
+            active_kitchens = [loc for loc in counts_by_loc.index if loc and str(loc).strip() != ""]
         else:
-          active_kitchens = ["Black Lacquer Kitchen"]
+            active_kitchens = ["Black Lacquer Kitchen"]
 
-        # Ensure active_kitchens only contains valid entries
         if not active_kitchens:
-          active_kitchens = ["Black Lacquer Kitchen"]
+            active_kitchens = ["Black Lacquer Kitchen"]
 
         for kitchen in active_kitchens:
             row_cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
@@ -321,7 +313,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
             </div>
             """, unsafe_allow_html=True)
 
-            k_df = range_df[range_df["Location"].str.lower() == kitchen.lower()] if not range_df.empty else pd.DataFrame()
+            k_df = range_df[range_df["Location"].str.lower() == str(kitchen).lower()] if not range_df.empty else pd.DataFrame()
 
             for i, d in enumerate(page_dates):
                 d_str = d.strftime("%d/%m/%Y")
@@ -337,7 +329,6 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                     batch_count = len(matches)
                     has_day_breach = any(matches["Has_Breach"])
 
-                    # Extract all items washed on this day
                     foods_list = list(dict.fromkeys(matches["Food"].dropna().tolist()))
                     foods_formatted = ", ".join(foods_list)
 
