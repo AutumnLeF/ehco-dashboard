@@ -160,16 +160,13 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
         if range_df.empty:
             st.info("No blast chiller records found for this 30-day window.")
         else:
-            # Group by Location and Food, counting rows using Time or Method (which are always non-null)
-            matrix = range_df.pivot_table(
-                index=["Location", "Food"],
-                columns="Date_Str",
-                values="Location",
-                aggfunc="count",
-                fill_value=0
+            # pd.crosstab is clean, 1-dimensional, and never collides with index/values
+            matrix = pd.crosstab(
+                index=[range_df["Location"], range_df["Food"]],
+                columns=range_df["Date_Str"]
             )
             st.dataframe(matrix, use_container_width=True)
 
             st.write(f"**Total Cooling Records in Period:** {len(range_df)}")
-            display_cols = ["Date_Str", "Time", "Location", "Food", "Start_Temp", "End_Temp", "Sign"]
+            display_cols = [c for c in ["Date_Str", "Time", "Location", "Food", "Start_Temp", "End_Temp", "Sign"] if c in range_df.columns]
             st.dataframe(range_df[display_cols], use_container_width=True, hide_index=True)
