@@ -6,7 +6,6 @@ MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge must be <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer must be <= -18.0°C
 MIN_GAP_HOURS = 5.0       # At least 5 hours between shift checks
 
-# Full 49-Unit Catalog across all locations
 UNIT_CATALOG = {
     "Filia Kitchen": [
         {"Unit_ID": "RMO/FK/UC/01", "Type": "Fridge"},
@@ -86,19 +85,8 @@ def clean_unit_token(val):
     return str(val).replace("/", "").replace("_", "").replace(" ", "").replace("-", "").strip().upper()
 
 
-def extract_val(d, keys):
-    """Searches a dictionary for any matching key variant."""
-    if not isinstance(d, dict):
-        return None
-    for k, v in d.items():
-        if any(k.lower() == target.lower() for target in keys):
-            if v is not None and str(v).strip() != "":
-                return v
-    return None
-
-
 def parse_record_03_submissions(raw_df):
-    """Parses Record 03 submissions targeting the nested submission.Entry schema."""
+    """Parses Record 03 submissions targeting exact OneBlink nested keys."""
     if raw_df.empty:
         return pd.DataFrame()
 
@@ -118,7 +106,7 @@ def parse_record_03_submissions(raw_df):
         sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else {}
         entry = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else {}
 
-        # 1. Date: From submission.Date or root
+        # 1. Date
         raw_date = (
             sub.get("Date")
             or sub.get("date")
@@ -138,7 +126,7 @@ def parse_record_03_submissions(raw_df):
             date_str = str(raw_date)[:10]
             date_obj = None
 
-        # 2. Time: From submission.Time
+        # 2. Time
         raw_time_iso = str(
             sub.get("Time")
             or sub.get("time")
@@ -154,7 +142,7 @@ def parse_record_03_submissions(raw_df):
             time_clean = raw_time_iso[:8]
             ts_dt = pd.to_datetime(f"{date_str} {time_clean}", errors="coerce")
 
-        # 3. Location: From submission.Location
+        # 3. Location
         location = str(
             sub.get("Location")
             or rec.get("submission.Location")
@@ -162,17 +150,17 @@ def parse_record_03_submissions(raw_df):
             or ""
         ).strip()
 
-        # 4. Unit ID: Inside submission.Entry (Fridge, Coolroom, Freezer) or flat
+        # 4. Unit ID
         raw_unit = (
             entry.get("Fridge")
-            or entry.get("Coolroom")
             or entry.get("Freezer")
+            or entry.get("Coolroom")
             or rec.get("submission.Entry.Fridge")
-            or rec.get("submission.Entry.Coolroom")
             or rec.get("submission.Entry.Freezer")
+            or rec.get("submission.Entry.Coolroom")
             or sub.get("Fridge")
-            or sub.get("Coolroom")
             or sub.get("Freezer")
+            or sub.get("Coolroom")
             or ""
         )
         if isinstance(raw_unit, list) and len(raw_unit) > 0:
@@ -193,7 +181,7 @@ def parse_record_03_submissions(raw_df):
 
         final_unit = matched_id if matched_id else raw_unit_str
 
-        # 5. In Use: From Entry.USE
+        # 5. In Use
         status_raw = str(
             entry.get("USE")
             or sub.get("USE")
@@ -203,12 +191,14 @@ def parse_record_03_submissions(raw_df):
         ).strip().upper()
         is_in_use = "NOT" not in status_raw
 
-        # 6. Temperature: In JSON it is 'CRTemperature' or 'FZTemperature' or 'Temperature'
+        # 6. Temperature: handles CRTemperature, FreezerTemp, and FZTemperature
         temp_val_raw = (
-            entry.get("CRTemperature")
+            entry.get("FreezerTemp")
+            or entry.get("CRTemperature")
             or entry.get("FZTemperature")
             or entry.get("Temperature")
             or entry.get("temperature")
+            or rec.get("submission.Entry.FreezerTemp")
             or rec.get("submission.Entry.CRTemperature")
             or rec.get("submission.Entry.FZTemperature")
             or sub.get("Temperature °C (Coolroom 4°C or below / Fridge 4°C or below)")
@@ -229,7 +219,7 @@ def parse_record_03_submissions(raw_df):
                 if num_temp > MAX_FRIDGE_TEMP:
                     has_breach = True
 
-        # 7. Sign: From submission.Sign
+        # 7. Sign
         sign = (
             sub.get("Sign")
             or sub.get("sign")
@@ -237,7 +227,11 @@ def parse_record_03_submissions(raw_df):
             or "Staff"
         )
 
+        # Submission ID used to deduplicate unwound items
+        sub_id = rec.get("submissionId") or rec.get("_id") or f"{date_str}_{time_clean}"
+
         rows.append({
+            "Sub_ID": sub_id,
             "Date_Str": date_str,
             "Date_Obj": date_obj,
             "Timestamp_DT": ts_dt,
@@ -253,7 +247,11 @@ def parse_record_03_submissions(raw_df):
             "Sign": str(sign).strip(),
         })
 
-    return pd.DataFrame(rows)
+    df = pd.DataFrame(rows)
+    # Deduplicate exact duplicate readings for the same unit and timestamp
+    if not df.empty:
+        df = df.drop_duplicates(subset=["Date_Str", "Time", "Clean_Unit", "Temp"], keep="first")
+    return df
 
 
 def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
@@ -410,7 +408,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 </div>
                 """, unsafe_allow_html=True)
 
-                # Filter directly by normalized unit token
                 u_df = df_items[df_items["Clean_Unit"] == clean_target] if not df_items.empty else pd.DataFrame()
 
                 for i, d in enumerate(page_dates):
@@ -431,10 +428,13 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                         entries = matches.sort_values(by="Time").to_dict("records")
                         has_day_breach = any(e["Has_Breach"] for e in entries)
 
-                        # Gap calculation
+                        # Separate checks by distinct times
+                        unique_times = set(e["Time"] for e in entries)
+                        
                         gap_warning = False
                         gap_txt = ""
-                        if len(entries) >= 2:
+
+                        if len(unique_times) >= 2:
                             dt1 = entries[0].get("Timestamp_DT")
                             dt2 = entries[-1].get("Timestamp_DT")
                             if pd.notna(dt1) and pd.notna(dt2):
@@ -443,13 +443,14 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                                 if diff_hours < MIN_GAP_HOURS:
                                     gap_warning = True
 
+                        # Status header tag
                         if has_day_breach:
                             status_tag = '<span style="color:#dc2626; font-weight:800; font-size:0.75rem;">🔴 BREACH</span>'
                             border_color = "#dc2626"
                         elif gap_warning:
                             status_tag = f'<span style="color:#d97706; font-weight:800; font-size:0.74rem;">⚠️ {gap_txt}</span>'
                             border_color = "#d97706"
-                        elif len(entries) >= 2:
+                        elif len(unique_times) >= 2:
                             status_tag = f'<span style="color:#16a34a; font-weight:800; font-size:0.75rem;">✓ {gap_txt or "2/2 OK"}</span>'
                             border_color = "#16a34a"
                         else:
