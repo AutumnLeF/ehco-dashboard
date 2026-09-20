@@ -85,50 +85,52 @@ token_input = st.sidebar.text_area("Bearer Token", value=DEFAULT_TOKEN, height=9
 sync_button = st.sidebar.button("🔄 Sync Live Feed", use_container_width=True)
 
 # -------------------------------------------------------------
-# 3. LIVE DATA FETCHER & RESPONSE DEBUGGER
+# 3. LIVE DATA FETCHER (BLINKM FORM-STORE POST REQUEST)
 # -------------------------------------------------------------
 raw_records_df = pd.DataFrame()
 api_status_code = None
 api_response_text = ""
 
-active_token = token_input.strip() or st.session_state.saved_token.strip()
+active_token = token_input.strip() if token_input else DEFAULT_TOKEN.strip()
 
-if not active_token:
-    st.warning("⚠️ No Bearer Token detected. Please paste your Cognito Bearer Token into the sidebar on the left.")
-else:
+if active_token:
     clean_token = active_token.replace("Bearer ", "").strip()
     headers = {
         "Authorization": f"Bearer {clean_token}",
+        "Content-Type": "application/json",
         "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0"
+        "User-Agent": "Mozilla/5.0",
+        "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
+        "Referer": "https://tehc-roswyn.data-manager.oneblink.io/"
     }
-    
-    # Query parameters - pulling form 31374
-    params = {"limit": 250, "formId": 31374}
+
+    endpoint_url = "https://auth-api.blinkm.io/form-store"
+
+    # POST body matching the FormStore query
+    post_payload = {
+        "formId": 31374,
+        "limit": 100,
+        "offset": 0
+    }
 
     try:
-        res = requests.get(api_url.strip(), headers=headers, params=params, timeout=15)
+        res = requests.post(
+            endpoint_url,
+            headers=headers,
+            json=post_payload,
+            timeout=15
+        )
         api_status_code = res.status_code
         api_response_text = res.text
 
         if res.status_code == 200:
-            payload = res.json()
-            items = []
-            if isinstance(payload, list):
-                items = payload
-            elif isinstance(payload, dict):
-                items = (
-                    payload.get("submissions")
-                    or payload.get("records")
-                    or payload.get("data")
-                    or payload.get("items")
-                    or []
-                )
+            data = res.json()
+            items = data.get("submissions", []) if isinstance(data, dict) else data
             if items:
                 raw_records_df = pd.json_normalize(items)
                 st.sidebar.success(f"✓ Retrieved {len(raw_records_df)} records")
             else:
-                st.sidebar.warning("API returned 200 OK, but no submissions found inside payload.")
+                st.sidebar.warning("HTTP 200 OK, but submissions list is empty.")
         else:
             st.sidebar.error(f"API Error HTTP {res.status_code}")
     except Exception as e:
