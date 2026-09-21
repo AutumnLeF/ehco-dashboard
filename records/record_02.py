@@ -35,15 +35,17 @@ def extract_field(rec, keywords):
 
 def parse_record_02_submissions(raw_df):
     """Parses Record 02 Food Delivery submissions handling flat and nested schemas."""
-    if raw_df.empty:
+    if raw_df is None or raw_df.empty:
         return pd.DataFrame()
 
     rows = []
     for _, record in raw_df.iterrows():
-        rec = record.to_dict()
+        rec = record.get("raw_record") if "raw_record" in raw_df.columns else record.to_dict()
+        if not isinstance(rec, dict):
+            rec = record.to_dict()
+
         sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else {}
 
-        # 1. Date normalization (Direct paths + fallback)
         raw_date = (
             sub.get("date")
             or sub.get("Date")
@@ -60,13 +62,16 @@ def parse_record_02_submissions(raw_df):
             parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
 
         if pd.notna(parsed_dt):
-            date_str = parsed_dt.strftime("%d/%m/%Y")
-            date_obj = parsed_dt.date()
+            if parsed_dt.tzinfo is None:
+                parsed_dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
+            else:
+                parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
+            date_str = parsed_dt_ist.strftime("%d/%m/%Y")
+            date_obj = parsed_dt_ist.date()
         else:
             date_str = str(raw_date)[:10]
             date_obj = None
 
-        # 2. Location
         location = str(
             sub.get("Location")
             or sub.get("location")
@@ -76,7 +81,6 @@ def parse_record_02_submissions(raw_df):
             or "Receiving Bay"
         ).strip()
 
-        # 3. Supplier Name
         sup_main = str(
             sub.get("Name of Supplier")
             or sub.get("Name_of_Supplier")
@@ -100,7 +104,6 @@ def parse_record_02_submissions(raw_df):
         else:
             supplier = "Local Supplier"
 
-        # 4. Delivery & Food Type
         delivery_type = str(
             sub.get("Delivery Type")
             or sub.get("Delivery_Type")
@@ -117,7 +120,6 @@ def parse_record_02_submissions(raw_df):
             or "Goods Received"
         ).replace("•", "").strip()
 
-        # 5. Temperature Check
         temp_req_raw = str(
             sub.get("Is a Temperature Required?")
             or sub.get("Is_a_Temperature_Required")
@@ -136,7 +138,6 @@ def parse_record_02_submissions(raw_df):
         )
         temp_num = pd.to_numeric(str(temp_val_raw).replace("°C", "").strip(), errors="coerce")
 
-        # 6. Critical Limits: Packaging & labelling
         limits_raw = str(
             sub.get("Critical Limits: Packaging in good condition / Product in date / Product correctly labelled")
             or rec.get("submission.Critical Limits: Packaging in good condition / Product in date / Product correctly labelled")
@@ -151,7 +152,6 @@ def parse_record_02_submissions(raw_df):
             or sub.get("sign")
             or rec.get("submission.Sign (Initial)")
             or rec.get("submission.sign")
-            or rec.get("Sign (Initial)")
             or extract_field(rec, ["signinitial", "sign", "initial"])
             or "Staff"
         )
@@ -174,13 +174,15 @@ def parse_record_02_submissions(raw_df):
             "Sign": str(sign).strip(),
         })
 
-    return pd.DataFrame(rows)
+    df_out = pd.DataFrame(rows)
+    if not df_out.empty:
+        df_out = df_out.drop_duplicates(subset=["Date_Str", "Supplier", "Food_Type", "Temp"], keep="first")
+    return df_out
 
 
 def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
-    """Renders Record 02 Daily Audit and 7-Day Card Matrix."""
+    """Renders Record 02 Daily Audit and Weekly Card Matrix."""
 
-    # DIAGNOSTIC EXPANDER
     with st.expander("🔍 Record 02 API & Ingestion Diagnostic", expanded=False):
         st.write(f"Total Raw Rows Received from API: **{len(raw_df)}**")
         if not raw_df.empty:
@@ -198,8 +200,8 @@ def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
         range_df = df_items.copy()
 
     tab_day, tab_matrix = st.tabs([
-        f"📅 Daily Receiving Audit ({selected_day_str})",
-        "📈 7-Day Delivery Matrix (1-Month Browser)"
+        f"Today - {selected_day_str}",
+        "Weekly"
     ])
 
     # -------------------------------------------------------------
@@ -240,55 +242,44 @@ def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
             )
 
         st.write("")
+        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>📦 Food Delivery Audit Cards ({selected_day_str})</h4>", unsafe_allow_html=True)
 
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(
-                f'<div class="kanban-col"><div class="kanban-h" style="color:#dc2626;">🔴 Rejected / Excursions ({len(excursions)})</div>',
-                unsafe_allow_html=True,
-            )
+            st.markdown('<div style="font-weight:700; color:#dc2626; margin-bottom:8px;">🔴 Rejected / Excursions</div>', unsafe_allow_html=True)
             if excursions:
                 for exc in excursions:
                     err_msg = f"Temp: {exc['Temp_Disp']} (> 5°C)" if exc['Temp'] and exc['Temp'] > CHILLED_MAX_TEMP else "Packaging / Label Issue"
                     st.markdown(
                         f"""
-                    <div class="check-card" style="border-left: 5px solid #dc2626;">
-                        <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{exc['Food_Type']} • {exc['Supplier']}</div>
-                        <div style="font-size:0.8rem; color:#dc2626; font-weight:600; margin-top:3px;">
-                            {err_msg}
-                        </div>
-                        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Received By: {exc['Sign']}</div>
-                    </div>""",
+                        <div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                            <div style="font-weight:700; font-size:0.95rem; color:#0f172a;">📦 {exc['Food_Type']} • {exc['Supplier']}</div>
+                            <div style="font-size:0.85rem; color:#dc2626; font-weight:700; margin-top:4px;">{err_msg}</div>
+                            <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Received By: <b>{exc['Sign']}</b></div>
+                        </div>""",
                         unsafe_allow_html=True,
                     )
             else:
-                st.caption("All incoming goods arrived within critical temperature limits.")
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">All incoming goods arrived within critical temperature limits.</div>', unsafe_allow_html=True)
 
         with c2:
-            st.markdown(
-                f'<div class="kanban-col"><div class="kanban-h" style="color:#16a34a;">🟢 Accepted Compliant ({len(compliant_deliveries)})</div>',
-                unsafe_allow_html=True,
-            )
+            st.markdown('<div style="font-weight:700; color:#16a34a; margin-bottom:8px;">🟢 Accepted Compliant</div>', unsafe_allow_html=True)
             if compliant_deliveries:
                 for ok in compliant_deliveries:
                     st.markdown(
                         f"""
-                    <div class="check-card" style="border-left: 5px solid #16a34a;">
-                        <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{ok['Food_Type']}</div>
-                        <div style="font-size:0.8rem; color:#334155; margin-top:3px;">
-                            Supplier: <b>{ok['Supplier']}</b> &nbsp;|&nbsp; Temp: <b style="color:#16a34a;">{ok['Temp_Disp']}</b>
-                        </div>
-                        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Type: {ok['Delivery_Type']} | Received By: {ok['Sign']}</div>
-                    </div>""",
+                        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                            <div style="font-weight:700; font-size:0.95rem; color:#0f172a;">📦 {ok['Food_Type']}</div>
+                            <div style="font-size:0.85rem; color:#334155; margin-top:4px;">Supplier: <b>{ok['Supplier']}</b> | Temp: <b style="color:#16a34a;">{ok['Temp_Disp']}</b></div>
+                            <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Type: {ok['Delivery_Type']} | Received By: {ok['Sign']}</div>
+                        </div>""",
                         unsafe_allow_html=True,
                     )
             else:
-                st.caption("No deliveries logged for this date.")
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">No deliveries logged for this date.</div>', unsafe_allow_html=True)
 
     # -------------------------------------------------------------
-    # TAB 2: 7 FULL-WIDTH DATE COLUMNS
+    # TAB 2: WEEKLY MATRIX
     # -------------------------------------------------------------
     with tab_matrix:
         total_days = (end_date - start_date).days + 1
