@@ -142,8 +142,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v6"
-sync_time_key = f"sync_time_{active_form_id}_v6"
+cache_key = f"cache_df_{active_form_id}_v7"
+sync_time_key = f"sync_time_{active_form_id}_v7"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -232,7 +232,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     st.write("")
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v6"
+        ck = f"cache_df_{form_id}_v7"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -249,13 +249,11 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     day_02 = df_02[df_02["Date_Str"] == selected_day_str] if not df_02.empty else pd.DataFrame()
     stat_02 = f"Completed - {len(day_02)}/1" if not day_02.empty else "Pending - 0/1"
 
-    # Record 03: Opening & Closing
     df_03 = get_form_df(31373)
     day_03 = df_03 if not df_03.empty else pd.DataFrame()
     stat_03_op = "Completed - 1/1" if not day_03.empty else "Pending - 0/1"
-    stat_03_cl = "Pending - 0/1" # Can be refined based on shift time if needed
+    stat_03_cl = "Pending - 0/1"
 
-    # Record 04: Breakfast, Lunch, Dinner shifts
     day_04 = df_04[df_04["Date_Str"] == selected_day_str] if not df_04.empty else pd.DataFrame()
     stat_04_bf = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
     stat_04_ln = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
@@ -264,53 +262,52 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     day_05 = df_05[df_05["Date_Str"] == selected_day_str] if not df_05.empty else pd.DataFrame()
     stat_05 = f"Completed - {len(day_05)} batches" if not day_05.empty else "Pending - 0 batches"
 
-    # Record 06, 12, 15 placeholders or parsers
     stat_06 = "Completed - 1/1"
     stat_12 = "Completed - 1/1"
 
-    day_13 = df_13[df_13["Date_Str"] == selected_day_str] if not df_13.empty else pd.DataFrame()
+    day_13 = df_13[df_13["Date_Str"] == selected_day_str] if not day_13.empty else pd.DataFrame()
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if not day_13.empty else 0
     stat_13 = f"Completed - {logged_13}/11"
 
     stat_15 = "Completed - 1/1"
 
-    day_21 = df_21[df_21["Date_Str"] == selected_day_str] if not df_21.empty else pd.DataFrame()
+    day_21 = df_21[df_21["Date_Str"] == selected_day_str] if not day_21.empty else pd.DataFrame()
     stat_21 = f"Completed - {len(day_21)} batches" if not day_21.empty else "Pending - 0 batches"
 
+    # Ice Machine: Pending if no cleaning log submitted for today's scheduled unit
     day_25 = df_25[df_25["Date_Str"] == selected_day_str] if not df_25.empty else pd.DataFrame()
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if not day_25.empty else 0
     stat_25 = f"Completed - {logged_25}/1" if logged_25 > 0 else "Pending - 0/1"
 
-    # Render Cards in 2 Columns
     col1, col2 = st.columns(2)
 
-    def render_card(col, title, status_text, target_nav):
+    def render_card(col, title, status_text, target_nav, unique_key):
         col.markdown(f"""
         <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:14px; margin-bottom:6px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
             <div style="font-weight:700; font-size:1rem; color:#0f172a;">{title}</div>
             <div style="font-size:0.82rem; color:#16a34a; font-weight:600; margin-top:3px;">Status: <b>{status_text}</b></div>
         </div>
         """, unsafe_allow_html=True)
-        if col.button(f"Open {title.split(':')[0]} ➔", use_container_width=True, key=f"btn_{target_nav}"):
+        if col.button(f"Open {title.split(':')[0]} ➔", use_container_width=True, key=f"btn_card_{unique_key}"):
             st.session_state.nav_choice = target_nav
             st.rerun()
 
     with col1:
-        render_card(col1, "Record 02: Food Delivery Record", stat_02, "RECORD 02 - FOOD DELIVERY RECORD")
-        render_card(col1, "Record 03: Coolroom/Fridge Opening", stat_03_op, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD")
-        render_card(col1, "Record 03: Coolroom/Fridge Closing", stat_03_cl, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD")
-        render_card(col1, "Record 04: Cooking/Reheating (Breakfast)", stat_04_bf, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD")
-        render_card(col1, "Record 04: Cooking/Reheating (Lunch)", stat_04_ln, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD")
-        render_card(col1, "Record 04: Cooking/Reheating (Dinner)", stat_04_dn, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD")
+        render_card(col1, "Record 02: Food Delivery Record", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "r02")
+        render_card(col1, "Record 03: Coolroom/Fridge Opening", stat_03_op, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_op")
+        render_card(col1, "Record 03: Coolroom/Fridge Closing", stat_03_cl, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_cl")
+        render_card(col1, "Record 04: Cooking/Reheating (Breakfast)", stat_04_bf, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_bf")
+        render_card(col1, "Record 04: Cooking/Reheating (Lunch)", stat_04_ln, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_ln")
+        render_card(col1, "Record 04: Cooking/Reheating (Dinner)", stat_04_dn, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_dn")
 
     with col2:
-        render_card(col2, "Record 05: Cooling of Food (Blast Chiller)", stat_05, "RECORD 05 - COOLING OF FOOD RECORD")
-        render_card(col2, "Record 06: Food Display Temperature", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD")
-        render_card(col2, "Record 12: Defrosting Temperature Record", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD")
-        render_card(col2, "Record 13: Warewash Sanitization Record", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD")
-        render_card(col2, "Record 15: Pesticide Usage Record", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD")
-        render_card(col2, "Record 21: Food Wash Record (Chlorine)", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH")
-        render_card(col2, "Record 25: Ice Machine Cleaning Record", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD")
+        render_card(col2, "Record 05: Cooling of Food (Blast Chiller)", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
+        render_card(col2, "Record 06: Food Display Temperature", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
+        render_card(col2, "Record 12: Defrosting Temperature Record", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "r12")
+        render_card(col2, "Record 13: Warewash Sanitization Record", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
+        render_card(col2, "Record 15: Pesticide Usage Record", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
+        render_card(col2, "Record 21: Food Wash Record (Chlorine)", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
+        render_card(col2, "Record 25: Ice Machine Cleaning Record", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
 elif st.session_state.nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
     st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
