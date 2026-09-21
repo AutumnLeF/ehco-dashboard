@@ -142,8 +142,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v9"
-sync_time_key = f"sync_time_{active_form_id}_v9"
+cache_key = f"cache_df_{active_form_id}_v10"
+sync_time_key = f"sync_time_{active_form_id}_v10"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -232,7 +232,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     st.write("")
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v9"
+        ck = f"cache_df_{form_id}_v10"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -245,37 +245,37 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_21 = parse_record_21_submissions(get_form_df(31390))
     df_25 = parse_record_25_submissions(get_form_df(31393))
 
-    # Calculate Status Strings
-    day_02 = df_02[df_02["Date_Str"] == selected_day_str] if not df_02.empty else pd.DataFrame()
+    # Calculate Status Strings Safely
+    day_02 = df_02[df_02["Date_Str"] == selected_day_str] if (df_02 is not None and not df_02.empty and "Date_Str" in df_02.columns) else pd.DataFrame()
     stat_02 = f"Completed - {len(day_02)}/1" if not day_02.empty else "Pending - 0/1"
 
     df_03 = get_form_df(31373)
-    day_03 = df_03 if not df_03.empty else pd.DataFrame()
+    day_03 = df_03 if (df_03 is not None and not df_03.empty) else pd.DataFrame()
     stat_03_op = "Completed - 1/1" if not day_03.empty else "Pending - 0/1"
     stat_03_cl = "Pending - 0/1"
 
-    day_04 = df_04[df_04["Date_Str"] == selected_day_str] if not df_04.empty else pd.DataFrame()
+    day_04 = df_04[df_04["Date_Str"] == selected_day_str] if (df_04 is not None and not df_04.empty and "Date_Str" in df_04.columns) else pd.DataFrame()
     stat_04_bf = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
     stat_04_ln = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
     stat_04_dn = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
 
-    day_05 = df_05[df_05["Date_Str"] == selected_day_str] if not df_05.empty else pd.DataFrame()
+    day_05 = df_05[df_05["Date_Str"] == selected_day_str] if (df_05 is not None and not df_05.empty and "Date_Str" in df_05.columns) else pd.DataFrame()
     stat_05 = f"Completed - {len(day_05)} batches" if not day_05.empty else "Pending - 0 batches"
 
     stat_06 = "Completed - 1/1"
     stat_12 = "Completed - 1/1"
 
-    day_13 = df_13[df_13["Date_Str"] == selected_day_str] if not df_13.empty else pd.DataFrame()
-    logged_13 = len(day_13["Unit_ID"].dropna().unique()) if not day_13.empty else 0
+    day_13 = df_13[df_13["Date_Str"] == selected_day_str] if (df_13 is not None and not df_13.empty and "Date_Str" in df_13.columns) else pd.DataFrame()
+    logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
     stat_13 = f"Completed - {logged_13}/11"
 
     stat_15 = "Completed - 1/1"
 
-    day_21 = df_21[df_21["Date_Str"] == selected_day_str] if not df_21.empty else pd.DataFrame()
+    day_21 = df_21[df_21["Date_Str"] == selected_day_str] if (df_21 is not None and not df_21.empty and "Date_Str" in df_21.columns) else pd.DataFrame()
     stat_21 = f"Completed - {len(day_21)} batches" if not day_21.empty else "Pending - 0 batches"
 
-    day_25 = df_25[df_25["Date_Str"] == selected_day_str] if not day_25.empty else pd.DataFrame()
-    logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if not day_25.empty else 0
+    day_25 = df_25[df_25["Date_Str"] == selected_day_str] if (df_25 is not None and not df_25.empty and "Date_Str" in df_25.columns) else pd.DataFrame()
+    logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f"Completed - {logged_25}/1" if logged_25 > 0 else "Pending - 0/1"
 
     col1, col2 = st.columns(2)
