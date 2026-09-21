@@ -22,7 +22,7 @@ st.set_page_config(
 )
 
 # -------------------------------------------------------------
-# 1. EDITORIAL STYLING & POLISHED CARDS
+# 1. EDITORIAL STYLING & THEME
 # -------------------------------------------------------------
 st.markdown("""
 <style>
@@ -142,8 +142,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v10"
-sync_time_key = f"sync_time_{active_form_id}_v10"
+cache_key = f"cache_df_{active_form_id}_v11"
+sync_time_key = f"sync_time_{active_form_id}_v11"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -228,11 +228,11 @@ raw_records_df = st.session_state.get(cache_key, pd.DataFrame())
 # -------------------------------------------------------------
 if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     st.markdown('<div class="serif-title">Roswyn - EHCO Status Overview</div>', unsafe_allow_html=True)
-    st.markdown(f"Operational completion and status summary for **{selected_day_str}**. Click any record button below to jump directly to its audit page.")
+    st.markdown(f"Operational completion and status summary for **{selected_day_str}**. Click any card below to jump directly to its audit page.")
     st.write("")
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v10"
+        ck = f"cache_df_{form_id}_v11"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -278,39 +278,42 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f"Completed - {logged_25}/1" if logged_25 > 0 else "Pending - 0/1"
 
-    col1, col2 = st.columns(2)
+    col1, col2, col3 = st.columns(3)
 
-    def render_card(col, title, status_text, target_nav, unique_key):
+    def render_theme_card(col, title, status_text, target_nav, unique_key):
         is_completed = "Completed" in status_text
-        badge_color = "#16a34a" if is_completed else "#d97706"
-        border_left_color = "#16a34a" if is_completed else "#d97706"
-
+        status_color = "#4ade80" if is_completed else "#fbbf24"
+        
         col.markdown(f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid {border_left_color}; border-radius:8px; padding:14px; margin-bottom:6px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-weight:700; font-size:1rem; color:#0f172a;">{title}</div>
-            <div style="font-size:0.82rem; color:{badge_color}; font-weight:600; margin-top:3px;">Status: <b>{status_text}</b></div>
+        <div style="background-color: #0b192c; border-radius: 12px; padding: 20px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 12px; min-height: 140px; display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+                <div style="font-size: 0.95rem; font-weight: 600; line-height: 1.3; margin-bottom: 8px;">{title}</div>
+                <div style="font-size: 0.8rem; color: {status_color}; font-weight: 500;">Status: {status_text}</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
-        if col.button("Open ➔", use_container_width=True, key=f"btn_card_{unique_key}"):
+        if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
             st.session_state.nav_choice = target_nav
             st.rerun()
 
     with col1:
-        render_card(col1, "Record 02: Food Delivery Record", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "r02")
-        render_card(col1, "Record 03: Coolroom/Fridge Opening", stat_03_op, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_op")
-        render_card(col1, "Record 03: Coolroom/Fridge Closing", stat_03_cl, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_cl")
-        render_card(col1, "Record 04: Cooking/Reheating (Breakfast)", stat_04_bf, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_bf")
-        render_card(col1, "Record 04: Cooking/Reheating (Lunch)", stat_04_ln, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_ln")
-        render_card(col1, "Record 04: Cooking/Reheating (Dinner)", stat_04_dn, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_dn")
+        render_theme_card(col1, "Record 02: Food Delivery Record", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "r02")
+        render_theme_card(col1, "Record 03: Coolroom/Fridge Opening", stat_03_op, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_op")
+        render_theme_card(col1, "Record 03: Coolroom/Fridge Closing", stat_03_cl, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_cl")
+        render_theme_card(col1, "Record 04: Cooking/Reheating (Breakfast)", stat_04_bf, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_bf")
 
     with col2:
-        render_card(col2, "Record 05: Cooling of Food (Blast Chiller)", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
-        render_card(col2, "Record 06: Food Display Temperature", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
-        render_card(col2, "Record 12: Defrosting Temperature Record", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "r12")
-        render_card(col2, "Record 13: Warewash Sanitization Record", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
-        render_card(col2, "Record 15: Pesticide Usage Record", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
-        render_card(col2, "Record 21: Food Wash Record (Chlorine)", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
-        render_card(col2, "Record 25: Ice Machine Cleaning Record", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
+        render_theme_card(col2, "Record 04: Cooking/Reheating (Lunch)", stat_04_ln, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_ln")
+        render_theme_card(col2, "Record 04: Cooking/Reheating (Dinner)", stat_04_dn, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_dn")
+        render_theme_card(col2, "Record 05: Cooling of Food (Blast Chiller)", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
+        render_theme_card(col2, "Record 06: Food Display Temperature", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
+
+    with col3:
+        render_theme_card(col3, "Record 12: Defrosting Temperature Record", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "r12")
+        render_theme_card(col3, "Record 13: Warewash Sanitization Record", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
+        render_theme_card(col3, "Record 15: Pesticide Usage Record", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
+        render_theme_card(col3, "Record 21: Food Wash Record (Chlorine)", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
+        render_theme_card(col3, "Record 25: Ice Machine Cleaning Record", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
 elif st.session_state.nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
     st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
