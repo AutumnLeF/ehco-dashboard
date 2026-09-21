@@ -241,7 +241,7 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
 
         for kitchen in all_kitchens:
             row_cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
-            row_cols[0].markdown(f'<div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:12px 6px; font-weight:700; color:#0f172a; font-size:0.88rem; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:115px; display:flex; align-items:center; justify-content:center;">{kitchen}</div>', unsafe_allow_html=True)
+            row_cols[0].markdown(f'<div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:12px 6px; font-weight:700; color:#0f172a; font-size:0.88rem; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:130px; display:flex; align-items:center; justify-content:center;">{kitchen}</div>', unsafe_allow_html=True)
 
             k_df = range_df[range_df["Location"] == kitchen] if not range_df.empty else pd.DataFrame()
 
@@ -250,12 +250,16 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
                 matches = k_df[k_df["Date_Str"] == d_str] if not k_df.empty else pd.DataFrame()
 
                 if matches.empty:
-                    row_cols[i + 1].markdown('<div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:115px; display:flex; align-items:center; justify-content:center;"><span style="color:#94a3b8; font-weight:700; font-size:1.2rem;">—</span></div>', unsafe_allow_html=True)
+                    row_cols[i + 1].markdown('<div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:130px; display:flex; align-items:center; justify-content:center;"><span style="color:#94a3b8; font-weight:700; font-size:1.2rem;">—</span></div>', unsafe_allow_html=True)
                 else:
                     count = len(matches)
-                    foods_list = matches["Food"].dropna().tolist()
-                    foods_text = ", ".join(foods_list)
-                    row_cols[i + 1].markdown(f'<div style="background:#ffffff; border:1.5px solid #0f172a; border-radius:8px; padding:8px 4px; text-align:center; min-height:115px; box-shadow:0 1px 3px rgba(0,0,0,0.08);"><div style="font-size:1.3rem; font-weight:800; color:#0f172a; line-height:1;">{count}</div><div style="height:1px; background:#cbd5e1; margin:6px 0;"></div><div style="font-size:0.75rem; font-weight:600; color:#0f172a; line-height:1.3; word-wrap:break-word;">{foods_text}</div></div>', unsafe_allow_html=True)
+                    items_html = ""
+                    for _, dish in matches.iterrows():
+                        start_t = f"{dish['Start_Temp']}°C" if pd.notna(dish['Start_Temp']) else "—"
+                        end_t = f"{dish['End_Temp']}°C" if pd.notna(dish['End_Temp']) else "—"
+                        items_html += f"<div style='font-size:0.68rem; color:#334155; margin-top:2px; text-align:left; border-top:1px solid #f1f5f9; padding-top:2px;'><b>{dish['Food']}</b><br/><span style='color:#0284c7;'>{start_t} ➔ {end_t}</span></div>"
+
+                    row_cols[i + 1].markdown(f'<div style="background:#ffffff; border:1.5px solid #0f172a; border-radius:8px; padding:6px 6px; min-height:130px; box-shadow:0 1px 3px rgba(0,0,0,0.08);"><div style="font-size:1.1rem; font-weight:800; color:#0f172a; text-align:center; line-height:1;">{count}</div>{items_html}</div>', unsafe_allow_html=True)
 
             st.write("")
 
