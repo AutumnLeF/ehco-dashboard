@@ -248,7 +248,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
         next_date_obj = target_date_obj + timedelta(days=1)
 
-        # Grab logs for selected date + early morning closing logs (up to 4:30 AM next day)
         if not df_items.empty:
             day_df = df_items[
                 (df_items["Date_Obj"] == target_date_obj) |
@@ -261,7 +260,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         total_completed = 0
         total_pending = 0
 
-        # Calculate totals for KPIs
         for loc_name, units in UNIT_CATALOG.items():
             for u in units:
                 clean_target = clean_unit_token(u["Unit_ID"])
@@ -287,8 +285,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Location Audit Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
         st.caption("Each location block groups its assigned units, tracking Opening & Closing entries (including late-night closing up to 4:00 AM).")
 
-        # Render one unified block per location
-       for loc_name, units in UNIT_CATALOG.items():
+        for loc_name, units in UNIT_CATALOG.items():
             st.markdown(f"""
             <div style="background:#0f172a; color:#ffffff; padding:10px 14px; border-radius:6px; margin-top:1.4rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-weight:700; font-size:0.98rem;">📍 {loc_name}</span>
@@ -325,7 +322,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                     border_col = "#16a34a"
                     bg_col = "#ffffff"
 
-                # Safely construct HTML for shift readings
                 entries_html = ""
                 if num_logs == 0:
                     entries_html = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">No temperature logs recorded yet (Opening & Closing pending).</span>'
@@ -334,7 +330,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                         t_col = "#dc2626" if log_item["Has_Breach"] else "#0f172a"
                         shift_label = "Opening" if idx == 0 else "Closing"
                         entries_html += f"""
-                        <div style="display:inline-block; margin-right:12px; margin-bottom:4px; font-size:0.8rem; background:#f1f5f9; padding:4px 8px; border-radius:4px;">
+                        <div style="display:inline-block; margin-right:12px; margin-bottom:4px; font-size:0.8; background:#f1f5f9; padding:4px 8px; border-radius:4px;">
                             <b>#{idx+1} ({shift_label} @ {log_item['Time']}):</b> 
                             <span style="color:{t_col}; font-weight:700;">{log_item['Temp_Disp']}</span> 
                             <span style="color:#64748b; font-size:0.7rem;">(By: {log_item['Sign']})</span>
@@ -359,7 +355,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 """, unsafe_allow_html=True)
 
     with tab_matrix:
-        # [7-Day Grouped Location Matrix code remains unchanged]
         total_days = max(1, (end_date - start_date).days + 1)
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
         max_page = max(0, (total_days - 1) // 7)
