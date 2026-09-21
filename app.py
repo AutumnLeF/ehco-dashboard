@@ -256,11 +256,9 @@ raw_records_df = get_master_df(active_form_id, unwind=True) if active_form_id !=
 # -------------------------------------------------------------
 if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     
-    # Initialize view mode switch state if not present
     if "dashboard_view_mode" not in st.session_state:
         st.session_state.dashboard_view_mode = "📊 Overview Cards"
 
-    # Top Navigation View Switcher Header
     top_cols = st.columns([4, 4])
     with top_cols[0]:
         st.markdown(f"""
@@ -293,7 +291,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
 
-    # Evaluate Record 03 Unit Counter
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
 
@@ -313,7 +310,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         for u in units:
             u_id = u["Unit_ID"]
             clean_target = clean_unit_token(u_id)
-            unit_logs = day_03[day_03["Clean_Unit"] == clean_target] if not day_03.empty else pd.DataFrame()
+            unit_logs = day_03[day_03["Clean_Unit"] == clean_target] if not day_03.empty and "Clean_Unit" in day_03.columns else pd.DataFrame()
             n_logs = len(unit_logs)
             if n_logs == 1:
                 global_opening_logged += 1
@@ -325,7 +322,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if global_closing_logged > 0 else f"Pending - 0/{global_total_units}"
     html_03 = f'Opening: <span style="color: {"#4ade80" if global_opening_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if global_closing_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # Evaluate Record 04 status
     if not df_04_parsed.empty:
         day_04 = df_04_parsed[
             (df_04_parsed["Date_Obj"] == target_date_obj) |
@@ -436,24 +432,20 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         st.write("")
 
         for loc_name, units in UNIT_CATALOG.items():
-            # Calculate metrics for this specific location
             loc_units_total = len(units)
             
-            # Record 03 unit matches for this location
             loc_day_03 = day_03[day_03["Location"] == loc_name] if not day_03.empty and "Location" in day_03.columns else pd.DataFrame()
-            loc_op_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]) if not loc_day_03.empty else 0
-            loc_cl_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]) if not loc_day_03.empty else 0
+            loc_op_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]) if not loc_day_03.empty and "Shift" in loc_day_03.columns else 0
+            loc_cl_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]) if not loc_day_03.empty and "Shift" in loc_day_03.columns else 0
 
-            # Record 04 matches for this location
             loc_day_04 = day_04[day_04["Kitchen"] == loc_name] if not day_04.empty and "Kitchen" in day_04.columns else pd.DataFrame()
             loc_r04_status = "✅ Logged" if not loc_day_04.empty else "⏳ Pending"
 
-            # Render Department Card in columns format
             st.markdown(f"""
-            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:16px 20px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:10px; margin-bottom:12px;">
-                    <span style="font-weight:700; font-size:1.1rem; color:#0f172a;">📍 {loc_name}</span>
-                    <span style="font-size:0.8rem; background:#e2e8f0; padding:4px 10px; border-radius:12px; font-weight:600; color:#475569;">{loc_units_total} Assigned Units</span>
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:14px 18px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:8px; margin-bottom:10px;">
+                    <span style="font-weight:700; font-size:1.05rem; color:#0f172a;">📍 {loc_name}</span>
+                    <span style="font-size:0.78rem; background:#e2e8f0; padding:3px 10px; border-radius:12px; font-weight:600; color:#475569;">{loc_units_total} Assigned Units</span>
                 </div>
             </div>
             """, unsafe_allow_html=True)
