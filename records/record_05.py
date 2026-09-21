@@ -12,19 +12,9 @@ def parse_record_05_submissions(raw_df):
     if raw_df.empty:
         return pd.DataFrame()
 
-    df = raw_df.copy()
-
-    # Broad match for formId
-    form_col = next((c for c in df.columns if "formid" in c.lower()), None)
-    if form_col:
-        df = df[df[form_col].astype(str).str.contains(str(RECORD_05_FORM_ID), na=False)]
-
-    if df.empty:
-        df = raw_df.copy()
-
     rows = []
-    for _, row in df.iterrows():
-        rec = row.get("raw_record") if "raw_record" in df.columns else row.to_dict()
+    for _, row in raw_df.iterrows():
+        rec = row.get("raw_record") if "raw_record" in raw_df.columns else row.to_dict()
         if not isinstance(rec, dict):
             rec = row.to_dict()
 
@@ -104,6 +94,7 @@ def parse_record_05_submissions(raw_df):
                 entry.get("Name_of_Food")
                 or entry.get("Food")
                 or entry.get("Food_Item")
+                or entry.get("Dish")
                 or "Batch Item"
             )
 
@@ -111,6 +102,7 @@ def parse_record_05_submissions(raw_df):
                 entry.get("Start_Temperature")
                 or entry.get("StartTemp")
                 or entry.get("Temp_Start")
+                or entry.get("Temperature_Start")
             )
             start_temp = pd.to_numeric(
                 str(start_raw).replace("°C", "").replace("°", "").strip(),
@@ -122,6 +114,7 @@ def parse_record_05_submissions(raw_df):
                 or entry.get("After_2_Hours")
                 or entry.get("Temp_After_2")
                 or entry.get("End_Temp")
+                or entry.get("Temperature")
             )
             end_temp = pd.to_numeric(
                 str(end_raw).replace("°C", "").replace("°", "").strip(),
@@ -187,25 +180,25 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
             st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Batches Chilled</div></div>', unsafe_allow_html=True)
 
         st.write("")
-        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>❄️ Blast Chiller Batches ({selected_day_str})</h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>❄️ Blast Chiller Audit Cards ({selected_day_str})</h4>", unsafe_allow_html=True)
 
         c1, c2 = st.columns(2)
         with c1:
             st.markdown('<div style="font-weight:700; color:#dc2626; margin-bottom:8px;">🔴 Temperature Breaches (> 5.0°C)</div>', unsafe_allow_html=True)
             if excursions:
                 for exc in excursions:
-                    st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:10px; border-radius:6px; margin-bottom:8px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a;">🍲 {exc["Food"]} • {exc["Location"]}</div><div style="font-size:0.82rem; color:#dc2626; font-weight:700; margin-top:3px;">Start: {exc["Start_Temp"]}°C ➔ After 2h: {exc["End_Temp"]}°C (Limit ≤ 5.0°C)</div><div style="font-size:0.72rem; color:#64748b; margin-top:3px;">Time: {exc["Time"]} | Sign: {exc["Sign"]}</div></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">🍲 {exc["Food"]} • {exc["Location"]}</div><div style="font-size:0.85rem; color:#dc2626; font-weight:700; margin-top:4px;">Start: {exc["Start_Temp"]}°C ➔ After 2h: {exc["End_Temp"]}°C (Limit ≤ 5.0°C)</div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Time: {exc["Time"]} | Signed: {exc["Sign"]}</div></div>', unsafe_allow_html=True)
             else:
-                st.markdown('<div style="background:#f8fafc; border:1px dashed #cbd5e1; padding:12px; border-radius:6px; color:#64748b; font-size:0.85rem;">No cooling excursions on this day.</div>', unsafe_allow_html=True)
+                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">No cooling excursions on this day.</div>', unsafe_allow_html=True)
 
         with c2:
             st.markdown('<div style="font-weight:700; color:#16a34a; margin-bottom:8px;">🟢 Verified Compliant (≤ 5.0°C)</div>', unsafe_allow_html=True)
             if compliant_logs:
                 for ok in compliant_logs:
                     temp_txt = f"{ok['End_Temp']}°C" if pd.notna(ok["End_Temp"]) else "Done"
-                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:10px; border-radius:6px; margin-bottom:8px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a;">🍲 {ok["Food"]}</div><div style="font-size:0.82rem; color:#334155; margin-top:3px;">Start: <b>{ok["Start_Temp"]}°C</b> ➔ After 2h: <b style="color:#16a34a;">{temp_txt}</b></div><div style="font-size:0.72rem; color:#64748b; margin-top:3px;">Method: {ok["Method"]} | Sign: {ok["Sign"]}</div></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">🍲 {ok["Food"]}</div><div style="font-size:0.85rem; color:#334155; margin-top:4px;">Start: <b>{ok["Start_Temp"]}°C</b> ➔ After 2h: <b style="color:#16a34a;">{temp_txt}</b></div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Method: {ok["Method"]} | Signed: {ok["Sign"]}</div></div>', unsafe_allow_html=True)
             else:
-                st.markdown('<div style="background:#f8fafc; border:1px dashed #cbd5e1; padding:12px; border-radius:6px; color:#64748b; font-size:0.85rem;">No blast chiller records for this day.</div>', unsafe_allow_html=True)
+                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">No blast chiller records for this day.</div>', unsafe_allow_html=True)
 
     with tab_matrix:
         st.subheader("7-Day Kitchen Completion Matrix")
