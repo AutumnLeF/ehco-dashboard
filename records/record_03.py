@@ -260,15 +260,52 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         total_completed_units = 0
         total_units_catalog = 0
 
+        loc_summary_data = []
+
         for loc_name, units in UNIT_CATALOG.items():
+            total_u = len(units)
+            opening_logged = []
+            closing_logged = []
+            pending_opening = []
+            pending_closing = []
+            loc_breaches = 0
+
             for u in units:
                 total_units_catalog += 1
-                clean_target = clean_unit_token(u["Unit_ID"])
+                u_id = u["Unit_ID"]
+                u_type = u["Type"]
+                clean_target = clean_unit_token(u_id)
                 unit_logs = day_df[day_df["Clean_Unit"] == clean_target] if not day_df.empty else pd.DataFrame()
+                
                 if any(unit_logs["Has_Breach"]):
+                    loc_breaches += 1
                     total_breaches += 1
-                if len(unit_logs) >= 2:
+
+                n_logs = len(unit_logs)
+                if n_logs == 0:
+                    pending_opening.append(f"{u_id} ({u_type})")
+                    pending_closing.append(f"{u_id} ({u_type})")
+                elif n_logs == 1:
+                    opening_logged.append(u_id)
+                    pending_closing.append(f"{u_id} ({u_type})")
+                else:
+                    opening_logged.append(u_id)
+                    closing_logged.append(u_id)
                     total_completed_units += 1
+
+            op_count = len(opening_logged)
+            cl_count = len(closing_logged)
+            
+            loc_summary_data.append({
+                "loc_name": loc_name,
+                "units": units,
+                "total_u": total_u,
+                "op_count": op_count,
+                "cl_count": cl_count,
+                "pending_opening": pending_opening,
+                "pending_closing": pending_closing,
+                "loc_breaches": loc_breaches
+            })
 
         k1, k2, k3, k4 = st.columns(4)
         with k1:
@@ -281,68 +318,98 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Count</div></div>', unsafe_allow_html=True)
 
         st.write("")
+        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>📋 Shift Status Across Locations ({selected_day_str})</h4>", unsafe_allow_html=True)
+        
+        shift_col1, shift_col2 = st.columns(2)
+        
+        with shift_col1:
+            op_items_html = ""
+            for item in loc_summary_data:
+                l_name = item["loc_name"]
+                c_op = item["op_count"]
+                t_u = item["total_u"]
+                if c_op == t_u:
+                    badge = f"<span style='color:#16a34a; font-weight:700; float:right;'>✓ Completed ({c_op}/{t_u})</span>"
+                else:
+                    badge = f"<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending ({c_op}/{t_u})</span>"
+                op_items_html += f"<div style='padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:0.85rem;'><b>{l_name}</b> {badge}</div>"
+            
+            st.markdown(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #16a34a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="font-weight:700; font-size:0.95rem; color:#15803d; margin-bottom:8px;">
+                    🌅 Opening Shift Status
+                </div>
+                {op_items_html}
+            </div>
+            """, unsafe_allow_html=True)
+
+        with shift_col2:
+            cl_items_html = ""
+            for item in loc_summary_data:
+                l_name = item["loc_name"]
+                c_cl = item["cl_count"]
+                t_u = item["total_u"]
+                if c_cl == t_u:
+                    badge = f"<span style='color:#16a34a; font-weight:700; float:right;'>✓ Completed ({c_cl}/{t_u})</span>"
+                else:
+                    badge = f"<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending ({c_cl}/{t_u})</span>"
+                cl_items_html += f"<div style='padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:0.85rem;'><b>{l_name}</b> {badge}</div>"
+            
+            st.markdown(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0284c7; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="font-weight:700; font-size:0.95rem; color:#0369a1; margin-bottom:8px;">
+                    🌙 Closing Shift Status
+                </div>
+                {cl_items_html}
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.write("")
         st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Location Summary Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
         st.caption("Each location summary block tracks Opening & Closing logs and displays pending units.")
 
         loc_cols = st.columns(2)
-        for idx, (loc_name, units) in enumerate(UNIT_CATALOG.items()):
+        for idx, item in enumerate(loc_summary_data):
             col_target = loc_cols[idx % 2]
+            loc_name = item["loc_name"]
+            total_u = item["total_u"]
+            op_count = item["op_count"]
+            cl_count = item["cl_count"]
+            pending_opening = item["pending_opening"]
+            pending_closing = item["pending_closing"]
+            loc_breaches = item["loc_breaches"]
 
-            opening_logged = []
-            closing_logged = []
-            pending_opening = []
-            pending_closing = []
-            loc_breaches = 0
+            if loc_breaches > 0:
+                compliance_badge = "<span style='color:#dc2626; font-weight:700; font-size:0.75rem; float:right;'>🔴 BREACH</span>"
+            elif op_count < total_u or cl_count < total_u:
+                compliance_badge = "<span style='color:#d97706; font-weight:700; font-size:0.75rem; float:right;'>⏳ PENDING</span>"
+            else:
+                compliance_badge = "<span style='color:#16a34a; font-weight:700; font-size:0.75rem; float:right;'>🟢 Fully Compliant</span>"
 
-            for u in units:
-                u_id = u["Unit_ID"]
-                u_type = u["Type"]
-                clean_target = clean_unit_token(u_id)
-                unit_logs = day_df[day_df["Clean_Unit"] == clean_target] if not day_df.empty else pd.DataFrame()
-                
-                if any(unit_logs["Has_Breach"]):
-                    loc_breaches += 1
-
-                n_logs = len(unit_logs)
-                if n_logs == 0:
-                    pending_opening.append(f"{u_id} ({u_type})")
-                    pending_closing.append(f"{u_id} ({u_type})")
-                elif n_logs == 1:
-                    opening_logged.append(u_id)
-                    pending_closing.append(f"{u_id} ({u_type})")
-                else:
-                    opening_logged.append(u_id)
-                    closing_logged.append(u_id)
-
-            total_u = len(units)
-            op_count = len(opening_logged)
-            cl_count = len(closing_logged)
-
-            pending_op_html = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:8px; margin-top:2px;'>• {item}</div>" for item in pending_opening]) if pending_opening else "<div style='font-size:0.75rem; color:#16a34a; margin-top:2px; margin-left:8px;'>• All units logged for opening.</div>"
+            pending_op_html = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:8px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_opening]) if pending_opening else "<div style='font-size:0.75rem; color:#16a34a; margin-top:2px; margin-left:8px;'>• All units logged for opening.</div>"
             
-            pending_cl_html = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:8px; margin-top:2px;'>• {item}</div>" for item in pending_closing]) if pending_closing else "<div style='font-size:0.75rem; color:#16a34a; margin-top:2px; margin-left:8px;'>• All units logged for closing.</div>"
-
-            breach_badge = f"<span style='color:#dc2626; font-weight:700; font-size:0.75rem; float:right;'>🔴 {loc_breaches} Breach(es)</span>" if loc_breaches > 0 else f"<span style='color:#16a34a; font-weight:700; font-size:0.75rem; float:right;'>🟢 Fully Compliant</span>"
+            pending_cl_html = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:8px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_closing]) if pending_closing else "<div style='font-size:0.75rem; color:#16a34a; margin-top:2px; margin-left:8px;'>• All units logged for closing.</div>"
 
             col_target.markdown(f"""
-<div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-    <div style="font-weight:700; font-size:1rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:10px;">
-        📍 {loc_name} <span style="font-size:0.75rem; color:#64748b; font-weight:normal; margin-left:6px;">({total_u} Units)</span> {breach_badge}
-    </div>
-    <div style="background:#f8fafc; border-left:3px solid #16a34a; padding:8px 10px; border-radius:4px; margin-bottom:8px;">
-        <div style="font-size:0.85rem; color:#15803d; font-weight:700; display:flex; justify-content:space-between;">
-            <span>🌅 Opening Shift</span><span>{op_count}/{total_u} Logged</span>
-        </div>
-        <div style="margin-top:4px;">{pending_op_html}</div>
-    </div>
-    <div style="background:#f8fafc; border-left:3px solid #0284c7; padding:8px 10px; border-radius:4px; margin-bottom:4px;">
-        <div style="font-size:0.85rem; color:#0369a1; font-weight:700; display:flex; justify-content:space-between;">
-            <span>🌙 Closing Shift</span><span>{cl_count}/{total_u} Logged</span>
-        </div>
-        <div style="margin-top:4px;">{pending_cl_html}</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="font-weight:700; font-size:1rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:10px;">
+                    📍 {loc_name} <span style="font-size:0.75rem; color:#64748b; font-weight:normal; margin-left:6px;">({total_u} Units)</span> {compliance_badge}
+                </div>
+                <div style="background:#f8fafc; border-left:3px solid #16a34a; padding:8px 10px; border-radius:4px; margin-bottom:8px;">
+                    <div style="font-size:0.85rem; color:#15803d; font-weight:700; display:flex; justify-content:space-between;">
+                        <span>🌅 Opening Shift</span><span>{op_count}/{total_u} Logged</span>
+                    </div>
+                    <div style="margin-top:4px;">{pending_op_html}</div>
+                </div>
+                <div style="background:#f8fafc; border-left:3px solid #0284c7; padding:8px 10px; border-radius:4px; margin-bottom:4px;">
+                    <div style="font-size:0.85rem; color:#0369a1; font-weight:700; display:flex; justify-content:space-between;">
+                        <span>🌙 Closing Shift</span><span>{cl_count}/{total_u} Logged</span>
+                    </div>
+                    <div style="margin-top:4px;">{pending_cl_html}</div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
     with tab_matrix:
         total_days = max(1, (end_date - start_date).days + 1)
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
