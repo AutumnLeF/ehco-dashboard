@@ -96,7 +96,7 @@ selected_day_str = st.sidebar.selectbox(
     "Focus Day for Drill-down", options=list(reversed(day_options)), key="sb_day_focus_select"
 )
 
-DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
+DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
 
 if "auth_token" not in st.session_state:
     st.session_state["auth_token"] = DEFAULT_TOKEN.strip()
@@ -207,7 +207,7 @@ def fetch_submissions(url, token, form_id, start_dt, end_dt):
     return all_rows
 
 def get_cached_form_df(form_id):
-    ck = f"cache_df_{form_id}_v26"
+    ck = f"cache_df_{form_id}_v27"
     if ck not in st.session_state or st.session_state[ck].empty:
         items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
         st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -217,7 +217,7 @@ force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn
 if force_refresh:
     for fid in FORM_MAPPING.values():
         if fid != 0:
-            st.session_state.pop(f"cache_df_{fid}_v26", None)
+            st.session_state.pop(f"cache_df_{fid}_v27", None)
 
 raw_records_df = get_cached_form_df(active_form_id) if active_form_id != 0 else pd.DataFrame()
 
@@ -240,7 +240,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_21 = parse_record_21_submissions(get_cached_form_df(31390))
     df_25 = parse_record_25_submissions(get_cached_form_df(31393))
 
-    # Evaluate Record 03 status for selected focus day (Opening / Closing across 8 areas)
+    # Evaluate Record 03 status for selected focus day
     day_03 = df_03_parsed[df_03_parsed["Date_Str"] == selected_day_str] if (df_03_parsed is not None and not df_03_parsed.empty and "Date_Str" in df_03_parsed.columns) else pd.DataFrame()
     op_count = len(day_03[day_03["Shift"].str.lower().str.contains("open", na=False)]) if (not day_03.empty and "Shift" in day_03.columns) else 0
     cl_count = len(day_03[day_03["Shift"].str.lower().str.contains("clos", na=False)]) if (not day_03.empty and "Shift" in day_03.columns) else 0
@@ -249,7 +249,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_03_cl_str = f"Completed - {cl_count}/8" if cl_count > 0 else "Pending - 0/8"
     html_03 = f'Opening: <span style="color: {"#4ade80" if op_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # Evaluate Record 04 status for selected focus day (Breakfast / Lunch / Dinner)
+    # Evaluate Record 04 status for selected focus day
     day_04 = df_04_parsed[df_04_parsed["Date_Str"] == selected_day_str] if (df_04_parsed is not None and not df_04_parsed.empty and "Date_Str" in df_04_parsed.columns) else pd.DataFrame()
     bf_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("break", na=False)]) if (not day_04.empty and "Meal_Shift" in day_04.columns) else 0
     ln_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("lunch", na=False)]) if (not day_04.empty and "Meal_Shift" in day_04.columns) else 0
@@ -271,9 +271,15 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
 
-    day_15_df = parse_record_15_submissions(get_cached_form_df(31384)) if "parse_record_15_submissions" in globals() else get_cached_form_df(31384)
-    day_15 = day_15_df[day_15_df["Date_Str"] == selected_day_str] if (day_15_df is not None and not day_15_df.empty and "Date_Str" in day_15_df.columns) else pd.DataFrame()
-    logged_15 = len(day_15) if not day_15.empty else 0
+    day_15_df = get_cached_form_df(31384)
+    # Check actual submissions for date in record 15 raw items if needed
+    logged_15 = 0
+    if day_15_df is not None and not day_15_df.empty:
+        for idx, row in day_15_df.iterrows():
+            rec = row.get("raw_record", {})
+            sub_dt = rec.get("dateTimeSubmitted", "")
+            if selected_day_str in sub_dt or selected_day_str.replace("/", "-") in sub_dt:
+                logged_15 += 1
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
 
     day_21 = df_21[df_21["Date_Str"] == selected_day_str] if (df_21 is not None and not df_21.empty and "Date_Str" in df_21.columns) else pd.DataFrame()
@@ -321,7 +327,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         """, unsafe_allow_html=True)
         if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
             st.session_state.nav_choice = target_nav
-            st.session_state["main_record_selector"] = target_nav
             st.rerun()
 
     with col1:
