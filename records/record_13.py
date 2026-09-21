@@ -188,8 +188,8 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
         range_df = df_items.copy()
 
     tab_day, tab_matrix = st.tabs([
-        f"📅 Daily Sanitization Audit ({selected_day_str})",
-        "📈 7-Day Grouped Location Matrix"
+        f"Today - {selected_day_str}",
+        "Weekly"
     ])
 
     with tab_day:
@@ -204,11 +204,13 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
         inactive_count = 0
         pending_count = 0
 
-        pending_units_list = []
-        compliant_units_list = []
+        location_parsed_data = {}
 
         for loc_name, units in LOCATION_CATALOG.items():
             loc_day_df = day_df[day_df["Location"].str.lower() == loc_name.lower()] if not day_df.empty else pd.DataFrame()
+            loc_pending = []
+            loc_compliant = []
+
             for u in units:
                 u_id = u["Unit_ID"]
                 u_type = u["Type"]
@@ -216,7 +218,7 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
                 
                 if u_logs.empty:
                     pending_count += 1
-                    pending_units_list.append({"Location": loc_name, "Unit_ID": u_id, "Type": u_type})
+                    loc_pending.append({"Unit_ID": u_id, "Type": u_type})
                 else:
                     latest = u_logs.iloc[-1]
                     if not latest["In_Use"]:
@@ -225,7 +227,12 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
                         excursions_count += 1
                     else:
                         compliant_count += 1
-                        compliant_units_list.append({"Location": loc_name, "Unit_ID": u_id, "Type": u_type, "Log": latest})
+                        loc_compliant.append({"Unit_ID": u_id, "Type": u_type, "Log": latest})
+
+            location_parsed_data[loc_name] = {
+                "Pending": loc_pending,
+                "Compliant": loc_compliant
+            }
 
         k1, k2, k3, k4 = st.columns(4)
         with k1:
@@ -238,27 +245,46 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
             st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Audited</div></div>', unsafe_allow_html=True)
 
         st.write("")
+        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Location-wise Unit Audit Summary ({selected_day_str})</h4>", unsafe_allow_html=True)
 
-        # 2-Side Layout: Left = Pending, Right = Compliant
+        # 2-Side Layout grouped under Area: Left = Pending, Right = Compliant
         col_left, col_right = st.columns(2)
 
         with col_left:
-            st.markdown(f'<div style="background:#fffbeb; border:1px solid #fde68a; border-left:5px solid #d97706; padding:12px; border-radius:6px; margin-bottom:10px;"><b style="color:#b45309; font-size:1rem;">⏳ Pending Units ({len(pending_units_list)})</b></div>', unsafe_allow_html=True)
-            if pending_units_list:
-                for p in pending_units_list:
-                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #d97706; padding:10px 14px; border-radius:6px; margin-bottom:8px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a;">📍 {p["Location"]}</div><div style="font-size:0.82rem; color:#b45309; font-weight:700; margin-top:2px;">⚙️ {p["Unit_ID"]} ({p["Type"]})</div><div style="font-size:0.72rem; color:#64748b; margin-top:2px;">No log submitted today</div></div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; padding:12px; border-radius:6px; color:#16a34a; font-size:0.85rem; text-align:center;">All units have been logged!</div>', unsafe_allow_html=True)
+            st.markdown('<div style="background:#fffbeb; border:1px solid #fde68a; border-left:5px solid #d97706; padding:10px 14px; border-radius:6px; margin-bottom:12px;"><b style="color:#b45309; font-size:0.98rem;">⏳ Pending Units by Area</b></div>', unsafe_allow_html=True)
+            
+            has_pending = False
+            for loc_name, data in location_parsed_data.items():
+                p_units = data["Pending"]
+                if p_units:
+                    has_pending = True
+                    units_html = ""
+                    for p in p_units:
+                        units_html += f'<div style="background:#f8fafc; border-left:3px solid #d97706; padding:6px 10px; border-radius:4px; margin-bottom:6px;"><div style="font-size:0.82rem; color:#0f172a; font-weight:700;">⚙️ {p["Unit_ID"]} <span style="font-weight:normal; color:#64748b; font-size:0.72rem;">({p["Type"]})</span><span style="color:#d97706; font-weight:700; float:right;">Pending</span></div><div style="font-size:0.7rem; color:#b45309; margin-top:2px;">No log submitted today</div></div>'
+                    
+                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #0f172a; border-radius:6px; padding:10px 14px; margin-bottom:12px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a; margin-bottom:8px;">📍 {loc_name} <span style="font-size:0.7rem; color:#b45309;">({len(p_units)} pending)</span></div>{units_html}</div>', unsafe_allow_html=True)
+            
+            if not has_pending:
+                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; padding:12px; border-radius:6px; color:#16a34a; font-size:0.85rem; text-align:center;">All units across all areas have been logged!</div>', unsafe_allow_html=True)
 
         with col_right:
-            st.markdown(f'<div style="background:#f0fdf4; border:1px solid #bbf7d0; border-left:5px solid #16a34a; padding:12px; border-radius:6px; margin-bottom:10px;"><b style="color:#15803d; font-size:1rem;">🟢 Compliant Units ({len(compliant_units_list)})</b></div>', unsafe_allow_html=True)
-            if compliant_units_list:
-                for c in compliant_units_list:
-                    log = c["Log"]
-                    w_val = f"{int(log['Wash_Temp'])}°C" if pd.notna(log['Wash_Temp']) else "—"
-                    r_val = f"{int(log['Rinse_Temp'])}°C" if pd.notna(log['Rinse_Temp']) else "—"
-                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:10px 14px; border-radius:6px; margin-bottom:8px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a;">📍 {c["Location"]}</div><div style="font-size:0.82rem; color:#0f172a; font-weight:700; margin-top:2px;">⚙️ {c["Unit_ID"]} ({c["Type"]})</div><div style="font-size:0.75rem; color:#15803d; margin-top:2px; font-weight:600;">Wash: {w_val} | Rinse: {r_val}</div><div style="font-size:0.7rem; color:#64748b; margin-top:2px;">Signed: {log["Sign"]}</div></div>', unsafe_allow_html=True)
-            else:
+            st.markdown('<div style="background:#f0fdf4; border:1px solid #bbf7d0; border-left:5px solid #16a34a; padding:10px 14px; border-radius:6px; margin-bottom:12px;"><b style="color:#15803d; font-size:0.98rem;">🟢 Compliant Units by Area</b></div>', unsafe_allow_html=True)
+            
+            has_compliant = False
+            for loc_name, data in location_parsed_data.items():
+                c_units = data["Compliant"]
+                if c_units:
+                    has_compliant = True
+                    units_html = ""
+                    for c in c_units:
+                        log = c["Log"]
+                        w_val = f"{int(log['Wash_Temp'])}°C" if pd.notna(log['Wash_Temp']) else "—"
+                        r_val = f"{int(log['Rinse_Temp'])}°C" if pd.notna(log['Rinse_Temp']) else "—"
+                        units_html += f'<div style="background:#f8fafc; border-left:3px solid #16a34a; padding:6px 10px; border-radius:4px; margin-bottom:6px;"><div style="font-size:0.82rem; color:#0f172a; font-weight:700;">⚙️ {c["Unit_ID"]} <span style="font-weight:normal; color:#64748b; font-size:0.72rem;">({c["Type"]})</span><span style="color:#16a34a; font-weight:700; float:right;">✓ Compliant</span></div><div style="font-size:0.72rem; color:#15803d; margin-top:2px;">Wash: {w_val} | Rinse: {r_val} | Sign: {log["Sign"]}</div></div>'
+                    
+                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #0f172a; border-radius:6px; padding:10px 14px; margin-bottom:12px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a; margin-bottom:8px;">📍 {loc_name} <span style="font-size:0.7rem; color:#15803d;">({len(c_units)} compliant)</span></div>{units_html}</div>', unsafe_allow_html=True)
+            
+            if not has_compliant:
                 st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; padding:12px; border-radius:6px; color:#64748b; font-size:0.85rem; text-align:center;">No compliant logs recorded for today.</div>', unsafe_allow_html=True)
 
     with tab_matrix:
@@ -361,7 +387,7 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
                             temp_detail = f"W: {w_val} | R: {r_val}"
                             card_border = "1.5px solid #0f172a"
 
-                        row_cols[i + 1].markdown(f'<div style="background:#ffffff; border:{card_border}; border-radius:8px; padding:6px 3px; text-align:center; min-height:105px; box-shadow:0 1px 3px rgba(0,0,0,0.08);"><div>{status_badge}</div><div style="height:1px; background:#e2e8f0; margin:4px 0;"></div><div style="font-size:0.8rem; font-weight:700; color:#0f172a; line-height:1.2;">{temp_detail}</div><div style="font-size:0.65rem; color:#64748b; margin-top:3px;">By: {latest['Sign']}</div></div>', unsafe_allow_html=True)
+                        row_cols[i + 1].markdown(f'<div style="background:#ffffff; border:{card_border}; border-radius:8px; padding:6px 3px; text-align:center; min-height:105px; box-shadow:0 1px 3px rgba(0,0,0,0.08);"><div>{status_badge}</div><div style="height:1px; background:#e2e8f0; margin:4px 0;"></div><div style="font-size:0.80rem; font-weight:700; color:#0f172a; line-height:1.2;">{temp_detail}</div><div style="font-size:0.65rem; color:#64748b; margin-top:3px;">By: {latest['Sign']}</div></div>', unsafe_allow_html=True)
 
                 st.write("")
 
