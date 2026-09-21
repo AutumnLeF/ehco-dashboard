@@ -257,102 +257,81 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             day_df = pd.DataFrame()
 
         total_breaches = 0
-        total_completed = 0
-        total_pending = 0
+        total_completed_units = 0
+        total_units_catalog = 0
 
         for loc_name, units in UNIT_CATALOG.items():
             for u in units:
+                total_units_catalog += 1
                 clean_target = clean_unit_token(u["Unit_ID"])
                 unit_logs = day_df[day_df["Clean_Unit"] == clean_target] if not day_df.empty else pd.DataFrame()
                 if any(unit_logs["Has_Breach"]):
                     total_breaches += 1
                 if len(unit_logs) >= 2:
-                    total_completed += 1
-                else:
-                    total_pending += 1
+                    total_completed_units += 1
 
         k1, k2, k3, k4 = st.columns(4)
         with k1:
             st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{total_breaches}</div><div class="kpi-lbl">Temperature Breaches</div></div>', unsafe_allow_html=True)
         with k2:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{total_completed}</div><div class="kpi-lbl">Completed Units (2/2)</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{total_completed_units}</div><div class="kpi-lbl">Fully Logged (2/2)</div></div>', unsafe_allow_html=True)
         with k3:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#d97706;">{total_pending}</div><div class="kpi-lbl">Pending / Incomplete</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#d97706;">{total_units_catalog - total_completed_units}</div><div class="kpi-lbl">Pending / Incomplete</div></div>', unsafe_allow_html=True)
         with k4:
             st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Count</div></div>', unsafe_allow_html=True)
 
         st.write("")
-        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Location Audit Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
-        st.caption("Each location block groups its assigned units, tracking Opening & Closing entries (including late-night closing up to 4:00 AM).")
+        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Location Summary Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
+        st.caption("Each location block summarizes Opening & Closing logs and highlights pending units.")
 
-        for loc_name, units in UNIT_CATALOG.items():
-            st.markdown(f"""
-            <div style="background:#0f172a; color:#ffffff; padding:10px 14px; border-radius:6px; margin-top:1.4rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-weight:700; font-size:0.98rem;">📍 {loc_name}</span>
-                <span style="font-size:0.78rem; background:#334155; padding:3px 10px; border-radius:12px;">{len(units)} Assigned Units</span>
-            </div>
-            """, unsafe_allow_html=True)
+        loc_cols = st.columns(2)
+        for idx, (loc_name, units) in enumerate(UNIT_CATALOG.items()):
+            col_target = loc_cols[idx % 2]
+
+            opening_logged = []
+            closing_logged = []
+            pending_opening = []
+            pending_closing = []
 
             for u in units:
                 u_id = u["Unit_ID"]
                 u_type = u["Type"]
                 clean_target = clean_unit_token(u_id)
+                unit_logs = day_df[day_df["Clean_Unit"] == clean_target] if not day_df.empty else pd.DataFrame()
+                n_logs = len(unit_logs)
 
-                unit_logs = []
-                if not day_df.empty:
-                    unit_logs = day_df[day_df["Clean_Unit"] == clean_target].sort_values(by="Timestamp_DT").to_dict("records")
-
-                has_breach = any(l["Has_Breach"] for l in unit_logs)
-                num_logs = len(unit_logs)
-
-                if num_logs == 0:
-                    status_html = '<span style="color:#b45309; background:#fef3c7; padding:3px 10px; border-radius:4px; font-weight:700; font-size:0.75rem;">⏳ PENDING (0/2)</span>'
-                    border_col = "#d97706"
-                    bg_col = "#fffbeb"
-                elif num_logs == 1:
-                    status_html = '<span style="color:#0284c7; background:#e0f2fe; padding:3px 10px; border-radius:4px; font-weight:700; font-size:0.75rem;">⚠️ 1 of 2 LOGGED</span>'
-                    border_col = "#0284c7"
-                    bg_col = "#ffffff"
-                elif has_breach:
-                    status_html = '<span style="color:#dc2626; background:#fee2e2; padding:3px 10px; border-radius:4px; font-weight:700; font-size:0.75rem;">🔴 BREACH</span>'
-                    border_col = "#dc2626"
-                    bg_col = "#fff5f5"
+                if n_logs == 0:
+                    pending_opening.append(f"{u_type} - {u_id}")
+                    pending_closing.append(f"{u_type} - {u_id}")
+                elif n_logs == 1:
+                    opening_logged.append(u_id)
+                    pending_closing.append(f"{u_type} - {u_id}")
                 else:
-                    status_html = '<span style="color:#16a34a; background:#dcfce7; padding:3px 10px; border-radius:4px; font-weight:700; font-size:0.75rem;">✓ COMPLETED (2/2)</span>'
-                    border_col = "#16a34a"
-                    bg_col = "#ffffff"
+                    opening_logged.append(u_id)
+                    closing_logged.append(u_id)
 
-                entries_html = ""
-                if num_logs == 0:
-                    entries_html = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">No temperature logs recorded yet (Opening & Closing pending).</span>'
-                else:
-                    for idx, log_item in enumerate(unit_logs[:2]):
-                        t_col = "#dc2626" if log_item["Has_Breach"] else "#0f172a"
-                        shift_label = "Opening" if idx == 0 else "Closing"
-                        entries_html += f"""
-                        <div style="display:inline-block; margin-right:12px; margin-bottom:4px; font-size:0.8; background:#f1f5f9; padding:4px 8px; border-radius:4px;">
-                            <b>#{idx+1} ({shift_label} @ {log_item['Time']}):</b> 
-                            <span style="color:{t_col}; font-weight:700;">{log_item['Temp_Disp']}</span> 
-                            <span style="color:#64748b; font-size:0.7rem;">(By: {log_item['Sign']})</span>
-                        </div>
-                        """
-                    if num_logs == 1:
-                        entries_html += '<span style="color:#d97706; font-size:0.78rem; font-weight:600; margin-left:6px;">⏳ Closing Shift Pending</span>'
+            total_u = len(units)
+            op_count = len(opening_logged)
+            cl_count = len(closing_logged)
 
-                st.markdown(f"""
-                <div style="background:{bg_col}; border:1px solid #cbd5e1; border-left:5px solid {border_col}; padding:10px 14px; border-radius:6px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
-                    <div style="min-width:210px;">
-                        <div style="font-weight:700; font-size:0.88rem; color:#0f172a;">{u_id}</div>
-                        <div style="font-size:0.72rem; color:#64748b;">{u_type}</div>
-                    </div>
-                    <div style="flex-grow:1; margin-left:15px;">
-                        {entries_html}
-                    </div>
-                    <div>
-                        {status_html}
-                    </div>
+            pending_op_html = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:10px;'>• Pending Opening: {item}</div>" for item in pending_opening])
+            pending_cl_html = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:10px;'>• Pending Closing: {item}</div>" for item in pending_closing])
+
+            col_target.markdown(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:12px 16px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="font-weight:700; font-size:1rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:8px;">
+                    📍 {loc_name} <span style="font-size:0.75rem; color:#64748b; font-weight:normal; float:right;">{total_u} Units</span>
                 </div>
-                """, unsafe_allow_html=True)
+                <div style="font-size:0.85rem; color:#16a34a; font-weight:600; margin-bottom:4px;">
+                    Opening - {op_count}/{total_u}
+                </div>
+                {pending_op_html}
+                <div style="font-size:0.85rem; color:#0284c7; font-weight:600; margin-top:8px; margin-bottom:4px;">
+                    Closing - {cl_count}/{total_u}
+                </div>
+                {pending_cl_html}
+            </div>
+            """, unsafe_allow_html=True)
 
     with tab_matrix:
         total_days = max(1, (end_date - start_date).days + 1)
