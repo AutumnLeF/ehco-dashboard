@@ -255,9 +255,11 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         excursions = []
         compliant_logs = []
         standby_logs = []
+        logged_unit_tokens = set()
 
         if not day_df.empty:
             for _, r in day_df.iterrows():
+                logged_unit_tokens.add(r["Clean_Unit"])
                 if not r["In_Use"]:
                     standby_logs.append(r.to_dict())
                 elif r["Has_Breach"]:
@@ -265,52 +267,86 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 else:
                     compliant_logs.append(r.to_dict())
 
+        # Calculate Pending Units across the catalog
+        pending_by_area = {}
+        total_catalog_units = 0
+        total_logged_units = len(logged_unit_tokens)
+
+        for loc, units in UNIT_CATALOG.items():
+            area_pending = []
+            for u in units:
+                total_catalog_units += 1
+                c_token = clean_unit_token(u["Unit_ID"])
+                if c_token not in logged_unit_tokens:
+                    area_pending.append(u)
+            if area_pending:
+                pending_by_area[loc] = area_pending
+
+        total_pending_count = total_catalog_units - total_logged_units
+
+        # KPIs
         k1, k2, k3, k4 = st.columns(4)
         with k1:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div><div class="kpi-lbl">Temperature Breaches</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div><div class="kpi-lbl">Incorrect / Breaches</div></div>', unsafe_allow_html=True)
         with k2:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{len(compliant_logs)}</div><div class="kpi-lbl">Compliant Checks</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{len(compliant_logs)}</div><div class="kpi-lbl">Compliant Logs</div></div>', unsafe_allow_html=True)
         with k3:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#64748b;">{len(standby_logs)}</div><div class="kpi-lbl">Standby / Off</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#d97706;">{total_pending_count}</div><div class="kpi-lbl">Pending Units</div></div>', unsafe_allow_html=True)
         with k4:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Audited</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{total_catalog_units}</div><div class="kpi-lbl">Total Catalog Units</div></div>', unsafe_allow_html=True)
 
         st.write("")
 
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown(f'<div class="kanban-col"><div class="kanban-h" style="color:#dc2626;">🔴 Temp Breaches ({len(excursions)})</div>', unsafe_allow_html=True)
-            if excursions:
-                for exc in excursions:
-                    limit_txt = "<= 4°C" if "freezer" not in exc["Unit_Type"].lower() else "<= -18°C"
-                    st.markdown(f"""
-                    <div class="check-card" style="border-left: 5px solid #dc2626; padding:10px; margin-bottom:8px; background:#ffffff; border-radius:6px;">
-                        <div style="font-weight:700; font-size:0.92rem; color:#0f172a;">{exc['Unit_ID']} • {exc['Location']}</div>
-                        <div style="font-size:0.82rem; color:#dc2626; font-weight:700; margin-top:3px;">
-                            Reading: {exc['Temp_Disp']} (Breaches {limit_txt})
-                        </div>
-                        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Time: {exc['Time']} | By: {exc['Sign']}</div>
-                    </div>""", unsafe_allow_html=True)
-            else:
-                st.caption("No temperature excursions logged on this date.")
-            st.markdown('</div>', unsafe_allow_html=True)
+        # Section 1: Incorrect Entries (Breaches)
+        st.markdown(f'<div style="background:#fee2e2; border-left:5px solid #dc2626; padding:10px 14px; border-radius:6px; margin-bottom:1rem;"><b style="color:#dc2626; font-size:1rem;">🔴 Incorrect Entries / Temperature Breaches ({len(excursions)})</b></div>', unsafe_allow_html=True)
+        if excursions:
+            exc_cols = st.columns(min(3, max(1, len(excursions))))
+            for idx, exc in enumerate(excursions):
+                col_idx = idx % len(exc_cols)
+                limit_txt = "<= 4°C" if "freezer" not in exc["Unit_Type"].lower() else "<= -18°C"
+                exc_cols[col_idx].markdown(f"""
+                <div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:10px; border-radius:6px; margin-bottom:8px;">
+                    <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{exc['Unit_ID']}</div>
+                    <div style="font-size:0.8rem; color:#dc2626; font-weight:700; margin-top:2px;">Reading: {exc['Temp_Disp']} (Limit: {limit_txt})</div>
+                    <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Area: {exc['Location']} | Time: {exc['Time']} | By: {exc['Sign']}</div>
+                </div>""", unsafe_allow_html=True)
+        else:
+            st.info("✅ No incorrect or out-of-spec temperature entries logged on this date.")
 
-        with c2:
-            st.markdown(f'<div class="kanban-col"><div class="kanban-h" style="color:#16a34a;">🟢 Verified Compliant ({len(compliant_logs)})</div>', unsafe_allow_html=True)
-            if compliant_logs:
-                for ok in compliant_logs:
-                    st.markdown(f"""
-                    <div class="check-card" style="border-left: 5px solid #16a34a; padding:10px; margin-bottom:8px; background:#ffffff; border-radius:6px;">
-                        <div style="font-weight:700; font-size:0.92rem; color:#0f172a;">{ok['Unit_ID']}</div>
-                        <div style="font-size:0.82rem; color:#334155; margin-top:3px;">
-                            Temp: <b style="color:#16a34a;">{ok['Temp_Disp']}</b> &nbsp;|&nbsp; Location: <b>{ok['Location']}</b>
-                        </div>
-                        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Time: {ok['Time']} | By: {ok['Sign']}</div>
-                    </div>""", unsafe_allow_html=True)
-            else:
-                st.caption("No compliant logs recorded for this day.")
-            st.markdown('</div>', unsafe_allow_html=True)
+        st.write("")
 
+        # Section 2: Pending Units Breakdown by Area
+        st.markdown(f'<div style="background:#fef3c7; border-left:5px solid #d97706; padding:10px 14px; border-radius:6px; margin-bottom:1rem;"><b style="color:#b45309; font-size:1rem;">⏳ Pending Units Missing Logs ({total_pending_count} Units)</b></div>', unsafe_allow_html=True)
+        if pending_by_area:
+            for loc_name, un_list in pending_by_area.items():
+                st.markdown(f"<b style='color:#0f172a; font-size:0.9rem;'>📍 {loc_name} ({len(un_list)} pending):</b>", unsafe_allow_html=True)
+                p_cols = st.columns(min(4, len(un_list)))
+                for u_idx, u_item in enumerate(un_list):
+                    c_idx = u_idx % len(p_cols)
+                    p_cols[c_idx].markdown(f"""
+                    <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:6px; padding:8px; margin-bottom:6px; text-align:center;">
+                        <div style="font-weight:700; font-size:0.82rem; color:#b45309;">{u_item['Unit_ID']}</div>
+                        <div style="font-size:0.7rem; color:#64748b;">{u_item['Type']}</div>
+                    </div>""", unsafe_allow_html=True)
+        else:
+            st.success("🎉 All cataloged units have been successfully logged for this date!")
+
+        st.write("")
+
+        # Section 3: Completed / Compliant Logs
+        st.markdown(f'<div style="background:#dcfce7; border-left:5px solid #16a34a; padding:10px 14px; border-radius:6px; margin-bottom:1rem;"><b style="color:#15803d; font-size:1rem;">🟢 Verified Compliant Logs ({len(compliant_logs)})</b></div>', unsafe_allow_html=True)
+        if compliant_logs:
+            comp_cols = st.columns(min(3, max(1, len(compliant_logs))))
+            for idx, ok in enumerate(compliant_logs):
+                col_idx = idx % len(comp_cols)
+                comp_cols[col_idx].markdown(f"""
+                <div style="background:#ffffff; border:1px solid #bbf7d0; border-left:4px solid #16a34a; padding:10px; border-radius:6px; margin-bottom:8px;">
+                    <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{ok['Unit_ID']}</div>
+                    <div style="font-size:0.8rem; color:#334155; margin-top:2px;">Temp: <b style="color:#16a34a;">{ok['Temp_Disp']}</b> | Area: <b>{ok['Location']}</b></div>
+                    <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Time: {ok['Time']} | By: {ok['Sign']}</div>
+                </div>""", unsafe_allow_html=True)
+        else:
+            st.caption("No compliant logs recorded for this day.")
     with tab_matrix:
         total_days = max(1, (end_date - start_date).days + 1)
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
