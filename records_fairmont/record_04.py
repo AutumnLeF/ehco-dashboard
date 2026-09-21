@@ -8,10 +8,10 @@ TEMP_THRESHOLD = 75.0  # Minimum required core temp (°C)
 # Complete list of Fairmont Mumbai kitchens detected from form logs
 KITCHEN_MEAL_RULES = {
     "Bakery/Pastry": ["Lunch", "Dinner"],
-    "Banquet Kitchen": ["Breakfast", "Lunch", "Dinner"],
+    "Banquet Kitchen": ["Lunch", "Dinner"],
     "Cafeteria Kitchen": ["Breakfast", "Lunch", "Dinner"],
     "Gold Lounge Kitchen": ["Breakfast", "Dinner"],
-    "Hedonist Kitchen": ["Breakfast", "Lunch", "Dinner"],
+    "Hedonist Kitchen": ["Lunch", "Dinner"],
     "Indian Sweet / Halwai Kitchen": ["Lunch", "Dinner"],
     "IRD Kitchen": ["Breakfast", "Lunch", "Dinner"],
     "Madeleine de Proust": ["Breakfast", "Lunch", "Dinner"],
