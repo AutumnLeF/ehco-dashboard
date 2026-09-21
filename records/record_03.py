@@ -244,7 +244,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         "📈 7-Day Grouped Location Matrix"
     ])
 
-    with tab_day:
+with tab_day:
         target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
         next_date_obj = target_date_obj + timedelta(days=1)
 
