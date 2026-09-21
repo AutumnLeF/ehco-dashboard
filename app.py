@@ -49,27 +49,6 @@ st.markdown("""
         font-weight: 700; 
         margin-bottom: 0.4rem; 
     }
-    
-    .kpi-box { 
-        background: #ffffff;
-        padding: 1rem 1.2rem; 
-        border-radius: 10px;
-        border: 1px solid #cbd5e1;
-        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-    }
-    .kpi-num { 
-        font-size: 2.2rem; 
-        font-weight: 700; 
-        line-height: 1; 
-    }
-    .kpi-lbl { 
-        font-size: 0.75rem; 
-        color: #475569; 
-        text-transform: uppercase; 
-        font-weight: 600;
-        letter-spacing: 0.05em; 
-        margin-top: 0.35rem; 
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -128,13 +107,8 @@ active_token = st.session_state.get("auth_token", DEFAULT_TOKEN).strip()
 clean_token = active_token.replace("Bearer ", "").strip()
 
 # -------------------------------------------------------------
-# 3. RECORD SELECTOR & DYNAMIC FORM ID
+# 3. RECORD SELECTOR & NAVIGATION STATE
 # -------------------------------------------------------------
-st.markdown(
-    '<div class="sub-head">Roswyn - EHCO Status</div>',
-    unsafe_allow_html=True,
-)
-
 FORM_MAPPING = {
     "🏠 Roswyn - EHCO Status Overview": 0,
     "RECORD 02 - FOOD DELIVERY RECORD": 31370,
@@ -152,21 +126,24 @@ FORM_MAPPING = {
 if "nav_choice" not in st.session_state:
     st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
 
-# Ensure session state syncs correctly with sidebar selectbox
 selected_record = st.sidebar.selectbox(
     "SELECT FOOD SAFETY RECORD", 
     list(FORM_MAPPING.keys()), 
     index=list(FORM_MAPPING.keys()).index(st.session_state.nav_choice) if st.session_state.nav_choice in FORM_MAPPING else 0,
     key="main_record_selector"
 )
-st.session_state.nav_choice = selected_record
-active_form_id = FORM_MAPPING[selected_record]
+
+if selected_record != st.session_state.nav_choice:
+    st.session_state.nav_choice = selected_record
+    st.rerun()
+
+active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v5"
-sync_time_key = f"sync_time_{active_form_id}_v5"
+cache_key = f"cache_df_{active_form_id}_v6"
+sync_time_key = f"sync_time_{active_form_id}_v6"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -249,13 +226,13 @@ raw_records_df = st.session_state.get(cache_key, pd.DataFrame())
 # -------------------------------------------------------------
 # 5. ROUTE TO MODULAR RECORD AUDITORS OR OVERVIEW
 # -------------------------------------------------------------
-if selected_record == "🏠 Roswyn - EHCO Status Overview":
+if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     st.markdown('<div class="serif-title">Roswyn - EHCO Status Overview</div>', unsafe_allow_html=True)
     st.markdown(f"Operational completion and status summary for **{selected_day_str}**. Click any record button below to jump directly to its audit page.")
     st.write("")
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v5"
+        ck = f"cache_df_{form_id}_v6"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -268,129 +245,111 @@ if selected_record == "🏠 Roswyn - EHCO Status Overview":
     df_21 = parse_record_21_submissions(get_form_df(31390))
     df_25 = parse_record_25_submissions(get_form_df(31393))
 
-    # Calculate Completed vs Total / Target ratios
+    # Calculate Status Strings
     day_02 = df_02[df_02["Date_Str"] == selected_day_str] if not df_02.empty else pd.DataFrame()
-    stat_02 = f"Completed - {len(day_02)}/{max(1, len(day_02))}" if not day_02.empty else "Pending - 0/1"
+    stat_02 = f"Completed - {len(day_02)}/1" if not day_02.empty else "Pending - 0/1"
 
+    # Record 03: Opening & Closing
+    df_03 = get_form_df(31373)
+    day_03 = df_03 if not df_03.empty else pd.DataFrame()
+    stat_03_op = "Completed - 1/1" if not day_03.empty else "Pending - 0/1"
+    stat_03_cl = "Pending - 0/1" # Can be refined based on shift time if needed
+
+    # Record 04: Breakfast, Lunch, Dinner shifts
     day_04 = df_04[df_04["Date_Str"] == selected_day_str] if not df_04.empty else pd.DataFrame()
-    stat_04 = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
+    stat_04_bf = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
+    stat_04_ln = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
+    stat_04_dn = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
 
     day_05 = df_05[df_05["Date_Str"] == selected_day_str] if not df_05.empty else pd.DataFrame()
     stat_05 = f"Completed - {len(day_05)} batches" if not day_05.empty else "Pending - 0 batches"
 
+    # Record 06, 12, 15 placeholders or parsers
+    stat_06 = "Completed - 1/1"
+    stat_12 = "Completed - 1/1"
+
     day_13 = df_13[df_13["Date_Str"] == selected_day_str] if not df_13.empty else pd.DataFrame()
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if not day_13.empty else 0
     stat_13 = f"Completed - {logged_13}/11"
+
+    stat_15 = "Completed - 1/1"
 
     day_21 = df_21[df_21["Date_Str"] == selected_day_str] if not df_21.empty else pd.DataFrame()
     stat_21 = f"Completed - {len(day_21)} batches" if not day_21.empty else "Pending - 0 batches"
 
     day_25 = df_25[df_25["Date_Str"] == selected_day_str] if not df_25.empty else pd.DataFrame()
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if not day_25.empty else 0
-    stat_25 = f"Completed - {logged_25}/1"
+    stat_25 = f"Completed - {logged_25}/1" if logged_25 > 0 else "Pending - 0/1"
 
+    # Render Cards in 2 Columns
     col1, col2 = st.columns(2)
 
+    def render_card(col, title, status_text, target_nav):
+        col.markdown(f"""
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:14px; margin-bottom:6px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-weight:700; font-size:1rem; color:#0f172a;">{title}</div>
+            <div style="font-size:0.82rem; color:#16a34a; font-weight:600; margin-top:3px;">Status: <b>{status_text}</b></div>
+        </div>
+        """, unsafe_allow_html=True)
+        if col.button(f"Open {title.split(':')[0]} ➔", use_container_width=True, key=f"btn_{target_nav}"):
+            st.session_state.nav_choice = target_nav
+            st.rerun()
+
     with col1:
-        st.markdown(f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:16px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-weight:700; font-size:1.05rem; color:#0f172a;">📦 Record 02: Food Delivery Record</div>
-            <div style="font-size:0.85rem; color:#16a34a; font-weight:600; margin-top:4px;">Status: <b>{stat_02}</b></div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Open Record 02 ➔", use_container_width=True, key="btn_r02"):
-            st.session_state.nav_choice = "RECORD 02 - FOOD DELIVERY RECORD"
-            st.rerun()
-
-        st.markdown(f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:16px; margin-bottom:8px; margin-top:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-weight:700; font-size:1.05rem; color:#0f172a;">🔥 Record 04: Cooking / Reheating Temperature</div>
-            <div style="font-size:0.85rem; color:#16a34a; font-weight:600; margin-top:4px;">Status: <b>{stat_04}</b></div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Open Record 04 ➔", use_container_width=True, key="btn_r04"):
-            st.session_state.nav_choice = "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD"
-            st.rerun()
-
-        st.markdown(f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:16px; margin-bottom:8px; margin-top:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-weight:700; font-size:1.05rem; color:#0f172a;">❄️ Record 05: Cooling of Food (Blast Chiller)</div>
-            <div style="font-size:0.85rem; color:#16a34a; font-weight:600; margin-top:4px;">Status: <b>{stat_05}</b></div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Open Record 05 ➔", use_container_width=True, key="btn_r05"):
-            st.session_state.nav_choice = "RECORD 05 - COOLING OF FOOD RECORD"
-            st.rerun()
+        render_card(col1, "Record 02: Food Delivery Record", stat_02, "RECORD 02 - FOOD DELIVERY RECORD")
+        render_card(col1, "Record 03: Coolroom/Fridge Opening", stat_03_op, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD")
+        render_card(col1, "Record 03: Coolroom/Fridge Closing", stat_03_cl, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD")
+        render_card(col1, "Record 04: Cooking/Reheating (Breakfast)", stat_04_bf, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD")
+        render_card(col1, "Record 04: Cooking/Reheating (Lunch)", stat_04_ln, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD")
+        render_card(col1, "Record 04: Cooking/Reheating (Dinner)", stat_04_dn, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD")
 
     with col2:
-        st.markdown(f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:16px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-weight:700; font-size:1.05rem; color:#0f172a;">🍽️ Record 13: Warewash Sanitization Record</div>
-            <div style="font-size:0.85rem; color:#16a34a; font-weight:600; margin-top:4px;">Status: <b>{stat_13}</b></div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Open Record 13 ➔", use_container_width=True, key="btn_r13"):
-            st.session_state.nav_choice = "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD"
-            st.rerun()
+        render_card(col2, "Record 05: Cooling of Food (Blast Chiller)", stat_05, "RECORD 05 - COOLING OF FOOD RECORD")
+        render_card(col2, "Record 06: Food Display Temperature", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD")
+        render_card(col2, "Record 12: Defrosting Temperature Record", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD")
+        render_card(col2, "Record 13: Warewash Sanitization Record", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD")
+        render_card(col2, "Record 15: Pesticide Usage Record", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD")
+        render_card(col2, "Record 21: Food Wash Record (Chlorine)", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH")
+        render_card(col2, "Record 25: Ice Machine Cleaning Record", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD")
 
-        st.markdown(f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:16px; margin-bottom:8px; margin-top:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-weight:700; font-size:1.05rem; color:#0f172a;">🥗 Record 21: Food Wash Record (Chlorine)</div>
-            <div style="font-size:0.85rem; color:#16a34a; font-weight:600; margin-top:4px;">Status: <b>{stat_21}</b></div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Open Record 21 ➔", use_container_width=True, key="btn_r21"):
-            st.session_state.nav_choice = "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH"
-            st.rerun()
-
-        st.markdown(f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:16px; margin-bottom:8px; margin-top:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-            <div style="font-weight:700; font-size:1.05rem; color:#0f172a;">🧊 Record 25: Ice Machine Cleaning Record</div>
-            <div style="font-size:0.85rem; color:#16a34a; font-weight:600; margin-top:4px;">Status: <b>{stat_25}</b></div>
-        </div>
-        """, unsafe_allow_html=True)
-        if st.button("Open Record 25 ➔", use_container_width=True, key="btn_r25"):
-            st.session_state.nav_choice = "RECORD 25 - ICE MACHINE CLEANING RECORD"
-            st.rerun()
-
-elif selected_record == "RECORD 02 - FOOD DELIVERY RECORD":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+elif st.session_state.nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
+    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif selected_record == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+elif st.session_state.nav_choice == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
+    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+elif st.session_state.nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
+    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+elif st.session_state.nav_choice == "RECORD 05 - COOLING OF FOOD RECORD":
+    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif selected_record == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+elif st.session_state.nav_choice == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
+    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif selected_record == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+elif st.session_state.nav_choice == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
+    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_12_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif selected_record == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+elif st.session_state.nav_choice == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
+    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_13_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif selected_record == "RECORD 15 - PESTICIDE USAGE RECORD":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+elif st.session_state.nav_choice == "RECORD 15 - PESTICIDE USAGE RECORD":
+    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_15_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif selected_record == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+elif st.session_state.nav_choice == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
+    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_21_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif selected_record == "RECORD 25 - ICE MACHINE CLEANING RECORD":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+elif st.session_state.nav_choice == "RECORD 25 - ICE MACHINE CLEANING RECORD":
+    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
 
 # -------------------------------------------------------------
