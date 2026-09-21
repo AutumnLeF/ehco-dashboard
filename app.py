@@ -108,7 +108,7 @@ def get_date_variants(d_str):
 
 selected_day_variants = get_date_variants(selected_day_str)
 
-DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOijjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
+DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
 
 if "auth_token" not in st.session_state:
     st.session_state["auth_token"] = DEFAULT_TOKEN.strip()
@@ -264,7 +264,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     # Master Data parsing
     raw_03 = get_master_df(31373, unwind=False)
-    raw_04 = get_master_df(31374, unwind=True)
+    raw_04 = get_master_df(31374, unwind=False)
     df_03_parsed = parse_record_03_submissions(raw_03)
     df_04_parsed = parse_all_record_04_dishes(raw_04)
     df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
@@ -273,7 +273,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
 
-    # Calculate Record 03 Unit Counter exactly matching render_record_03_view logic
+    # Evaluate Record 03 Unit Counter
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
 
@@ -292,9 +292,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     for loc_name, units in UNIT_CATALOG.items():
         total_u = len(units)
         global_total_units += total_u
-        opening_logged = []
-        closing_logged = []
-
         for u in units:
             u_id = u["Unit_ID"]
             clean_target = clean_unit_token(u_id)
@@ -302,11 +299,8 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             n_logs = len(unit_logs)
 
             if n_logs == 1:
-                opening_logged.append(u_id)
                 global_opening_logged += 1
             elif n_logs >= 2:
-                opening_logged.append(u_id)
-                closing_logged.append(u_id)
                 global_opening_logged += 1
                 global_closing_logged += 1
 
@@ -314,8 +308,15 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if global_closing_logged > 0 else f"Pending - 0/{global_total_units}"
     html_03 = f'Opening: <span style="color: {"#4ade80" if global_opening_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if global_closing_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # Evaluate Record 04 status matching individual view logic (Breakfast, Lunch, Dinner shifts)
-    day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
+    # Evaluate Record 04 status directly from parsed output
+    if not df_04_parsed.empty:
+        day_04 = df_04_parsed[
+            (df_04_parsed["Date_Obj"] == target_date_obj) |
+            ((df_04_parsed["Date_Obj"] == next_date_obj) & (df_04_parsed["Timestamp_DT"].dt.hour < 5))
+        ]
+    else:
+        day_04 = pd.DataFrame()
+
     bf_count, ln_count, dn_count = 0, 0, 0
     if not day_04.empty and "Meal_Shift" in day_04.columns:
         bf_shifts = day_04[day_04["Meal_Shift"].astype(str).str.lower().str.contains("break", na=False)]
