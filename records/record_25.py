@@ -166,7 +166,7 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
     ])
 
     selected_dt = pd.to_datetime(selected_day_str, format="%d/%m/%Y", errors="coerce")
-    selected_day_idx = selected_dt.dayofweek if pd.notna(selected_dt) else datetime.now().date().weekday()
+    selected_day_idx = selected_dt.weekday() if pd.notna(selected_dt) else datetime.now().date().weekday()
 
     with tab_day:
         day_df = (
@@ -175,7 +175,6 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
             else pd.DataFrame()
         )
 
-        # Identify scheduled unit(s) for the selected day of the week
         scheduled_units_today = []
         for loc_name, units in ICE_MACHINE_CATALOG.items():
             for u in units:
@@ -298,7 +297,7 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
             for i, d in enumerate(page_dates):
                 d_str = d.strftime("%d/%m/%Y")
-                col_day_idx = d.dayofweek
+                col_day_idx = d.weekday()
                 is_scheduled_day = (col_day_idx == sched_day)
 
                 matches = pd.DataFrame()
