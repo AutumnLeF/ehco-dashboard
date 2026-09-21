@@ -257,13 +257,18 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             day_df = pd.DataFrame()
 
         total_breaches = 0
-        total_completed_units = 0
+        fully_logged_areas = 0
         total_units_catalog = 0
+        total_catalog_locations = len(UNIT_CATALOG)
 
         loc_summary_data = []
+        global_opening_logged = 0
+        global_closing_logged = 0
+        global_total_units = 0
 
         for loc_name, units in UNIT_CATALOG.items():
             total_u = len(units)
+            global_total_units += total_u
             opening_logged = []
             closing_logged = []
             pending_opening = []
@@ -287,15 +292,20 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                     pending_closing.append(f"{u_id} ({u_type})")
                 elif n_logs == 1:
                     opening_logged.append(u_id)
+                    global_opening_logged += 1
                     pending_closing.append(f"{u_id} ({u_type})")
                 else:
                     opening_logged.append(u_id)
                     closing_logged.append(u_id)
-                    total_completed_units += 1
+                    global_opening_logged += 1
+                    global_closing_logged += 1
 
             op_count = len(opening_logged)
             cl_count = len(closing_logged)
             
+            if op_count == total_u and cl_count == total_u and loc_breaches == 0:
+                fully_logged_areas += 1
+
             loc_summary_data.append({
                 "loc_name": loc_name,
                 "units": units,
@@ -307,13 +317,14 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 "loc_breaches": loc_breaches
             })
 
+        # Top KPI Panel
         k1, k2, k3, k4 = st.columns(4)
         with k1:
             st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{total_breaches}</div><div class="kpi-lbl">Temperature Breaches</div></div>', unsafe_allow_html=True)
         with k2:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{total_completed_units}</div><div class="kpi-lbl">Fully Logged (2/2)</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{fully_logged_areas}/{total_catalog_locations}</div><div class="kpi-lbl">Fully Logged Areas (2/2)</div></div>', unsafe_allow_html=True)
         with k3:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#d97706;">{total_units_catalog - total_completed_units}</div><div class="kpi-lbl">Pending / Incomplete</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#d97706;">{global_total_units * 2 - (global_opening_logged + global_closing_logged)}</div><div class="kpi-lbl">Pending / Incomplete Shifts</div></div>', unsafe_allow_html=True)
         with k4:
             st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Count</div></div>', unsafe_allow_html=True)
 
@@ -336,8 +347,9 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             
             st.markdown(f"""
             <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #16a34a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                <div style="font-weight:700; font-size:0.95rem; color:#15803d; margin-bottom:8px;">
-                    🌅 Opening Shift Status
+                <div style="font-weight:700; font-size:0.95rem; color:#15803d; margin-bottom:8px; display:flex; justify-content:space-between;">
+                    <span>🌅 Opening Shift</span>
+                    <span>{global_opening_logged}/{global_total_units} Units</span>
                 </div>
                 {op_items_html}
             </div>
@@ -357,10 +369,57 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             
             st.markdown(f"""
             <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0284c7; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                <div style="font-weight:700; font-size:0.95rem; color:#0369a1; margin-bottom:8px;">
-                    🌙 Closing Shift Status
+                <div style="font-weight:700; font-size:0.95rem; color:#0369a1; margin-bottom:8px; display:flex; justify-content:space-between;">
+                    <span>🌙 Closing Shift</span>
+                    <span>{global_closing_logged}/{global_total_units} Units</span>
                 </div>
                 {cl_items_html}
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.write("")
+        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Location Summary Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
+        st.caption("Each location summary block tracks Opening & Closing logs and displays pending units.")
+
+        loc_cols = st.columns(2)
+        for idx, item in enumerate(loc_summary_data):
+            col_target = loc_cols[idx % 2]
+            loc_name = item["loc_name"]
+            total_u = item["total_u"]
+            op_count = item["op_count"]
+            cl_count = item["cl_count"]
+            pending_opening = item["pending_opening"]
+            pending_closing = item["pending_closing"]
+            loc_breaches = item["loc_breaches"]
+
+            if loc_breaches > 0:
+                compliance_badge = "<span style='color:#dc2626; font-weight:700; font-size:0.75rem; float:right;'>🔴 BREACH</span>"
+            elif op_count < total_u or cl_count < total_u:
+                compliance_badge = "<span style='color:#d97706; font-weight:700; font-size:0.75rem; float:right;'>⏳ PENDING</span>"
+            else:
+                compliance_badge = "<span style='color:#16a34a; font-weight:700; font-size:0.75rem; float:right;'>🟢 Fully Compliant</span>"
+
+            pending_op_html = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:8px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_opening]) if pending_opening else "<div style='font-size:0.75rem; color:#16a34a; margin-top:2px; margin-left:8px;'>• All units logged for opening.</div>"
+            
+            pending_cl_html = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:8px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_closing]) if pending_closing else "<div style='font-size:0.75rem; color:#16a34a; margin-top:2px; margin-left:8px;'>• All units logged for closing.</div>"
+
+            col_target.markdown(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="font-weight:700; font-size:1rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:10px;">
+                    📍 {loc_name} <span style="font-size:0.75rem; color:#64748b; font-weight:normal; margin-left:6px;">({total_u} Units)</span> {compliance_badge}
+                </div>
+                <div style="background:#f8fafc; border-left:3px solid #16a34a; padding:8px 10px; border-radius:4px; margin-bottom:8px;">
+                    <div style="font-size:0.85rem; color:#15803d; font-weight:700; display:flex; justify-content:space-between;">
+                        <span>🌅 Opening Shift</span><span>{op_count}/{total_u} Logged</span>
+                    </div>
+                    <div style="margin-top:4px;">{pending_op_html}</div>
+                </div>
+                <div style="background:#f8fafc; border-left:3px solid #0284c7; padding:8px 10px; border-radius:4px; margin-bottom:4px;">
+                    <div style="font-size:0.85rem; color:#0369a1; font-weight:700; display:flex; justify-content:space-between;">
+                        <span>🌙 Closing Shift</span><span>{cl_count}/{total_u} Logged</span>
+                    </div>
+                    <div style="margin-top:4px;">{pending_cl_html}</div>
+                </div>
             </div>
             """, unsafe_allow_html=True)
 
