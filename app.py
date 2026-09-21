@@ -262,25 +262,22 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         </div>
     """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
-    # Master Data parsing
-    raw_03 = get_master_df(31373, unwind=True)
-    raw_04 = get_master_df(31374, unwind=True)
-    df_03_parsed = parse_record_03_submissions(raw_03)
-    df_04_parsed = parse_all_record_04_dishes(raw_04)
+    # CRITICAL: Record 03 requires unwind=False to match its native parser structure
+    df_03_parsed = parse_record_03_submissions(get_master_df(31373, unwind=False))
+    df_04_parsed = parse_all_record_04_dishes(get_master_df(31374, unwind=True))
     df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
     df_06 = parse_record_06_submissions(get_master_df(31376, unwind=True))
     df_13 = parse_record_13_submissions(get_master_df(31382, unwind=True))
     df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
 
-    # Record 03 Unit Counter Calculation (Out of 35 total units)
+    # Evaluate Record 03 Unit Counter (Out of 35 total units)
     day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
     op_units = 0
     cl_units = 0
     if not day_03.empty and "Shift" in day_03.columns:
         op_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]
         cl_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]
-        # Count unique units logged across locations
         op_units = len(op_df) if "Unit_Name" not in op_df.columns else op_df["Unit_Name"].nunique()
         cl_units = len(cl_df) if "Unit_Name" not in cl_df.columns else cl_df["Unit_Name"].nunique()
 
@@ -288,7 +285,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_03_cl_str = f"Completed - {cl_units}/35" if cl_units > 0 else "Pending - 0/35"
     html_03 = f'Opening: <span style="color: {"#4ade80" if op_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # Record 04 Evaluation
+    # Evaluate Record 04 status matching individual view logic (Breakfast, Lunch, Dinner shifts)
     day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
     bf_count, ln_count, dn_count = 0, 0, 0
     if not day_04.empty and "Meal_Shift" in day_04.columns:
@@ -304,21 +301,17 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_04_dn_str = f"Completed - {dn_count}/2" if dn_count > 0 else "Pending - 0/2"
     html_04 = f'Breakfast: <span style="color: {"#4ade80" if bf_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_04_bf_str}</span><br>Lunch: <span style="color: {"#4ade80" if ln_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_04_ln_str}</span><br>Dinner: <span style="color: {"#4ade80" if dn_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_04_dn_str}</span>'
 
-    # Record 05
     day_05 = filter_by_focus_date(df_05, selected_day_variants)
     stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
 
-    # Record 06
     day_06 = filter_by_focus_date(df_06, selected_day_variants)
     stat_06 = f'<span style="color: {"#4ade80" if not day_06.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_06.empty else "Pending"} - 1/1</span>'
 
-    # Record 13
     day_13 = filter_by_focus_date(df_13, selected_day_variants)
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
 
-    # Record 15
     day_15_raw = get_master_df(31384, unwind=True)
     logged_15 = 0
     if not day_15_raw.empty:
@@ -328,16 +321,13 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                 logged_15 += 1
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
 
-    # Record 21
     day_21 = filter_by_focus_date(df_21, selected_day_variants)
     stat_21 = f'<span style="color: {"#4ade80" if not day_21.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_21.empty else "Pending"} - {len(day_21)} batches</span>'
 
-    # Record 25
     day_25 = filter_by_focus_date(df_25, selected_day_variants)
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
 
-    # Daily Compliance Tracker calculation
     completed_cats = sum([
         1 if op_units > 0 else 0,
         1 if bf_count > 0 else 0,
@@ -375,7 +365,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         """, unsafe_allow_html=True)
         if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
             st.session_state.nav_choice = target_nav
-            st.session_state.pop("nav_selectbox", None)
             st.rerun()
 
     with col1:
@@ -393,7 +382,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
 else:
-    # Individual drill-down page view
     if st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn"):
         st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
         st.session_state.pop("nav_selectbox", None)
@@ -441,7 +429,7 @@ else:
         render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
 
 # -------------------------------------------------------------
-# 5. LIVE MULTI-FORM DIAGNOSTIC MATRIX
+# 6. DIAGNOSTIC PANEL
 # -------------------------------------------------------------
 st.divider()
 with st.expander("🛠️ Live Form Ingestion & Memory Diagnostic Matrix", expanded=False):
