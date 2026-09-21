@@ -2,20 +2,20 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
-# Master catalog of 7 Ice Machines across 3 Locations
+# Master catalog & Weekly Schedule Mapping (Day index: 0=Mon, 1=Tue, 2=Wed, 3=Thu, 4=Fri, 5=Sat, 6=Sun)
 ICE_MACHINE_CATALOG = {
     "Filia Kitchen": [
-        {"Unit_ID": "RMO/FK/IM/01", "Name": "Ice Machine 01"},
-        {"Unit_ID": "RMO/FK/IM/02", "Name": "Ice Machine 02"},
-        {"Unit_ID": "RMO/FK/IM/03", "Name": "Ice Machine 03"},
+        {"Unit_ID": "RMO/FK/IM/01", "Name": "Ice Machine 01", "Day_Idx": 0},  # Monday
+        {"Unit_ID": "RMO/FK/IM/02", "Name": "Ice Machine 02", "Day_Idx": 1},  # Tuesday
+        {"Unit_ID": "RMO/FK/IM/03", "Name": "Ice Machine 03", "Day_Idx": 2},  # Wednesday
     ],
     "Third Room Kitchen": [
-        {"Unit_ID": "RMO/TRK/IM/01", "Name": "Ice Machine 01"},
-        {"Unit_ID": "RMO/TRK/IM/02", "Name": "Ice Machine 02"},
+        {"Unit_ID": "RMO/TRK/IM/01", "Name": "Ice Machine 01", "Day_Idx": 5},  # Saturday
+        {"Unit_ID": "RMO/TRK/IM/02", "Name": "Ice Machine 02", "Day_Idx": 6},  # Sunday
     ],
     "Black Lacquer": [
-        {"Unit_ID": "RMO/BL/IM/01", "Name": "Ice Machine 01"},
-        {"Unit_ID": "RMO/BL/IM/02", "Name": "Ice Machine 02"},
+        {"Unit_ID": "RMO/BL/IM/01", "Name": "Ice Machine 01", "Day_Idx": 3},  # Thursday
+        {"Unit_ID": "RMO/BL/IM/02", "Name": "Ice Machine 02", "Day_Idx": 4},  # Friday
     ],
 }
 
@@ -43,7 +43,7 @@ def parse_record_25_submissions(raw_df):
     flat_master = []
     for loc, units in ICE_MACHINE_CATALOG.items():
         for u in units:
-            flat_master.append({"Location": loc, "Unit_ID": u["Unit_ID"]})
+            flat_master.append({"Location": loc, "Unit_ID": u["Unit_ID"], "Day_Idx": u["Day_Idx"]})
 
     rows = []
     for _, record in raw_df.iterrows():
@@ -165,6 +165,10 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
         "Weekly",
     ])
 
+    # Determine selected date object for schedule matching
+    selected_dt = pd.to_datetime(selected_day_str, format="%d/%m/%Y", errors="coerce")
+    selected_day_idx = selected_dt.dayofweek if pd.notna(selected_dt) else 0
+
     with tab_day:
         day_df = (
             range_df[range_df["Date_Str"] == selected_day_str]
@@ -172,92 +176,73 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
             else pd.DataFrame()
         )
 
-        cleaned_count = 0
-        inactive_count = 0
-        pending_count = 0
-
-        location_parsed_data = {}
-
+        # Identify today's scheduled unit(s) based on the weekly schedule
+        scheduled_units_today = []
         for loc_name, units in ICE_MACHINE_CATALOG.items():
-            loc_day_df = day_df[day_df["Location"].str.lower() == loc_name.lower()] if not day_df.empty else pd.DataFrame()
-            loc_pending = []
-            loc_cleaned = []
-
             for u in units:
-                u_id = u["Unit_ID"]
-                u_name = u["Name"]
-                u_token = clean_str(u_id)
+                if u["Day_Idx"] == selected_day_idx:
+                    scheduled_units_today.append({"Location": loc_name, **u})
 
-                u_logs = pd.DataFrame()
-                if not loc_day_df.empty and "Clean_Unit" in loc_day_df.columns:
-                    u_logs = loc_day_df[loc_day_df["Clean_Unit"] == u_token]
+        cleaned_count = 0
+        pending_scheduled_count = 0
+        scheduled_status_list = []
 
-                if u_logs.empty:
-                    pending_count += 1
-                    loc_pending.append({"Unit_ID": u_id, "Name": u_name})
-                else:
-                    latest = u_logs.iloc[-1]
-                    if not latest["In_Use"]:
-                        inactive_count += 1
-                    else:
-                        cleaned_count += 1
-                        loc_cleaned.append({"Unit_ID": u_id, "Name": u_name, "Log": latest})
+        for sch in scheduled_units_today:
+            u_id = sch["Unit_ID"]
+            u_token = clean_str(u_id)
+            u_logs = pd.DataFrame()
+            if not day_df.empty and "Clean_Unit" in day_df.columns:
+                u_logs = day_df[day_df["Clean_Unit"] == u_token]
 
-            location_parsed_data[loc_name] = {
-                "Pending": loc_pending,
-                "Cleaned": loc_cleaned
-            }
+            if u_logs.empty:
+                pending_scheduled_count += 1
+                scheduled_status_list.append({"Unit": sch, "Status": "Pending", "Log": None})
+            else:
+                cleaned_count += 1
+                scheduled_status_list.append({"Unit": sch, "Status": "Cleaned", "Log": u_logs.iloc[-1]})
 
         k1, k2, k3 = st.columns(3)
         with k1:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{cleaned_count}</div><div class="kpi-lbl">Cleaned & In Use</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{cleaned_count}</div><div class="kpi-lbl">Scheduled Machine Cleaned Today</div></div>', unsafe_allow_html=True)
         with k2:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#d97706;">{pending_count}</div><div class="kpi-lbl">Pending / Unlogged Units</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#d97706;">{pending_scheduled_count}</div><div class="kpi-lbl">Scheduled Machine Pending</div></div>', unsafe_allow_html=True)
         with k3:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Audited</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Submitted Today</div></div>', unsafe_allow_html=True)
 
         st.write("")
-        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🧊 Ice Machine Cleaning Summary ({selected_day_str})</h4>", unsafe_allow_html=True)
+        day_name = selected_dt.strftime("%A") if pd.notna(selected_dt) else "Today"
+        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>📅 Weekly Cleaning Schedule Compliance ({day_name} — {selected_day_str})</h4>", unsafe_allow_html=True)
+        st.caption("Per company policy, exactly 1 specific ice machine is scheduled for deep cleaning each day to ensure all units are covered weekly.")
 
-        # 2-Side Layout: Left = Pending, Right = Cleaned
         col_left, col_right = st.columns(2)
 
         with col_left:
-            st.markdown('<div style="background:#fffbeb; border:1px solid #fde68a; border-left:5px solid #d97706; padding:10px 14px; border-radius:6px; margin-bottom:12px;"><b style="color:#b45309; font-size:0.98rem;">⏳ Pending Ice Machines by Area</b></div>', unsafe_allow_html=True)
+            st.markdown('<div style="background:#fffbeb; border:1px solid #fde68a; border-left:5px solid #d97706; padding:10px 14px; border-radius:6px; margin-bottom:12px;"><b style="color:#b45309; font-size:0.98rem;">⏳ Scheduled Machine Pending Today</b></div>', unsafe_allow_html=True)
             
-            has_pending = False
-            for loc_name, data in location_parsed_data.items():
-                p_units = data["Pending"]
-                if p_units:
-                    has_pending = True
-                    units_html = ""
-                    for p in p_units:
-                        units_html += f'<div style="background:#f8fafc; border-left:3px solid #d97706; padding:6px 10px; border-radius:4px; margin-bottom:6px;"><div style="font-size:0.82rem; color:#0f172a; font-weight:700;">🧊 {p["Unit_ID"]} <span style="font-weight:normal; color:#64748b; font-size:0.72rem;">({p["Name"]})</span><span style="color:#d97706; font-weight:700; float:right;">Pending</span></div><div style="font-size:0.7rem; color:#b45309; margin-top:2px;">No cleaning log submitted today</div></div>'
-                    
-                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #0f172a; border-radius:6px; padding:10px 14px; margin-bottom:12px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a; margin-bottom:8px;">📍 {loc_name} <span style="font-size:0.7rem; color:#b45309;">({len(p_units)} pending)</span></div>{units_html}</div>', unsafe_allow_html=True)
-
-            if not has_pending:
-                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; padding:12px; border-radius:6px; color:#16a34a; font-size:0.85rem; text-align:center;">All ice machines across all areas have been cleaned and logged!</div>', unsafe_allow_html=True)
+            if pending_scheduled_count > 0:
+                for item in scheduled_status_list:
+                    if item["Status"] == "Pending":
+                        sch = item["Unit"]
+                        st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #d97706; padding:12px; border-radius:6px; margin-bottom:8px;"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">🧊 {sch["Unit_ID"]} <span style="font-size:0.8rem; color:#64748b;">({sch["Name"]})</span></div><div style="font-size:0.8rem; color:#b45309; font-weight:700; margin-top:2px;">📍 {sch["Location"]}</div><div style="font-size:0.75rem; color:#b45309; margin-top:2px; font-style:italic;">Mandatory cleaning log not yet submitted for today.</div></div>', unsafe_allow_html=True)
+            else:
+                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; padding:14px; border-radius:6px; color:#16a34a; font-size:0.85rem; text-align:center;">✓ Today\'s scheduled ice machine has been successfully cleaned and logged!</div>', unsafe_allow_html=True)
 
         with col_right:
-            st.markdown('<div style="background:#f0fdf4; border:1px solid #bbf7d0; border-left:5px solid #16a34a; padding:10px 14px; border-radius:6px; margin-bottom:12px;"><b style="color:#15803d; font-size:0.98rem;">🟢 Cleaned Units by Area</b></div>', unsafe_allow_html=True)
+            st.markdown('<div style="background:#f0fdf4; border:1px solid #bbf7d0; border-left:5px solid #16a34a; padding:10px 14px; border-radius:6px; margin-bottom:12px;"><b style="color:#15803d; font-size:0.98rem;">🟢 Scheduled Machine Cleaned Today</b></div>', unsafe_allow_html=True)
             
-            has_cleaned = False
-            for loc_name, data in location_parsed_data.items():
-                c_units = data["Cleaned"]
-                if c_units:
-                    has_cleaned = True
-                    units_html = ""
-                    for c in c_units:
-                        log = c["Log"]
-                        units_html += f'<div style="background:#f8fafc; border-left:3px solid #16a34a; padding:6px 10px; border-radius:4px; margin-bottom:6px;"><div style="font-size:0.82rem; color:#0f172a; font-weight:700;">🧊 {c["Unit_ID"]} <span style="font-weight:normal; color:#64748b; font-size:0.72rem;">({c["Name"]})</span><span style="color:#16a34a; font-weight:700; float:right;">✓ Cleaned</span></div><div style="font-size:0.72rem; color:#15803d; margin-top:2px;">Status: In Use | Sign: {log["Sign"]}</div></div>'
-                    
-                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #0f172a; border-radius:6px; padding:10px 14px; margin-bottom:12px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a; margin-bottom:8px;">📍 {loc_name} <span style="font-size:0.7rem; color:#15803d;">({len(c_units)} cleaned)</span></div>{units_html}</div>', unsafe_allow_html=True)
-
-            if not has_cleaned:
-                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; padding:12px; border-radius:6px; color:#64748b; font-size:0.85rem; text-align:center;">No cleaning logs recorded for today.</div>', unsafe_allow_html=True)
+            if cleaned_count > 0:
+                for item in scheduled_status_list:
+                    if item["Status"] == "Cleaned":
+                        sch = item["Unit"]
+                        log = item["Log"]
+                        st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:12px; border-radius:6px; margin-bottom:8px;"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">🧊 {sch["Unit_ID"]} <span style="font-size:0.8rem; color:#64748b;">({sch["Name"]})</span></div><div style="font-size:0.8rem; color:#15803d; font-weight:700; margin-top:2px;">📍 {sch["Location"]}</div><div style="font-size:0.75rem; color:#15803d; margin-top:2px;">Status: <b>{log["Status_Text"]}</b> | Signed: {log["Sign"]}</div></div>', unsafe_allow_html=True)
+            else:
+                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; padding:14px; border-radius:6px; color:#64748b; font-size:0.85rem; text-align:center;">No cleaning logged yet for today\'s scheduled unit.</div>', unsafe_allow_html=True)
 
     with tab_matrix:
+        st.subheader("Weekly Ice Machine Cleaning Schedule Matrix")
+        st.caption("Overview mapping each ice machine to its mandatory cleaning day of the week.")
+
         total_days = (end_date - start_date).days + 1
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
 
@@ -268,22 +253,12 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
         nav1, nav2, nav3 = st.columns([1, 3, 1])
         with nav1:
-            if st.button(
-                "⬅️ Previous 7 Days",
-                key="r25_prev",
-                disabled=(st.session_state.rec25_page <= 0),
-                use_container_width=True,
-            ):
+            if st.button("⬅️ Previous 7 Days", key="r25_prev", disabled=(st.session_state.rec25_page <= 0), use_container_width=True):
                 st.session_state.rec25_page -= 1
                 st.rerun()
 
         with nav3:
-            if st.button(
-                "Next 7 Days ➡️",
-                key="r25_next",
-                disabled=(st.session_state.rec25_page >= max_page),
-                use_container_width=True,
-            ):
+            if st.button("Next 7 Days ➡️", key="r25_next", disabled=(st.session_state.rec25_page >= max_page), use_container_width=True):
                 st.session_state.rec25_page += 1
                 st.rerun()
 
@@ -292,154 +267,62 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
         with nav2:
             if page_dates:
-                st.markdown(
-                    f"<div style='text-align:center; font-weight:700; color:#0f172a; font-size:0.95rem; padding-top:6px;'>"
-                    f"Showing: <b>{page_dates[0].strftime('%d/%m/%Y')}</b> to <b>{page_dates[-1].strftime('%d/%m/%Y')}</b> (Block {st.session_state.rec25_page + 1} of {max_page + 1})"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
+                st.markdown(f"<div style='text-align:center; font-weight:700; color:#0f172a; font-size:0.95rem; padding-top:6px;'>Showing: <b>{page_dates[0].strftime('%d/%m/%Y')}</b> to <b>{page_dates[-1].strftime('%d/%m/%Y')}</b> (Block {st.session_state.rec25_page + 1} of {max_page + 1})</div>", unsafe_allow_html=True)
 
         st.write("")
 
-        filter_options = ["All Areas"] + list(ICE_MACHINE_CATALOG.keys())
-        selected_filter = (
-            st.selectbox("📍 Filter Ice Machine Area:", options=filter_options)
-            or "All Areas"
-        )
+        # Table Header: Unit & 7 Days of the Week
+        cols = st.columns([2.0, 1, 1, 1, 1, 1, 1, 1])
+        cols[0].markdown('<div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.85rem; padding:10px 4px; border-radius:6px; text-align:center;">Ice Machine Unit</div>', unsafe_allow_html=True)
+        
+        for i, d in enumerate(page_dates):
+            day_short = d.strftime("%a").upper()
+            cols[i + 1].markdown(f'<div style="background:#1e293b; color:#ffffff; font-weight:700; font-size:0.8rem; padding:10px 2px; border-radius:6px; text-align:center;">{d.strftime("%d/%m")} ({day_short})</div>', unsafe_allow_html=True)
 
-        locations_to_show = (
-            list(ICE_MACHINE_CATALOG.keys())
-            if selected_filter == "All Areas"
-            else [selected_filter]
-        )
+        st.write("")
 
-        for location in locations_to_show:
-            units = ICE_MACHINE_CATALOG[location]
-            unit_tokens = [clean_str(u["Unit_ID"]) for u in units]
+        # Flatten master catalog list with scheduled day info
+        all_scheduled_units = []
+        for loc_name, units in ICE_MACHINE_CATALOG.items():
+            for u in units:
+                all_scheduled_units.append({"Location": loc_name, **u})
 
-            if not range_df.empty and "Clean_Unit" in range_df.columns:
-                loc_df = range_df[range_df["Clean_Unit"].isin(unit_tokens)]
-            else:
-                loc_df = pd.DataFrame()
+        for sch in all_scheduled_units:
+            unit_id = sch["Unit_ID"]
+            unit_name = sch["Name"]
+            loc = sch["Location"]
+            sched_day = sch["Day_Idx"]  # 0=Mon ... 6=Sun
+            unit_token = clean_str(unit_id)
 
-            total_units = len(units)
-            logs_count = len(loc_df) if not loc_df.empty else 0
-            badge_color = "#16a34a" if logs_count > 0 else "#64748b"
-            badge_text = f"{logs_count} Cleaning Logs" if logs_count > 0 else "No Logs In Window"
+            row_cols = st.columns([2.0, 1, 1, 1, 1, 1, 1, 1])
+            row_cols[0].markdown(f'<div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:8px 6px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:85px; display:flex; flex-direction:column; align-items:center; justify-content:center;"><div style="font-weight:700; color:#0f172a; font-size:0.85rem;">{unit_id}</div><div style="font-size:0.7rem; color:#64748b; margin-top:2px;">{loc} ({unit_name})</div></div>', unsafe_allow_html=True)
 
-            st.markdown(
-                f"""
-            <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:6px solid #0f172a; border-radius:8px; padding:10px 14px; margin-top:1.2rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center;">
-                <div style="font-size:1.05rem; font-weight:700; color:#0f172a;">🧊 {location} <span style="font-size:0.8rem; font-weight:500; color:#64748b;">({total_units} Assigned Ice Machines)</span></div>
-                <div style="background:{badge_color}; color:#ffffff; font-size:0.75rem; font-weight:700; padding:3px 10px; border-radius:12px;">{badge_text}</div>
-            </div>
-            """,
-                unsafe_allow_html=True,
-            )
-
-            cols = st.columns([1.6, 1, 1, 1, 1, 1, 1, 1])
-            cols[0].markdown(
-                """
-            <div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.8rem; padding:8px 4px; border-radius:6px; text-align:center;">
-                Ice Machine ID
-            </div>
-            """,
-                unsafe_allow_html=True,
-            )
+            u_df = range_df[range_df["Clean_Unit"] == unit_token] if not range_df.empty else pd.DataFrame()
 
             for i, d in enumerate(page_dates):
-                cols[i + 1].markdown(
-                    f"""
-                <div style="background:#1e293b; color:#ffffff; font-weight:700; font-size:0.78rem; padding:8px 2px; border-radius:6px; text-align:center;">
-                    {d.strftime('%d/%m (%a)')}
-                </div>
-                """,
-                    unsafe_allow_html=True,
-                )
+                d_str = d.strftime("%d/%m/%Y")
+                col_day_idx = d.dayofweek  # 0=Mon ... 6=Sun
+                is_scheduled_day = (col_day_idx == sched_day)
+
+                matches = pd.DataFrame()
+                if not u_df.empty:
+                    if "Date_Obj" in u_df.columns:
+                        matches = u_df[u_df["Date_Obj"] == d]
+                    if matches.empty and "Date_Str" in u_df.columns:
+                        matches = u_df[u_df["Date_Str"] == d_str]
+
+                if not matches.empty:
+                    latest = matches.iloc[-1]
+                    row_cols[i + 1].markdown(f'<div style="background:#f0fdf4; border:1.5px solid #16a34a; border-radius:8px; padding:6px; text-align:center; min-height:85px; display:flex; flex-direction:column; justify-content:center; align-items:center;"><span style="color:#16a34a; font-weight:800; font-size:0.78rem;">✓ CLEANED</span><span style="font-size:0.65rem; color:#15803d; margin-top:3px;">By: {latest["Sign"]}</span></div>', unsafe_allow_html=True)
+                elif is_scheduled_day:
+                    row_cols[i + 1].markdown(f'<div style="background:#fffbeb; border:1.5px dashed #d97706; border-radius:8px; padding:6px; text-align:center; min-height:85px; display:flex; flex-direction:column; justify-content:center; align-items:center;"><span style="color:#b45309; font-weight:800; font-size:0.78rem;">⏳ SCHEDULED</span><span style="font-size:0.65rem; color:#b45309; margin-top:3px;">Pending Log</span></div>', unsafe_allow_html=True)
+                else:
+                    row_cols[i + 1].markdown(f'<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:6px; text-align:center; min-height:85px; display:flex; align-items:center; justify-content:center;"><span style="color:#cbd5e1; font-size:0.8rem;">—</span></div>', unsafe_allow_html=True)
 
             st.write("")
 
-            for u in units:
-                unit_id = u["Unit_ID"]
-                unit_token = clean_str(unit_id)
-
-                row_cols = st.columns([1.6, 1, 1, 1, 1, 1, 1, 1])
-
-                row_cols[0].markdown(
-                    f"""
-                <div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:8px 6px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:105px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                    <div style="font-weight:700; color:#0f172a; font-size:0.85rem;">{unit_id}</div>
-                    <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">{location}</div>
-                </div>
-                """,
-                    unsafe_allow_html=True,
-                )
-
-                u_df = loc_df[loc_df["Clean_Unit"] == unit_token] if not loc_df.empty else pd.DataFrame()
-
-                for i, d in enumerate(page_dates):
-                    d_str = d.strftime("%d/%m/%Y")
-
-                    matches = pd.DataFrame()
-                    if not u_df.empty:
-                        if "Date_Obj" in u_df.columns:
-                            matches = u_df[u_df["Date_Obj"] == d]
-                        if matches.empty and "Date_Str" in u_df.columns:
-                            matches = u_df[u_df["Date_Str"] == d_str]
-
-                    if matches.empty:
-                        row_cols[i + 1].markdown(
-                            """
-                        <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:105px; display:flex; align-items:center; justify-content:center;">
-                            <span style="color:#b45309; font-weight:600; font-size:0.8rem;">⏳ Pending</span>
-                        </div>
-                        """,
-                            unsafe_allow_html=True,
-                        )
-                    else:
-                        latest = matches.iloc[-1]
-                        if latest["In_Use"]:
-                            status_badge = '<span style="color:#16a34a; font-weight:800; font-size:0.85rem;">✓ CLEANED</span>'
-                            detail_txt = '<span style="color:#16a34a; font-weight:600;">IN USE</span>'
-                            card_border = "1.5px solid #0f172a"
-                        else:
-                            status_badge = '<span style="color:#64748b; font-weight:700; font-size:0.82rem;">STANDBY</span>'
-                            detail_txt = '<span style="color:#64748b; font-weight:600;">NOT IN USE</span>'
-                            card_border = "1.5px solid #94a3b8"
-
-                        row_cols[i + 1].markdown(
-                            f"""
-                        <div style="background:#ffffff; border:{card_border}; border-radius:8px; padding:6px 3px; text-align:center; min-height:105px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                            <div>{status_badge}</div>
-                            <div style="height:1px; background:#e2e8f0; margin:4px 0;"></div>
-                            <div style="font-size:0.75rem; color:#0f172a; margin-top:2px;">
-                                {detail_txt}
-                            </div>
-                            <div style="font-size:0.68rem; color:#64748b; font-weight:600; margin-top:4px;">By: {latest['Sign']}</div>
-                        </div>
-                        """,
-                            unsafe_allow_html=True,
-                        )
-
-                st.write("")
-
         st.divider()
-
         with st.expander("📋 View All Individual Ice Machine Cleaning Records"):
             if not range_df.empty:
-                show_cols = [
-                    c
-                    for c in [
-                        "Date_Str",
-                        "Location",
-                        "Unit_ID",
-                        "Status_Text",
-                        "Sign",
-                    ]
-                    if c in range_df.columns
-                ]
-                st.dataframe(
-                    range_df[show_cols],
-                    use_container_width=True,
-                    hide_index=True,
-                )
+                show_cols = [c for c in ["Date_Str", "Location", "Unit_ID", "Status_Text", "Sign"] if c in range_df.columns]
+                st.dataframe(range_df[show_cols], use_container_width=True, hide_index=True)
