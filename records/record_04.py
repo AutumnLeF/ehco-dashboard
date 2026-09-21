@@ -253,7 +253,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             meals_html = ""
             for m in m_list:
                 if m["Status"] == "Completed":
-                    badge = f"<span style='color:#16a34a; font-weight:700; float:right;'>✓ Completed</span>"
+                    badge = "<span style='color:#16a34a; font-weight:700; float:right;'>✓ Completed</span>"
                     dishes_list_html = ""
                     for dish in m["Dishes"]:
                         t_col = "#dc2626" if pd.notna(dish["Temp"]) and dish["Temp"] < TEMP_THRESHOLD else "#0f172a"
@@ -266,8 +266,8 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                         """
                     sub_txt = f"<div style='margin-top:6px;'>{dishes_list_html}</div><div style='font-size:0.7rem; color:#64748b; margin-top:4px;'>Signed by: {m['Sign']}</div>"
                 else:
-                    badge = f"<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending</span>"
-                    sub_txt = f"<div style='font-size:0.75rem; color:#b45309; margin-top:4px; font-style:italic;'>No cooking temperature records submitted yet.</div>"
+                    badge = "<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending</span>"
+                    sub_txt = "<div style='font-size:0.75rem; color:#b45309; margin-top:4px; font-style:italic;'>No cooking temperature records submitted yet.</div>"
 
                 meals_html += f"""
                 <div style="background:#f8fafc; border-left:3px solid {'#16a34a' if m['Status']=='Completed' else '#d97706'}; padding:10px 12px; border-radius:6px; margin-bottom:10px;">
@@ -288,7 +288,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             """, unsafe_allow_html=True)
 
         if excursions:
-            st.markdown(f'<div style="background:#fee2e2; border-left:5px solid #dc2626; padding:10px 14px; border-radius:6px; margin-top:1rem; margin-bottom:1rem;"><b style="color:#dc2626; font-size:1rem;">🔴 Core Temperature Excursions (&lt; 75°C)</b></div>', unsafe_allow_html=True)
+            st.markdown('<div style="background:#fee2e2; border-left:5px solid #dc2626; padding:10px 14px; border-radius:6px; margin-top:1rem; margin-bottom:1rem;"><b style="color:#dc2626; font-size:1rem;">🔴 Core Temperature Excursions (&lt; 75°C)</b></div>', unsafe_allow_html=True)
             for exc in excursions:
                 st.markdown(f"""
                 <div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:10px; border-radius:6px; margin-bottom:8px;">
