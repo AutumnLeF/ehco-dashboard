@@ -138,6 +138,10 @@ FORM_MAPPING = {
 if "nav_choice" not in st.session_state:
     st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
 
+# Callback to handle button navigation cleanly
+def set_nav(choice):
+    st.session_state.nav_choice = choice
+
 selected_record = st.sidebar.selectbox(
     "SELECT FOOD SAFETY RECORD", 
     list(FORM_MAPPING.keys()), 
@@ -147,7 +151,6 @@ selected_record = st.sidebar.selectbox(
 
 if selected_record != st.session_state.nav_choice:
     st.session_state.nav_choice = selected_record
-    st.rerun()
 
 active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 
@@ -207,9 +210,8 @@ def fetch_submissions(url, token, form_id, start_dt, end_dt):
 
     return all_rows
 
-# Helper to fetch and cache data for any form ID
 def get_cached_form_df(form_id):
-    ck = f"cache_df_{form_id}_v23"
+    ck = f"cache_df_{form_id}_v24"
     if ck not in st.session_state or st.session_state[ck].empty:
         items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
         st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -219,7 +221,7 @@ force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn
 if force_refresh:
     for fid in FORM_MAPPING.values():
         if fid != 0:
-            st.session_state.pop(f"cache_df_{fid}_v23", None)
+            st.session_state.pop(f"cache_df_{fid}_v24", None)
 
 raw_records_df = get_cached_form_df(active_form_id) if active_form_id != 0 else pd.DataFrame()
 
@@ -234,7 +236,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         </div>
     """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
-    # Ingest data for all 9 overview forms
     df_03 = parse_record_03_submissions(get_cached_form_df(31373))
     df_04 = parse_all_record_04_dishes(get_cached_form_df(31374))
     df_05 = parse_record_05_submissions(get_cached_form_df(31375))
@@ -273,9 +274,9 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
 
-    day_15_df = get_cached_form_df(31384)
-    day_15 = day_15_df if (day_15_df is not None and not day_15_df.empty) else pd.DataFrame()
-    logged_15 = len(day_15) if not day_15.empty else 0
+    day_15_df = parse_record_15_submissions(get_cached_form_df(31384)) if "parse_record_15_submissions" in globals() else get_cached_form_df(31384)
+    day_15 = day_15_df[day_15_df["Date_Str"] == selected_day_str] if (day_15_df is not None and not day_15_df.empty and "Date_Str" in day_15_df.columns) else pd.DataFrame()
+    logged_15 = len(day_15) if not day_15.empty else (1 if (day_15_df is not None and not day_15_df.empty and len(day_15_df) > 0) else 0)
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
 
     day_21 = df_21[df_21["Date_Str"] == selected_day_str] if (df_21 is not None and not df_21.empty and "Date_Str" in df_21.columns) else pd.DataFrame()
@@ -285,7 +286,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
 
-    # Accurate count of fully completed categories out of 9 starting at 0/9
+    # Accurate count of fully completed categories out of 9
     completed_cats = sum([
         1 if op_count > 0 else 0,
         1 if bf_count > 0 else 0,
@@ -321,7 +322,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
         </div>
         """, unsafe_allow_html=True)
-        if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
+        if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}" ):
             st.session_state.nav_choice = target_nav
             st.rerun()
 
