@@ -420,89 +420,66 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
     # =========================================================
-    # VIEW MODE 2: DEPARTMENT-WISE CARD DASHBOARD
+    # VIEW MODE 2: DEPARTMENT-WISE CARD DASHBOARD (EXACT BLUEPRINT)
     # =========================================================
     else:
-        st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location & Department Compliance Breakdown ({selected_day_str})</h3>", unsafe_allow_html=True)
-        st.caption("Comprehensive department-wise tracking across Records 03, 04, 05, 06, 13, 15, 21, and 25.")
+        st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location & Department Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
+        st.caption("Detailed department breakdown following assigned operational records (Rec 3, 4, 5, 6, 13, 15, 21, 25).")
         st.write("")
 
-        dept_mapping = {
-            "Filia Kitchen": {
-                "Role": "Kitchen Staff / Chefs", 
-                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 04 (Cooking/Reheat)", "Record 05 (Cooling)", "Record 06 (Display)", "Record 21 (Food Wash)"]
-            },
-            "Filia Kitchen - Bakery": {
-                "Role": "Bakery Chefs", 
-                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 04 (Cooking/Reheat)", "Record 05 (Cooling)", "Record 06 (Display)"]
-            },
-            "Filia Show Kitchen": {
-                "Role": "Show Kitchen Chefs", 
-                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 04 (Cooking/Reheat)", "Record 06 (Display)", "Record 21 (Food Wash)"]
-            },
-            "Filia Bar": {
-                "Role": "Bar Staff", 
-                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 06 (Display)"]
-            },
-            "Black Lacquer Kitchen": {
-                "Role": "Kitchen Staff / Chefs", 
-                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 04 (Cooking/Reheat)", "Record 05 (Cooling)", "Record 06 (Display)"]
-            },
-            "Black Lacquer Bar": {
-                "Role": "Bar Staff", 
-                "Recs": ["Record 03 (Coolroom/Fridge)"]
-            },
-            "Third Room Kitchen": {
-                "Role": "Kitchen Staff / Chefs", 
-                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 04 (Cooking/Reheat)", "Record 05 (Cooling)"]
-            },
-            "Third Room": {
-                "Role": "F&B Service / Stewarding", 
-                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 13 (Dishwasher/Glasswasher)", "Record 25 (Ice Machine - Stewarding)"]
-            },
-            "General / Housekeeping": {
-                "Role": "Housekeeping & Pest Control", 
-                "Recs": ["Record 13 (Dishwasher)", "Record 15 (Pesticide Usage - Housekeeping)"]
-            }
-        }
+        dept_blueprint = [
+            {"Name": "Filia Kitchen", "Recs": ["Record 3 (Opening/Closing)", "Record 4 (Breakfast, Lunch, Dinner)", "Record 5 (Cooling)", "Record 21 (Food Wash)"]},
+            {"Name": "Filia Kitchen - Bakery", "Recs": ["Record 3 (Opening/Closing)", "Record 4 (Cooking)", "Record 5 (Cooling)", "Record 6 (Display)"]},
+            {"Name": "Black Lacquer Kitchen", "Recs": ["Record 3 (Opening/Closing)", "Record 4 (Cooking / Dinner)", "Record 5 (Cooling)", "Record 6 (Display)"]},
+            {"Name": "Third Room Kitchen", "Recs": ["Record 3 (Opening/Closing)", "Record 4 (Cooking)", "Record 5 (Cooling)"]},
+            {"Name": "Filia Bar", "Recs": ["Record 3 (Opening/Closing)", "Record 6 (Display)"]},
+            {"Name": "Black Lacquer Bar", "Recs": ["Record 3 (Opening/Closing)"]},
+            {"Name": "Third Room", "Recs": ["Record 3 (Opening/Closing)"]},
+            {"Name": "Stewarding", "Recs": ["Record 13 (Dishwasher / Glasswasher)", "Record 25 (Ice Machine Cleaning)"]},
+            {"Name": "Housekeeping", "Recs": ["Record 13 (Glasswasher / Temp)", "Record 15 (Pesticide Usage)"]}
+        ]
 
-        for loc_name, info in dept_mapping.items():
+        for dept in dept_blueprint:
+            loc_name = dept["Name"]
             loc_units_total = len(UNIT_CATALOG.get(loc_name, []))
-            
+
             # Record 03 calculation per location
             loc_day_03 = day_03[day_03["Location"] == loc_name] if not day_03.empty and "Location" in day_03.columns else pd.DataFrame()
             loc_op_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]) if not loc_day_03.empty and "Shift" in loc_day_03.columns else 0
             loc_cl_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]) if not loc_day_03.empty and "Shift" in loc_day_03.columns else 0
-            r03_display = f"🌅 Open: {loc_op_units}/{loc_units_total if loc_units_total>0 else 1} &nbsp;|&nbsp; 🌙 Close: {loc_cl_units}/{loc_units_total if loc_units_total>0 else 1}" if loc_units_total > 0 else "N/A"
 
             # Record 04 calculation per location
             loc_day_04 = day_04[day_04["Kitchen"] == loc_name] if not day_04.empty and "Kitchen" in day_04.columns else pd.DataFrame()
-            r04_display = "✅ Logged" if not loc_day_04.empty else "⏳ Pending" if "Record 04 (Cooking/Reheat)" in "".join(info["Recs"]) else "N/A"
+            
+            r3_text = f"🌅 Open: {loc_op_units}/{loc_units_total} &nbsp;|&nbsp; 🌙 Close: {loc_cl_units}/{loc_units_total}" if loc_units_total > 0 else "N/A"
+            r4_text = f"✅ Logged ({len(loc_day_04)} shifts)" if not loc_day_04.empty else "⏳ Pending" if any("Record 4" in r for r in dept["Recs"]) else "N/A"
+            r5_text = f"✅ Completed" if not day_05.empty and loc_name in ["Filia Kitchen", "Filia Kitchen - Bakery", "Black Lacquer Kitchen", "Third Room Kitchen"] else "⏳ Pending" if any("Record 5" in r for r in dept["Recs"]) else "N/A"
+            r6_text = f"✅ Displayed" if not day_06.empty and loc_name in ["Filia Kitchen - Bakery", "Black Lacquer Kitchen", "Filia Bar"] else "⏳ Pending" if any("Record 6" in r for r in dept["Recs"]) else "N/A"
+            r13_text = f"✅ Logged" if not day_13.empty and loc_name in ["Stewarding", "Housekeeping"] else "⏳ Pending" if any("Record 13" in r for r in dept["Recs"]) else "N/A"
+            r21_text = f"✅ Completed" if not day_21.empty and loc_name in ["Filia Kitchen"] else "⏳ Pending" if any("Record 21" in r for r in dept["Recs"]) else "N/A"
+            r25_text = f"✅ Cleaned" if not day_25.empty and loc_name == "Stewarding" else "⏳ Pending" if loc_name == "Stewarding" else "N/A"
+            r15_text = f"✅ Logged" if not day_15.empty and loc_name == "Housekeeping" else "⏳ Pending" if loc_name == "Housekeeping" else "N/A"
 
-            # Record 05 calculation per location
-            loc_day_05 = df_05[df_05.apply(lambda r: loc_name.lower() in str(r.to_dict()).lower(), axis=1)] if not df_05.empty else pd.DataFrame()
-            r05_display = f"✅ {len(loc_day_05)} Batches" if not loc_day_05.empty else "⏳ Pending" if any("Record 05" in r for r in info["Recs"]) else "N/A"
-
-            # Record 25 / 15 / 13 status checks
-            r25_status = "✅ Cleaned" if not day_25.empty and loc_name == "Third Room" else "⏳ Pending" if loc_name == "Third Room" else "N/A"
-            r15_status = "✅ Logged" if not day_15.empty and loc_name == "General / Housekeeping" else "⏳ Pending" if loc_name == "General / Housekeeping" else "N/A"
-
-            recs_list_html = "".join([f"<span style='background:#f1f5f9; color:#334155; padding:2px 8px; border-radius:4px; font-size:0.75rem; margin-right:4px; display:inline-block; margin-top:3px;'>{r}</span>" for r in info["Recs"]])
-
+            # Render Record 3 style card header
             st.markdown(f"""
-            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:16px 20px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:8px; margin-bottom:10px;">
-                    <span style="font-weight:700; font-size:1.1rem; color:#0f172a;">📍 {loc_name} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">({info["Role"]})</span></span>
-                    <span style="font-size:0.78rem; background:#e2e8f0; padding:3px 10px; border-radius:12px; font-weight:600; color:#475569;">{loc_units_total if loc_units_total > 0 else "Facility"} Units</span>
-                </div>
-                <div style="display:flex; gap:25px; font-size:0.85rem; align-items:flex-start;">
-                    <div style="flex: 1.2;"><b>Applicable Records:</b><br>{recs_list_html}</div>
-                    <div style="border-left:1px solid #e2e8f0; padding-left:15px; flex: 1;"><b>Temperature Audit (Rec 3):</b><br>{r03_display}</div>
-                    <div style="border-left:1px solid #e2e8f0; padding-left:15px; flex: 0.8;"><b>Cooking (Rec 4):</b><br>{r04_display}</div>
-                    <div style="border-left:1px solid #e2e8f0; padding-left:15px; flex: 0.8;"><b>Cooling / Special (Rec 5/25/15):</b><br>Rec 5: `{r05_display}`<br>Rec 25/15: `{r25_status if r25_status!='N/A' else r15_status}`</div>
-                </div>
+            <div style="background-color: #0b192c; padding: 14px 20px; border-radius: 8px 8px 0 0; color: white; display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                <span style="font-size: 1.1rem; font-weight: 700;">📍 {loc_name}</span>
+                <span style="font-size: 0.8rem; background: #334155; padding: 3px 10px; border-radius: 12px; font-weight: 600;">{loc_units_total if loc_units_total > 0 else "Facility"} Assigned Units</span>
             </div>
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 8px 8px; padding: 16px 20px; margin-bottom: 1.2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
             """, unsafe_allow_html=True)
+
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.markdown(f"**Record 3 (Fridge/Coolroom):**<br>{r3_text}", unsafe_allow_html=True)
+            with c2:
+                st.markdown(f"**Record 4 (Cooking/Reheat):**<br>{r4_text}", unsafe_allow_html=True)
+            with c3:
+                st.markdown(f"**Record 5 / 6 / 21:**<br>Rec 5: `{r5_text}`<br>Rec 6: `{r6_text}`<br>Rec 21: `{r21_text}`", unsafe_allow_html=True)
+            with c4:
+                st.markdown(f"**Record 13 / 15 / 25:**<br>Rec 13: `{r13_text}`<br>Rec 15: `{r15_text}`<br>Rec 25: `{r25_text}`", unsafe_allow_html=True)
+
+            st.markdown("</div>", unsafe_allow_html=True)
 
 else:
     if st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn"):
