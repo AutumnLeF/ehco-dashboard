@@ -154,7 +154,7 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 3. UNIFIED MASTER DATA FETCHING & CACHING
 # -------------------------------------------------------------
-def fetch_submissions(url, token, form_id, start_dt, end_dt):
+def fetch_submissions(url, token, form_id, start_dt, end_dt, unwind=True):
     if form_id == 0:
         return []
     headers = {
@@ -183,27 +183,43 @@ def fetch_submissions(url, token, form_id, start_dt, end_dt):
                     "direction": "descending"
                 }
             ],
-            "unwindRepeatableSets": True,
+            "unwindRepeatableSets": unwind,
         }
 
+    return all_rows
+
+def fetch_raw_submissions_standard(url, token, form_id):
+    if form_id == 0:
+        return []
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+        "User-Agent": "Mozilla/5.0",
+    }
+    all_rows = []
+    current_offset = 0
+    for page in range(20):
+        payload = {
+            "formId": form_id,
+            "paging": {"limit": 50, "offset": current_offset},
+            "sorting": [{"property": "dateTimeSubmitted", "direction": "descending"}],
+            "unwindRepeatableSets": False,
+        }
         try:
-            res = requests.post(base_url, headers=headers, json=payload, timeout=20)
+            res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
             if res.status_code != 200:
                 break
-
             data = res.json()
             items = data.get("submissions", []) if isinstance(data, dict) else data
             if not items:
                 break
-
             all_rows.extend(items)
             if len(items) < 50:
                 break
-
             current_offset += 50
         except Exception:
             break
-
     return all_rows
 
 if "master_data_cache" not in st.session_state:
@@ -213,13 +229,17 @@ force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn
 if force_refresh:
     st.session_state["master_data_cache"] = {}
 
-def get_master_df(form_id):
-    if form_id not in st.session_state["master_data_cache"]:
-        items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
-        st.session_state["master_data_cache"][form_id] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
-    return st.session_state["master_data_cache"][form_id]
+def get_master_df(form_id, unwind=True):
+    cache_key = f"{form_id}_unwind_{unwind}"
+    if cache_key not in st.session_state["master_data_cache"]:
+        if unwind:
+            items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date, unwind=True)
+        else:
+            items = fetch_raw_submissions_standard(api_url, clean_token, form_id)
+        st.session_state["master_data_cache"][cache_key] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
+    return st.session_state["master_data_cache"][cache_key]
 
-raw_records_df = get_master_df(active_form_id) if active_form_id != 0 else pd.DataFrame()
+raw_records_df = get_master_df(active_form_id, unwind=True) if active_form_id != 0 else pd.DataFrame()
 
 # -------------------------------------------------------------
 # 4. ROUTE TO MODULAR RECORD AUDITORS OR OVERVIEW
@@ -232,15 +252,16 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         </div>
     """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
-    df_03_parsed = parse_record_03_submissions(get_master_df(31373))
-    df_04_parsed = parse_all_record_04_dishes(get_master_df(31374))
-    df_05 = parse_record_05_submissions(get_master_df(31375))
-    df_06 = parse_record_06_submissions(get_master_df(31376))
-    df_13 = parse_record_13_submissions(get_master_df(31382))
-    df_21 = parse_record_21_submissions(get_master_df(31390))
-    df_25 = parse_record_25_submissions(get_master_df(31393))
+    # Use exact same parsers with non-unwound raw submissions for Record 03 & 04 to match individual pages
+    df_03_parsed = parse_record_03_submissions(get_master_df(31373, unwind=False))
+    df_04_parsed = parse_all_record_04_dishes(get_master_df(31374, unwind=False))
+    df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
+    df_06 = parse_record_06_submissions(get_master_df(31376, unwind=True))
+    df_13 = parse_record_13_submissions(get_master_df(31382, unwind=True))
+    df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
+    df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
 
-    # Evaluate Record 03 status directly from parsed data
+    # Evaluate Record 03 status matching individual view logic (8 locations total)
     day_03 = df_03_parsed[df_03_parsed["Date_Str"] == selected_day_str] if (df_03_parsed is not None and not df_03_parsed.empty and "Date_Str" in df_03_parsed.columns) else pd.DataFrame()
     op_completed_areas = 0
     cl_completed_areas = 0
@@ -254,7 +275,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_03_cl_str = f"Completed - {cl_completed_areas}/8" if cl_completed_areas > 0 else "Pending - 0/8"
     html_03 = f'Opening: <span style="color: {"#4ade80" if op_completed_areas > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_completed_areas > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # Evaluate Record 04 status directly from parsed data
+    # Evaluate Record 04 status matching individual view logic (Breakfast, Lunch, Dinner shifts)
     day_04 = df_04_parsed[df_04_parsed["Date_Str"] == selected_day_str] if (df_04_parsed is not None and not df_04_parsed.empty and "Date_Str" in df_04_parsed.columns) else pd.DataFrame()
     bf_count, ln_count, dn_count = 0, 0, 0
     if not day_04.empty and "Meal_Shift" in day_04.columns:
@@ -278,7 +299,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
 
-    day_15_df = parse_record_15_submissions(get_master_df(31384)) if "parse_record_15_submissions" in globals() else get_master_df(31384)
+    day_15_df = parse_record_15_submissions(get_master_df(31384, unwind=True)) if "parse_record_15_submissions" in globals() else get_master_df(31384, unwind=True)
     day_15 = day_15_df[day_15_df["Date_Str"] == selected_day_str] if (day_15_df is not None and not day_15_df.empty and "Date_Str" in day_15_df.columns) else pd.DataFrame()
     logged_15 = len(day_15) if not day_15.empty else 0
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
