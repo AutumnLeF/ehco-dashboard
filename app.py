@@ -142,8 +142,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v13"
-sync_time_key = f"sync_time_{active_form_id}_v13"
+cache_key = f"cache_df_{active_form_id}_v14"
+sync_time_key = f"sync_time_{active_form_id}_v14"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -232,7 +232,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     st.write("")
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v13"
+        ck = f"cache_df_{form_id}_v14"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -288,28 +288,33 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         is_completed = "Completed" in status_text
         status_color = "#4ade80" if is_completed else "#fbbf24"
         
-        if col.button(f"""{title}
-Status: {status_text}""", use_container_width=True, key=f"btn_theme_{unique_key}"):
+        col.markdown(f"""
+        <div style="background-color: #0b192c; border-radius: 10px; padding: 16px; color: white; margin-bottom: 6px; min-height: 100px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="font-size: 0.9rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px;">{title}</div>
+            <div style="font-size: 0.78rem; color: {status_color}; font-weight: 500;">Status: {status_text}</div>
+        </div>
+        """, unsafe_allow_html=True)
+        if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
             st.session_state.nav_choice = target_nav
             st.rerun()
 
     with col1:
         render_theme_card(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "r02")
-        render_theme_card(col1, "RECORD 03 - COOLROOM (Opening Shift)", stat_03_op, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_op")
-        render_theme_card(col1, "RECORD 03 - COOLROOM (Closing Shift)", stat_03_cl, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_cl")
-        render_theme_card(col1, "RECORD 04 - COOKING/REHEATING (Breakfast)", stat_04_bf, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_bf")
+        render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD (Opening)", stat_03_op, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_op")
+        render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD (Closing)", stat_03_cl, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_cl")
+        render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD (Breakfast)", stat_04_bf, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_bf")
 
     with col2:
-        render_theme_card(col2, "RECORD 04 - COOKING/REHEATING (Lunch)", stat_04_ln, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_ln")
-        render_theme_card(col2, "RECORD 04 - COOKING/REHEATING (Dinner)", stat_04_dn, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_dn")
+        render_theme_card(col2, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD (Lunch)", stat_04_ln, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_ln")
+        render_theme_card(col2, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD (Dinner)", stat_04_dn, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_dn")
         render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
         render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
 
     with col3:
         render_theme_card(col3, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "r12")
-        render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
+        render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
         render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
-        render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD (Chlorine)", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
+        render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
         render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
 elif st.session_state.nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
