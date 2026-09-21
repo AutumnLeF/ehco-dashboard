@@ -20,6 +20,18 @@ KITCHEN_MEAL_RULES = {
 }
 
 
+def first_valid(*values):
+  for value in values:
+    if pd.notna(value) and str(value).strip().lower() not in {
+        "",
+        "nan",
+        "none",
+        "null",
+    }:
+      return value
+  return None
+
+
 def parse_all_record_04_dishes(raw_df):
   if raw_df.empty:
     return pd.DataFrame()
@@ -126,14 +138,14 @@ def parse_all_record_04_dishes(raw_df):
       else:
         food_name = "Food Item"
 
-      # Robust temperature search across all possible keys to prevent nan°C
-      temp_raw = (
-          entry.get("Temperature_Cooking")
-          or entry.get("Food Temperature °C (Cooking)")
-          or entry.get("Temperature_Reheating")
-          or entry.get("Food Temperature °C (Reheating)")
-          or entry.get("Temperature")
-          or entry.get("Temp")
+      # Using the robust first_valid helper to prevent NaN bypass issues
+      temp_raw = first_valid(
+          entry.get("Temperature_Cooking"),
+          entry.get("Food Temperature °C (Cooking)"),
+          entry.get("Temperature_Reheating"),
+          entry.get("Food Temperature °C (Reheating)"),
+          entry.get("Temperature"),
+          entry.get("Temp"),
       )
 
       if pd.isna(temp_raw) or str(temp_raw).strip() in ["", "nan", "None", "null"]:
@@ -321,68 +333,142 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         unsafe_allow_html=True,
     )
 
-    # Small, balanced 2-column card grid so it doesn't take over the whole page
-    loc_cols = st.columns(2)
+    # Compact kitchen cards: 3 kitchens per row
+    loc_cols = st.columns(3, gap="small")
+
     for idx, k_info in enumerate(kitchen_status_list):
-      col_target = loc_cols[idx % 2]
+      col_target = loc_cols[idx % 3]
       k_name = k_info["Kitchen"]
       m_list = k_info["Meals"]
 
+      completed = sum(m["Status"] == "Completed" for m in m_list)
+      pending = len(m_list) - completed
+
       meals_html = ""
+
       for m in m_list:
-        if m["Status"] == "Completed":
-          badge = (
-              "<span style='color:#16a34a; font-weight:700;"
-              " float:right;'>✓ Completed</span>"
-          )
-          dishes_list_html = ""
+        is_done = m["Status"] == "Completed"
+
+        status_color = "#16a34a" if is_done else "#d97706"
+        status_text = "✓ Done" if is_done else "⏳ Pending"
+
+        dishes_html = ""
+
+        if is_done:
           for dish in m["Dishes"]:
-            t_col = (
-                "#dc2626"
-                if pd.notna(dish["Temp"]) and dish["Temp"] < TEMP_THRESHOLD
-                else "#0f172a"
-            )
-            t_disp = f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
-            dishes_list_html += (
-                f'<div style="display:flex; justify-content:space-between;'
-                ' font-size:0.78rem; margin-top:4px; background:#ffffff;'
-                ' padding:6px 10px; border-radius:4px; border:1px solid'
-                f' #e2e8f0;"><span style="color:#0f172a;">🍲'
-                f' <b>{dish["Food"]}</b> <span style="color:#64748b;'
-                f' font-size:0.7rem;">({dish["Heat_Treatment"]})</span></span><span'
-                f' style="color:{t_col}; font-weight:700;">{t_disp}</span></div>'
-            )
-          sub_txt = (
-              f'<div style="margin-top:6px;">{dishes_list_html}</div><div'
-              ' style="font-size:0.7rem; color:#64748b; margin-top:4px;">Signed'
-              f' by: {m["Sign"]}</div>'
-          )
+            temp = dish["Temp"]
+
+            if pd.notna(temp):
+              temp_text = f"{temp}°C"
+              temp_color = "#dc2626" if temp < TEMP_THRESHOLD else "#0f172a"
+            else:
+              temp_text = "—"
+              temp_color = "#64748b"
+
+            dishes_html += f"""
+                    <div style="
+                        display:flex;
+                        justify-content:space-between;
+                        gap:6px;
+                        font-size:0.76rem;
+                        padding:4px 0;
+                        border-top:1px solid #e2e8f0;
+                    ">
+                        <span style="color:#334155; overflow-wrap:anywhere;">
+                            • {dish["Food"]}
+                        </span>
+                        <b style="color:{temp_color}; white-space:nowrap;">
+                            {temp_text}
+                        </b>
+                    </div>
+                    """
+
+          details_html = f"""
+                <div style="margin-top:5px;">
+                    {dishes_html}
+                </div>
+                <div style="
+                    font-size:0.68rem;
+                    color:#64748b;
+                    margin-top:5px;
+                ">
+                    Signed: {m["Sign"]}
+                </div>
+                """
         else:
-          badge = (
-              "<span style='color:#d97706; font-weight:700;"
-              " float:right;'>⏳ Pending</span>"
-          )
-          sub_txt = (
-              '<div style="font-size:0.75rem; color:#b45309; margin-top:4px;'
-              ' font-style:italic;">No records submitted.</div>'
-          )
+          details_html = """
+                <div style="
+                    font-size:0.72rem;
+                    color:#b45309;
+                    margin-top:5px;
+                ">
+                    No records submitted
+                </div>
+                """
 
-        meals_html += (
-            f'<div style="background:#f8fafc; border-left:3px solid'
-            f' {"#16a34a" if m["Status"]=="Completed" else "#d97706"};'
-            ' padding:8px 10px; border-radius:4px; margin-bottom:8px;"><div'
-            ' style="font-size:0.85rem; color:#0f172a; font-weight:700;">🍽️'
-            f' {m["Meal"]} Service {badge}</div>{sub_txt}</div>'
-        )
+        meals_html += f"""
+            <div style="
+                background:#f8fafc;
+                border-left:3px solid {status_color};
+                border-radius:4px;
+                padding:7px 9px;
+                margin-top:7px;
+            ">
+                <div style="
+                    display:flex;
+                    justify-content:space-between;
+                    align-items:center;
+                    gap:5px;
+                    font-size:0.78rem;
+                    font-weight:700;
+                    color:#0f172a;
+                ">
+                    <span>🍽️ {m["Meal"]}</span>
+                    <span style="color:{status_color}; white-space:nowrap;">
+                        {status_text}
+                    </span>
+                </div>
+                {details_html}
+            </div>
+            """
 
-      card_html = (
-          f'<div style="background:#ffffff; border:1px solid #cbd5e1;'
-          ' border-top:4px solid #0f172a; border-radius:6px; padding:12px 14px;'
-          ' margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.04);"><div'
-          ' style="font-weight:700; font-size:0.95rem; color:#0f172a;'
-          ' border-bottom:1px solid #e2e8f0; padding-bottom:6px;'
-          f' margin-bottom:10px;">📍 {k_name}</div>{meals_html}</div>'
-      )
+      card_html = f"""
+        <div style="
+            background:#ffffff;
+            border:1px solid #cbd5e1;
+            border-top:3px solid #0f172a;
+            border-radius:6px;
+            padding:10px;
+            margin-bottom:12px;
+        ">
+            <div style="
+                font-size:0.88rem;
+                font-weight:700;
+                color:#0f172a;
+                padding-bottom:7px;
+                border-bottom:1px solid #e2e8f0;
+            ">
+                📍 {k_name}
+            </div>
+
+            <div style="
+                font-size:0.7rem;
+                margin-top:6px;
+                color:#475569;
+            ">
+                <span style="color:#16a34a;font-weight:700;">
+                    {completed} completed
+                </span>
+                &nbsp;|&nbsp;
+                <span style="color:#d97706;font-weight:700;">
+                    {pending} pending
+                </span>
+            </div>
+
+            {meals_html}
+        </div>
+        """
+
       col_target.markdown(card_html, unsafe_allow_html=True)
 
     if excursions:
@@ -408,7 +494,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
     with tab_matrix:
       st.markdown(
-          f"<h4 style='color:#0f172a; margin-top:1.5rem;'>📈 Cooking Compliance"
+          f"<h4 style='color:#0f172a; margin-top:1.5rem;'>📈 14-Day Compliance"
           f" Matrix ({start_date.strftime('%d/%m/%Y')} to"
           f" {end_date.strftime('%d/%m/%Y')})</h4>",
           unsafe_allow_html=True,
@@ -486,10 +572,10 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
                 row_cols[i + 1].markdown(
                     f'<div style="background:{card_bg}; border:1px solid'
-                    ' {border_c}; border-radius:4px; padding:6px;'
-                    ' min-height:60px; display:flex; flex-direction:column;'
-                    ' justify-content:center; align-items:center;"><span'
-                    f' style="color:{tag_color}; font-weight:800;'
+                    f" {border_c}; border-radius:4px; padding:6px;"
+                    " min-height:60px; display:flex; flex-direction:column;"
+                    " justify-content:center; align-items:center;"><span"
+                    f" style=\"color:{tag_color}; font-weight:800;"
                     f' font-size:0.7rem;">{tag_txt}</span></div>',
                     unsafe_allow_html=True,
                 )
@@ -511,11 +597,11 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
                 row_cols[i + 1].markdown(
                     f'<div style="background:#ffffff; border:1.5px solid'
-                    ' {border_c}; border-radius:4px; padding:4px;'
-                    ' min-height:60px; display:flex; flex-direction:column;'
+                    f" {border_c}; border-radius:4px; padding:4px;"
+                    " min-height:60px; display:flex; flex-direction:column;"
                     f' justify-content:flex-start;"><div style="font-weight:800;'
-                    ' font-size:0.68rem;'
-                    f' color:{border_c};">✓ Completed</div>{items_preview}</div>',
+                    f' font-size:0.68rem; color:{border_c};">✓'
+                    f" Completed</div>{items_preview}</div>",
                     unsafe_allow_html=True,
                 )
 
