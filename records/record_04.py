@@ -18,7 +18,6 @@ def parse_all_record_04_dishes(raw_df):
 
     df = raw_df.copy()
 
-    # Broad match for formId (string, int, or nested field)
     form_col = next(
         (c for c in df.columns if c.lower() in ["formid", "submission.formid"]),
         None,
@@ -27,7 +26,6 @@ def parse_all_record_04_dishes(raw_df):
         df = df[df[form_col].astype(str).str.contains(str(RECORD_04_FORM_ID), na=False)]
 
     if df.empty:
-        # If strict formId filter yields empty but df has records, let's fallback or proceed if payload is raw
         df = raw_df.copy()
 
     rows = []
@@ -53,7 +51,6 @@ def parse_all_record_04_dishes(raw_df):
             or "Staff"
         )
 
-        # Robust date parsing with IST conversion
         raw_date = (
             sub.get("Date")
             or sub.get("date")
@@ -77,7 +74,6 @@ def parse_all_record_04_dishes(raw_df):
             date_obj = None
             parsed_dt_ist = datetime.now()
 
-        # Time extraction
         raw_time = sub.get("Time") or sub.get("time") or entry_parent.get("Time") or ""
         time_str = str(raw_time).strip()
         if "T" in time_str:
@@ -86,7 +82,6 @@ def parse_all_record_04_dishes(raw_df):
             except Exception:
                 pass
 
-        # Handle repeatable sets or entry arrays
         entries = (
             sub.get("set")
             or sub.get("Entry")
@@ -99,7 +94,6 @@ def parse_all_record_04_dishes(raw_df):
             entries = [entries]
 
         if not entries and isinstance(sub, dict):
-            # Single flat entry check
             entries = [sub]
 
         for entry in entries:
@@ -149,7 +143,6 @@ def parse_all_record_04_dishes(raw_df):
 
 
 def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
-    """Renders Record 04 Cooking & Reheating Temperature dashboard with Code 3 style summary blocks."""
     all_dishes_df = parse_all_record_04_dishes(raw_df)
 
     with st.expander("🔍 Record 04 Diagnostic (Inspect loaded data)"):
@@ -166,7 +159,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
     else:
         range_df = all_dishes_df.copy()
 
-    tab_day, tab_range = st.tabs([
+    tab_day, tab_matrix = st.tabs([
         f"📅 Daily Cooking Temperature Audit ({selected_day_str})",
         "📈 14-Day Compliance Matrix"
     ])
@@ -241,7 +234,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         st.write("")
         st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Kitchen Meal Audit Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
 
-        # Summary Cards per Kitchen (Code 3 Style Layout)
+        # Summary Cards per Kitchen with unsafe_allow_html=True
         loc_cols = st.columns(2)
         for idx, k_info in enumerate(kitchen_status_list):
             col_target = loc_cols[idx % 2]
@@ -275,7 +268,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             </div>
             """, unsafe_allow_html=True)
 
-        # Excursions Section if any
         if excursions:
             st.markdown(f'<div style="background:#fee2e2; border-left:5px solid #dc2626; padding:10px 14px; border-radius:6px; margin-top:1rem; margin-bottom:1rem;"><b style="color:#dc2626; font-size:1rem;">🔴 Core Temperature Excursions (&lt; 75°C)</b></div>', unsafe_allow_html=True)
             for exc in excursions:
@@ -286,19 +278,68 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                     <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Signed by: {exc['Sign']}</div>
                 </div>""", unsafe_allow_html=True)
 
-    with tab_range:
-        st.subheader(f"Cooking Compliance Matrix ({start_date.strftime('%d/%m/%Y')} to {end_date.strftime('%d/%m/%Y')})")
+    with tab_matrix:
+        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>📈 Cooking Compliance Matrix ({start_date.strftime('%d/%m/%Y')} to {end_date.strftime('%d/%m/%Y')})</h4>", unsafe_allow_html=True)
+        st.caption("Card-style daily shift breakdown across all active kitchens.")
+
         if range_df.empty:
             st.info("No cooking logs found for this date range.")
         else:
-            matrix = range_df.pivot_table(
-                index=["Location", "Meal_Service"],
-                columns="Date_Str",
-                values="Temp",
-                aggfunc="count",
-                fill_value=0,
-            )
-            st.dataframe(matrix, use_container_width=True)
+            total_days = max(1, (end_date - start_date).days + 1)
+            matrix_dates = [start_date + timedelta(days=i) for i in range(total_days)]
+
+            for kitchen, meals in KITCHEN_MEAL_RULES.items():
+                st.markdown(f"""
+                <div style="background:#0f172a; color:#ffffff; padding:10px 14px; border-radius:6px; margin-top:1.4rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-weight:700; font-size:0.98rem;">📍 {kitchen}</span>
+                </div>
+                """, unsafe_allow_html=True)
+
+                num_dates = len(matrix_dates)
+                col_ratios = [1.5] + [1.0] * num_dates
+
+                cols = st.columns(col_ratios)
+                cols[0].markdown('<div style="font-weight:700; font-size:0.80rem; color:#475569; padding:6px 2px;">Meal Service</div>', unsafe_allow_html=True)
+                for i, d in enumerate(matrix_dates):
+                    cols[i + 1].markdown(f'<div style="background:#f1f5f9; font-weight:700; font-size:0.80rem; text-align:center; padding:6px 2px; border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>', unsafe_allow_html=True)
+
+                st.write("")
+
+                for meal in meals:
+                    row_cols = st.columns(col_ratios)
+                    row_cols[0].markdown(f"""
+                    <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px; min-height:60px; display:flex; align-items:center;">
+                        <b style="font-size:0.85rem; color:#0f172a;">{meal}</b>
+                    </div>
+                    """, unsafe_allow_html=True)
+
+                    for i, d in enumerate(matrix_dates):
+                        d_str = d.strftime("%d/%m/%Y")
+                        match_entry = range_df[
+                            (range_df["Date_Str"] == d_str) &
+                            (range_df["Location"].str.strip().str.lower() == kitchen.lower()) &
+                            (range_df["Meal_Service"].str.strip().str.lower() == meal.lower())
+                        ]
+
+                        if match_entry.empty:
+                            row_cols[i + 1].markdown(
+                                '<div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px; padding:6px; min-height:60px; display:flex; align-items:center; justify-content:center; color:#b45309; font-size:0.72rem; font-weight:700;">⏳ Pending</div>',
+                                unsafe_allow_html=True
+                            )
+                        else:
+                            dish_count = len(match_entry)
+                            has_exc = any(match_entry["Temp"] < TEMP_THRESHOLD)
+                            border_c = "#dc2626" if has_exc else "#16a34a"
+                            tag_txt = f"🔴 {dish_count} dish(es)" if has_exc else f"✓ {dish_count} logged"
+
+                            row_cols[i + 1].markdown(
+                                f'<div style="background:#ffffff; border:1.5px solid {border_c}; border-radius:6px; padding:6px; min-height:60px; display:flex; flex-direction:column; justify-content:center; align-items:center;">'
+                                f'<span style="color:{border_c}; font-weight:800; font-size:0.75rem;">{tag_txt}</span>'
+                                f'</div>',
+                                unsafe_allow_html=True
+                            )
+
+                st.write("")
 
             range_violations = range_df[range_df["Temp"] < TEMP_THRESHOLD]
             st.write(f"**Total Excursions Across Window:** {len(range_violations)}")
