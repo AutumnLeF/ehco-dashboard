@@ -200,9 +200,19 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                 )
                 if not m_df.empty:
                     total_meals_completed += 1
-                    meal_statuses.append({"Meal": meal, "Status": "Completed", "Count": len(m_df), "Sign": m_df["Sign"].iloc[0]})
+                    meal_statuses.append({
+                        "Meal": meal,
+                        "Status": "Completed",
+                        "Dishes": m_df.to_dict("records"),
+                        "Sign": m_df["Sign"].iloc[0]
+                    })
                 else:
-                    meal_statuses.append({"Meal": meal, "Status": "Pending", "Count": 0, "Sign": ""})
+                    meal_statuses.append({
+                        "Meal": meal,
+                        "Status": "Pending",
+                        "Dishes": [],
+                        "Sign": ""
+                    })
 
             kitchen_status_list.append({
                 "Kitchen": kitchen,
@@ -234,7 +244,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         st.write("")
         st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Kitchen Meal Audit Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
 
-        # Summary Cards per Kitchen with unsafe_allow_html=True
+        # Summary Cards per Kitchen with proper item & temperature breakdown
         loc_cols = st.columns(2)
         for idx, k_info in enumerate(kitchen_status_list):
             col_target = loc_cols[idx % 2]
@@ -244,15 +254,25 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             meals_html = ""
             for m in m_list:
                 if m["Status"] == "Completed":
-                    badge = f"<span style='color:#16a34a; font-weight:700; float:right;'>✓ Completed ({m['Count']} dishes)</span>"
-                    sub_txt = f"<div style='font-size:0.72rem; color:#64748b; margin-top:2px;'>Signed by: {m['Sign']}</div>"
+                    badge = f"<span style='color:#16a34a; font-weight:700; float:right;'>✓ Completed</span>"
+                    dishes_list_html = ""
+                    for dish in m["Dishes"]:
+                        t_col = "#dc2626" if pd.notna(dish["Temp"]) and dish["Temp"] < TEMP_THRESHOLD else "#0f172a"
+                        t_disp = f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
+                        dishes_list_html += f"""
+                        <div style="display:flex; justify-content:space-between; font-size:0.78rem; margin-top:3px; background:#ffffff; padding:4px 8px; border-radius:4px; border:1px solid #e2e8f0;">
+                            <span style="color:#334155;">🍲 <b>{dish['Food']}</b></span>
+                            <span style="color:{t_col}; font-weight:700;">{t_disp}</span>
+                        </div>
+                        """
+                    sub_txt = f"<div style='margin-top:6px;'>{dishes_list_html}</div><div style='font-size:0.7rem; color:#64748b; margin-top:4px;'>Signed by: {m['Sign']}</div>"
                 else:
                     badge = f"<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending</span>"
-                    sub_txt = f"<div style='font-size:0.72rem; color:#b45309; margin-top:2px;'>Missing cooking temperature record</div>"
+                    sub_txt = f"<div style='font-size:0.75rem; color:#b45309; margin-top:4px; font-style:italic;'>No cooking temperature records submitted yet.</div>"
 
                 meals_html += f"""
-                <div style="background:#f8fafc; border-left:3px solid {'#16a34a' if m['Status']=='Completed' else '#d97706'}; padding:8px 10px; border-radius:4px; margin-bottom:8px;">
-                    <div style="font-size:0.85rem; color:#0f172a; font-weight:700;">
+                <div style="background:#f8fafc; border-left:3px solid {'#16a34a' if m['Status']=='Completed' else '#d97706'}; padding:10px 12px; border-radius:6px; margin-bottom:10px;">
+                    <div style="font-size:0.9rem; color:#0f172a; font-weight:700;">
                         🍽️ {m['Meal']} Service {badge}
                     </div>
                     {sub_txt}
@@ -324,6 +344,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                         if match_entry.empty:
                             row_cols[i + 1].markdown(
                                 '<div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px; padding:6px; min-height:60px; display:flex; align-items:center; justify-content:center; color:#b45309; font-size:0.72rem; font-weight:700;">⏳ Pending</div>',
+                                unsafe_allow_html=True,
                                 unsafe_allow_html=True
                             )
                         else:
