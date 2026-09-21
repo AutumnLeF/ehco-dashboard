@@ -126,14 +126,26 @@ def parse_all_record_04_dishes(raw_df):
       else:
         food_name = "Food Item"
 
-      temp_cooking = entry.get("Temperature_Cooking") or entry.get(
-          "Food Temperature °C (Cooking)"
+      # Comprehensive temperature key matching for both cooking and reheating columns
+      temp_cooking = (
+          entry.get("Temperature_Cooking")
+          or entry.get("Food Temperature °C (Cooking)")
+          or entry.get("Temp_Cooking")
       )
-      temp_reheating = entry.get("Temperature_Reheating") or entry.get(
-          "Food Temperature °C (Reheating)"
+      temp_reheating = (
+          entry.get("Temperature_Reheating")
+          or entry.get("Food Temperature °C (Reheating)")
+          or entry.get("Temp_Reheating")
       )
 
       temp_raw = temp_cooking if pd.notna(temp_cooking) else temp_reheating
+      if pd.isna(temp_raw) or str(temp_raw).strip() in ["", "nan", "None"]:
+        # Fallback search inside entry keys
+        for k, v in entry.items():
+          if "temp" in k.lower() and pd.notna(v) and str(v).strip() != "":
+            temp_raw = v
+            break
+
       heat_treatment = entry.get("Type_of_Heat_Treatment") or (
           "Reheating" if pd.notna(temp_reheating) else "Cooking"
       )
@@ -264,6 +276,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             "Sign": r["Sign"],
         })
 
+    # KPI Panel
     k1, k2, k3, k4 = st.columns(4)
     with k1:
       st.markdown(
@@ -297,11 +310,14 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
     st.write("")
     st.markdown(
         f"<h4 style='color:#0f172a; margin-top:1.5rem; margin-bottom:1rem;'>🏢"
-        f" Kitchen Audit Blocks ({selected_day_str})</h4>",
+        f" Kitchen Audit Cards ({selected_day_str})</h4>",
         unsafe_allow_html=True,
     )
 
-    for k_info in kitchen_status_list:
+    # Clean, compact 2-column card grid for kitchens
+    loc_cols = st.columns(2)
+    for idx, k_info in enumerate(kitchen_status_list):
+      col_target = loc_cols[idx % 2]
       k_name = k_info["Kitchen"]
       m_list = k_info["Meals"]
 
@@ -322,17 +338,17 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             t_disp = f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
             dishes_list_html += (
                 f'<div style="display:flex; justify-content:space-between;'
-                ' font-size:0.85rem; margin-top:6px; background:#ffffff;'
-                ' padding:8px 12px; border-radius:6px; border:1px solid'
+                ' font-size:0.78rem; margin-top:4px; background:#ffffff;'
+                ' padding:6px 10px; border-radius:4px; border:1px solid'
                 f' #e2e8f0;"><span style="color:#0f172a;">🍲'
                 f' <b>{dish["Food"]}</b> <span style="color:#64748b;'
-                f' font-size:0.75rem; margin-left:8px;">({dish["Heat_Treatment"]})</span></span><span'
+                f' font-size:0.7rem;">({dish["Heat_Treatment"]})</span></span><span'
                 f' style="color:{t_col}; font-weight:700;">{t_disp}</span></div>'
             )
           sub_txt = (
-              f'<div style="margin-top:8px;">{dishes_list_html}</div><div'
-              ' style="font-size:0.75rem; color:#64748b; margin-top:6px;'
-              f' font-weight:500;">Signed by: {m["Sign"]}</div>'
+              f'<div style="margin-top:6px;">{dishes_list_html}</div><div'
+              ' style="font-size:0.7rem; color:#64748b; margin-top:4px;">Signed'
+              f' by: {m["Sign"]}</div>'
           )
         else:
           badge = (
@@ -340,47 +356,46 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
               " float:right;'>⏳ Pending</span>"
           )
           sub_txt = (
-              '<div style="font-size:0.8rem; color:#b45309; margin-top:6px;'
-              ' font-style:italic;">No temperature records submitted'
-              " yet.</div>"
+              '<div style="font-size:0.75rem; color:#b45309; margin-top:4px;'
+              ' font-style:italic;">No records submitted.</div>'
           )
 
         meals_html += (
-            f'<div style="background:#f8fafc; border-left:4px solid'
+            f'<div style="background:#f8fafc; border-left:3px solid'
             f' {"#16a34a" if m["Status"]=="Completed" else "#d97706"};'
-            ' padding:12px 16px; border-radius:6px; margin-bottom:12px;"><div'
-            ' style="font-size:0.95rem; color:#0f172a; font-weight:700;">🍽️'
+            ' padding:8px 10px; border-radius:4px; margin-bottom:8px;"><div'
+            ' style="font-size:0.85rem; color:#0f172a; font-weight:700;">🍽️'
             f' {m["Meal"]} Service {badge}</div>{sub_txt}</div>'
         )
 
       card_html = (
           f'<div style="background:#ffffff; border:1px solid #cbd5e1;'
-          ' border-top:4px solid #0f172a; border-radius:8px; padding:18px 20px;'
-          ' margin-bottom:24px; box-shadow:0 2px 4px rgba(0,0,0,0.04);"><div'
-          ' style="font-weight:700; font-size:1.1rem; color:#0f172a;'
-          ' border-bottom:1px solid #e2e8f0; padding-bottom:10px;'
-          f' margin-bottom:14px;">📍 {k_name}</div>{meals_html}</div>'
+          ' border-top:4px solid #0f172a; border-radius:6px; padding:12px 14px;'
+          ' margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.04);"><div'
+          ' style="font-weight:700; font-size:0.95rem; color:#0f172a;'
+          ' border-bottom:1px solid #e2e8f0; padding-bottom:6px;'
+          f' margin-bottom:10px;">📍 {k_name}</div>{meals_html}</div>'
       )
-      st.markdown(card_html, unsafe_allow_html=True)
+      col_target.markdown(card_html, unsafe_allow_html=True)
 
     if excursions:
       st.markdown(
           '<div style="background:#fee2e2; border-left:5px solid #dc2626;'
-          ' padding:12px 16px; border-radius:6px; margin-top:1.5rem;'
-          ' margin-bottom:1rem;"><b style="color:#dc2626; font-size:1.05rem;">🔴'
+          ' padding:10px 14px; border-radius:6px; margin-top:1rem;'
+          ' margin-bottom:1rem;"><b style="color:#dc2626; font-size:1rem;">🔴'
           ' Core Temperature Excursions (&lt; 75°C)</b></div>',
           unsafe_allow_html=True,
       )
       for exc in excursions:
         st.markdown(
             f'<div style="background:#ffffff; border:1px solid #fca5a5;'
-            ' border-left:4px solid #dc2626; padding:12px; border-radius:6px;'
-            ' margin-bottom:10px;"><div style="font-weight:700; font-size:0.95rem;'
+            ' border-left:4px solid #dc2626; padding:10px; border-radius:6px;'
+            ' margin-bottom:8px;"><div style="font-weight:700; font-size:0.9rem;'
             f' color:#0f172a;">{exc["Kitchen"]} • {exc["Meal"]} Service</div><div'
-            ' style="font-size:0.9rem; color:#dc2626; font-weight:700;'
-            f' margin-top:4px;">Dish: {exc["Food"]} | Temp: {exc["Temp"]}°C'
-            ' (Required ≥ 75°C)</div><div style="font-size:0.8rem;'
-            f' color:#64748b; margin-top:4px;">Signed by: {exc["Sign"]}</div></div>',
+            ' style="font-size:0.85rem; color:#dc2626; font-weight:700;'
+            f' margin-top:2px;">Dish: {exc["Food"]} | Temp: {exc["Temp"]}°C'
+            ' (Required ≥ 75°C)</div><div style="font-size:0.75rem;'
+            f' color:#64748b; margin-top:2px;">Signed by: {exc["Sign"]}</div></div>',
             unsafe_allow_html=True,
         )
 
@@ -392,115 +407,110 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
           unsafe_allow_html=True,
       )
       st.caption(
-          "Select a kitchen below to inspect its operational shift history."
+          "Kitchen names on the left, dates across the columns with shift"
+          " breakdown."
       )
 
       if range_df.empty:
         st.info("No temperature logs found for this date range.")
       else:
-        selected_matrix_kitchen = st.selectbox(
-            "Filter Matrix by Kitchen",
-            options=list(KITCHEN_MEAL_RULES.keys()),
-            key="matrix_kitchen_filter",
-        )
-
-        meals = KITCHEN_MEAL_RULES[selected_matrix_kitchen]
         total_days = max(1, (end_date - start_date).days + 1)
         matrix_dates = [
             start_date + timedelta(days=i) for i in range(total_days)
         ]
         today_date_obj = datetime.now().date()
 
-        st.markdown(
-            f'<div style="background:#0f172a; color:#ffffff; padding:12px'
-            ' 16px; border-radius:8px; margin-top:1.5rem;'
-            ' margin-bottom:1.0rem; font-weight:700; font-size:1.05rem;">📍'
-            f" {selected_matrix_kitchen} — Shift Compliance Breakdown</div>",
-            unsafe_allow_html=True,
-        )
-
-        for meal in meals:
+        # Traditional matrix layout: Kitchen on left, dates as columns
+        for kitchen, meals in KITCHEN_MEAL_RULES.items():
           st.markdown(
-              f"<b style='color:#0f172a; font-size:0.95rem; margin-top:10px;"
-              f" display:block;'>🍽️ {meal} Service</b>",
+              f'<div style="background:#0f172a; color:#ffffff; padding:8px'
+              ' 12px; border-radius:6px; margin-top:1.2rem;'
+              ' margin-bottom:0.5rem; font-weight:700; font-size:0.95rem;">📍'
+              f" {kitchen}</div>",
               unsafe_allow_html=True,
           )
-          m_cols = st.columns(min(7, len(matrix_dates)))
 
+          num_dates = len(matrix_dates)
+          col_ratios = [1.2] + [1.0] * num_dates
+          cols = st.columns(col_ratios)
+
+          cols[0].markdown(
+              '<div style="font-weight:700; font-size:0.78rem; color:#475569;'
+              ' padding:4px;">Meal Service</div>',
+              unsafe_allow_html=True,
+          )
           for i, d in enumerate(matrix_dates):
-            col_target = m_cols[i % len(m_cols)]
-            d_str = d.strftime("%d/%m/%Y")
-            match_entry = range_df[
-                (range_df["Date_Str"] == d_str)
-                & (
-                    range_df["Location"].str.strip().str.lower()
-                    == selected_matrix_kitchen.lower()
+            cols[i + 1].markdown(
+                f'<div style="background:#f1f5f9; font-weight:700;'
+                ' font-size:0.75rem; text-align:center; padding:4px;'
+                f' border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>',
+                unsafe_allow_html=True,
+            )
+
+          for meal in meals:
+            row_cols = st.columns(col_ratios)
+            row_cols[0].markdown(
+                f'<div style="background:#ffffff; border:1px solid #cbd5e1;'
+                ' border-radius:4px; padding:6px; min-height:60px; display:flex;'
+                f' align-items:center;"><b style="font-size:0.8rem;'
+                f' color:#0f172a;">{meal}</b></div>',
+                unsafe_allow_html=True,
+            )
+
+            for i, d in enumerate(matrix_dates):
+              d_str = d.strftime("%d/%m/%Y")
+              match_entry = range_df[
+                  (range_df["Date_Str"] == d_str)
+                  & (
+                      range_df["Location"].str.strip().str.lower()
+                      == kitchen.lower()
+                  )
+                  & (
+                      range_df["Meal_Service"].str.strip().str.lower()
+                      == meal.lower()
+                  )
+              ]
+
+              if match_entry.empty:
+                is_past = d < today_date_obj
+                card_bg = "#fef2f2" if is_past else "#f8fafc"
+                border_c = "#dc2626" if is_past else "#d97706"
+                tag_txt = "❌ Missing" if is_past else "⏳ Pending"
+                tag_color = "#dc2626" if is_past else "#d97706"
+
+                row_cols[i + 1].markdown(
+                    f'<div style="background:{card_bg}; border:1px solid'
+                    ' {border_c}; border-radius:4px; padding:6px;'
+                    ' min-height:60px; display:flex; flex-direction:column;'
+                    ' justify-content:center; align-items:center;"><span'
+                    f' style="color:{tag_color}; font-weight:800;'
+                    f' font-size:0.7rem;">{tag_txt}</span></div>',
+                    unsafe_allow_html=True,
                 )
-                & (
-                    range_df["Meal_Service"].str.strip().str.lower()
-                    == meal.lower()
+              else:
+                has_exc = any(match_entry["Temp"] < TEMP_THRESHOLD)
+                border_c = "#dc2626" if has_exc else "#16a34a"
+
+                items_preview = ""
+                for _, dish in match_entry.iterrows():
+                  t_val = (
+                      f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
+                  )
+                  items_preview += (
+                      "<div style='font-size:0.65rem; color:#334155;"
+                      " white-space:nowrap; overflow:hidden;"
+                      f" text-overflow:ellipsis;'>• {dish['Food']}:"
+                      f" <b>{t_val}</b></div>"
+                  )
+
+                row_cols[i + 1].markdown(
+                    f'<div style="background:#ffffff; border:1.5px solid'
+                    ' {border_c}; border-radius:4px; padding:4px;'
+                    ' min-height:60px; display:flex; flex-direction:column;'
+                    f' justify-content:flex-start;"><div style="font-weight:800;'
+                    ' font-size:0.68rem;'
+                    f' color:{border_c};">✓ Completed</div>{items_preview}</div>',
+                    unsafe_allow_html=True,
                 )
-            ]
-
-            if match_entry.empty:
-              is_past = d < today_date_obj
-              card_bg = "#fef2f2" if is_past else "#f8fafc"
-              border_c = "#dc2626" if is_past else "#d97706"
-              tag_txt = "❌ Missing" if is_past else "⏳ Pending"
-              tag_color = "#dc2626" if is_past else "#d97706"
-
-              col_target.markdown(
-                  f'<div style="background:{card_bg}; border:1px solid'
-                  ' {border_c}; border-radius:6px; padding:10px;'
-                  ' margin-bottom:10px; text-align:center;"><div'
-                  ' style="font-size:0.75rem; font-weight:700;'
-                  f' color:#64748b;">{d.strftime("%d/%m (%a)")}</div><div'
-                  f' style="color:{tag_color}; font-weight:800;'
-                  f' font-size:0.8rem; margin-top:6px;">{tag_txt}</div></div>',
-                  unsafe_allow_html=True,
-              )
-            else:
-              has_exc = any(match_entry["Temp"] < TEMP_THRESHOLD)
-              border_c = "#dc2626" if has_exc else "#16a34a"
-
-              items_html = ""
-              for _, dish in match_entry.iterrows():
-                t_val = f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
-                items_html += (
-                    f"<div style='font-size:0.75rem; color:#334155;'>•"
-                    f" <b>{dish['Food']}</b>: {t_val}</div>"
-                )
-
-              col_target.markdown(
-                  f'<div style="background:#ffffff; border:1.5px solid'
-                  ' {border_c}; border-radius:6px; padding:10px;'
-                  ' margin-bottom:10px;"><div style="font-size:0.75rem;'
-                  ' font-weight:700; color:#64748b;">{d.strftime("%d/%m'
-                  f' (%a)")}</div><div style="font-weight:800;'
-                  ' font-size:0.78rem;'
-                  f' color:{border_c}; margin-bottom:6px; margin-top:2px;">✓'
-                  f" Completed ({len(match_entry)})</div>{items_html}</div>",
-                  unsafe_allow_html=True,
-              )
 
           st.write("")
-
-        range_violations = range_df[range_df["Temp"] < TEMP_THRESHOLD]
-        st.write(
-            f"**Total Excursions Across Window:** {len(range_violations)}"
-        )
-        if not range_violations.empty:
-          st.dataframe(
-              range_violations[[
-                  "Date_Str",
-                  "Time",
-                  "Location",
-                  "Meal_Service",
-                  "Heat_Treatment",
-                  "Food",
-                  "Temp",
-                  "Sign",
-              ]],
-              use_container_width=True,
-              hide_index=True,
-          )
