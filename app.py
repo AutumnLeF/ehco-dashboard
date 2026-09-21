@@ -154,8 +154,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v20"
-sync_time_key = f"sync_time_{active_form_id}_v20"
+cache_key = f"cache_df_{active_form_id}_v21"
+sync_time_key = f"sync_time_{active_form_id}_v21"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -247,7 +247,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v20"
+        ck = f"cache_df_{form_id}_v21"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -288,7 +288,8 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     day_13 = df_13[df_13["Date_Str"] == selected_day_str] if (df_13 is not None and not df_13.empty and "Date_Str" in df_13.columns) else pd.DataFrame()
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
-    stat_13 = f'<span style="color: {"#4ade80" if logged_13 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_13 > 0 else "Pending"} - {logged_13}/11</span>'
+    is_13_complete = (logged_13 >= 11)
+    stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
 
     day_15_df = get_form_df(31384)
     day_15 = day_15_df[day_15_df["Date_Str"] == selected_day_str] if (day_15_df is not None and not day_15_df.empty and "Date_Str" in day_15_df.columns) else pd.DataFrame()
@@ -302,13 +303,13 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
 
-    # Accurate count of completed categories out of 9 starting at 0/9
+    # Accurate count of fully completed categories out of 9 starting at 0/9
     completed_cats = sum([
         1 if op_count > 0 else 0,
         1 if bf_count > 0 else 0,
         1 if not day_05.empty else 0,
         1 if not day_06.empty else 0,
-        1 if logged_13 > 0 else 0,
+        1 if is_13_complete else 0,
         1 if logged_15 > 0 else 0,
         1 if not day_21.empty else 0,
         1 if logged_25 > 0 else 0
