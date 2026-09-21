@@ -288,7 +288,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         st.caption("Each location block groups its assigned units, tracking Opening & Closing entries (including late-night closing up to 4:00 AM).")
 
         # Render one unified block per location
-        for loc_name, units in UNIT_CATALOG.items():
+       for loc_name, units in UNIT_CATALOG.items():
             st.markdown(f"""
             <div style="background:#0f172a; color:#ffffff; padding:10px 14px; border-radius:6px; margin-top:1.4rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center;">
                 <span style="font-weight:700; font-size:0.98rem;">📍 {loc_name}</span>
@@ -325,20 +325,23 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                     border_col = "#16a34a"
                     bg_col = "#ffffff"
 
-                entries_disp = ""
+                # Safely construct HTML for shift readings
+                entries_html = ""
                 if num_logs == 0:
-                    entries_disp = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">No temperature logs recorded yet.</span>'
+                    entries_html = '<span style="color:#94a3b8; font-size:0.8rem; font-style:italic;">No temperature logs recorded yet (Opening & Closing pending).</span>'
                 else:
                     for idx, log_item in enumerate(unit_logs[:2]):
                         t_col = "#dc2626" if log_item["Has_Breach"] else "#0f172a"
                         shift_label = "Opening" if idx == 0 else "Closing"
-                        entries_disp += f"""
-                        <div style="display:inline-block; margin-right:12px; font-size:0.8rem; background:#f1f5f9; padding:4px 8px; border-radius:4px;">
+                        entries_html += f"""
+                        <div style="display:inline-block; margin-right:12px; margin-bottom:4px; font-size:0.8rem; background:#f1f5f9; padding:4px 8px; border-radius:4px;">
                             <b>#{idx+1} ({shift_label} @ {log_item['Time']}):</b> 
                             <span style="color:{t_col}; font-weight:700;">{log_item['Temp_Disp']}</span> 
                             <span style="color:#64748b; font-size:0.7rem;">(By: {log_item['Sign']})</span>
                         </div>
                         """
+                    if num_logs == 1:
+                        entries_html += '<span style="color:#d97706; font-size:0.78rem; font-weight:600; margin-left:6px;">⏳ Closing Shift Pending</span>'
 
                 st.markdown(f"""
                 <div style="background:{bg_col}; border:1px solid #cbd5e1; border-left:5px solid {border_col}; padding:10px 14px; border-radius:6px; margin-bottom:6px; display:flex; justify-content:space-between; align-items:center;">
@@ -347,7 +350,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                         <div style="font-size:0.72rem; color:#64748b;">{u_type}</div>
                     </div>
                     <div style="flex-grow:1; margin-left:15px;">
-                        {entries_disp}
+                        {entries_html}
                     </div>
                     <div>
                         {status_html}
