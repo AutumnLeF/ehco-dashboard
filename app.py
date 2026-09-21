@@ -8,7 +8,7 @@ from records.record_02 import render_record_02_view, parse_record_02_submissions
 from records.record_03 import render_record_03_view, parse_record_03_submissions
 from records.record_04 import render_record_04_view, parse_all_record_04_dishes
 from records.record_05 import render_record_05_view, parse_record_05_submissions
-from records.record_06 import render_record_06_view
+from records.record_06 import render_record_06_view, parse_record_06_submissions
 from records.record_12 import render_record_12_view
 from records.record_13 import render_record_13_view, parse_record_13_submissions
 from records.record_15 import render_record_15_view
@@ -154,8 +154,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v21"
-sync_time_key = f"sync_time_{active_form_id}_v21"
+cache_key = f"cache_df_{active_form_id}_v22"
+sync_time_key = f"sync_time_{active_form_id}_v22"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -247,7 +247,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v21"
+        ck = f"cache_df_{form_id}_v22"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -256,6 +256,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_03 = parse_record_03_submissions(get_form_df(31373))
     df_04 = parse_all_record_04_dishes(get_form_df(31374))
     df_05 = parse_record_05_submissions(get_form_df(31375))
+    df_06 = parse_record_06_submissions(get_form_df(31376))
     df_13 = parse_record_13_submissions(get_form_df(31382))
     df_21 = parse_record_21_submissions(get_form_df(31390))
     df_25 = parse_record_25_submissions(get_form_df(31393))
@@ -282,8 +283,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     day_05 = df_05[df_05["Date_Str"] == selected_day_str] if (df_05 is not None and not df_05.empty and "Date_Str" in df_05.columns) else pd.DataFrame()
     stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
 
-    day_06_df = get_form_df(31376)
-    day_06 = day_06_df[day_06_df["Date_Str"] == selected_day_str] if (day_06_df is not None and not day_06_df.empty and "Date_Str" in day_06_df.columns) else pd.DataFrame()
+    day_06 = df_06[df_06["Date_Str"] == selected_day_str] if (df_06 is not None and not df_06.empty and "Date_Str" in df_06.columns) else pd.DataFrame()
     stat_06 = f'<span style="color: {"#4ade80" if not day_06.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_06.empty else "Pending"} - 1/1</span>'
 
     day_13 = df_13[df_13["Date_Str"] == selected_day_str] if (df_13 is not None and not df_13.empty and "Date_Str" in df_13.columns) else pd.DataFrame()
