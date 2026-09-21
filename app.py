@@ -4,19 +4,19 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from records.record_02 import render_record_02_view
+from records.record_02 import render_record_02_view, parse_record_02_submissions
 from records.record_03 import render_record_03_view
-from records.record_04 import render_record_04_view
-from records.record_05 import render_record_05_view
+from records.record_04 import render_record_04_view, parse_all_record_04_dishes
+from records.record_05 import render_record_05_view, parse_record_05_submissions
 from records.record_06 import render_record_06_view
 from records.record_12 import render_record_12_view
-from records.record_13 import render_record_13_view
+from records.record_13 import render_record_13_view, parse_record_13_submissions
 from records.record_15 import render_record_15_view
-from records.record_21 import render_record_21_view
-from records.record_25 import render_record_25_view
+from records.record_21 import render_record_21_view, parse_record_21_submissions
+from records.record_25 import render_record_25_view, parse_record_25_submissions
 
 st.set_page_config(
-    page_title="Kitchen Safety Core",
+    page_title="Roswyn Kitchen Safety Core",
     page_icon="🛡️",
     layout="wide",
 )
@@ -102,6 +102,7 @@ st.markdown("""
 # 2. SIDEBAR CONTROLS
 # -------------------------------------------------------------
 st.sidebar.title("⚙️ Inspection Controls")
+st.sidebar.markdown("**Site:** Roswyn (Site 1)")
 
 today = datetime.now(timezone.utc).date()
 default_start_7d = today - timedelta(days=6)
@@ -131,7 +132,6 @@ selected_day_str = st.sidebar.selectbox(
 
 DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
 
-# Initialize session state for token persistence
 if "auth_token" not in st.session_state:
     st.session_state["auth_token"] = DEFAULT_TOKEN.strip()
 
@@ -161,6 +161,7 @@ st.markdown(
 )
 
 FORM_MAPPING = {
+    "🏠 Site 1 Daily Overview": 0,
     "RECORD 02 - FOOD DELIVERY RECORD": 31370,
     "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD": 31373,
     "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD": 31374,
@@ -173,13 +174,20 @@ FORM_MAPPING = {
     "RECORD 25 - ICE MACHINE CLEANING RECORD": 31393,
 }
 
+if "nav_choice" not in st.session_state:
+    st.session_state.nav_choice = "🏠 Site 1 Daily Overview"
+
 selected_record = st.selectbox(
-    "SELECT FOOD SAFETY RECORD", list(FORM_MAPPING.keys()), key="main_record_selector"
+    "SELECT FOOD SAFETY RECORD", 
+    list(FORM_MAPPING.keys()), 
+    index=list(FORM_MAPPING.keys()).index(st.session_state.nav_choice) if st.session_state.nav_choice in FORM_MAPPING else 0,
+    key="main_record_selector"
 )
+st.session_state.nav_choice = selected_record
 active_form_id = FORM_MAPPING[selected_record]
 
 # -------------------------------------------------------------
-# 4. INGESTION ENGINE WITH DAY-BY-DAY CHUNKING
+# 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
 cache_key = f"cache_df_{active_form_id}_v4"
 sync_time_key = f"sync_time_{active_form_id}_v4"
@@ -199,6 +207,8 @@ else:
 
 def fetch_submissions(url, token, form_id, start_dt, end_dt):
     """Paginates form-store using nested paging & sorting payload."""
+    if form_id == 0:
+        return []
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -231,7 +241,6 @@ def fetch_submissions(url, token, form_id, start_dt, end_dt):
         try:
             res = requests.post(base_url, headers=headers, json=payload, timeout=20)
             if res.status_code != 200:
-                st.sidebar.error(f"Offset {current_offset} failed: HTTP {res.status_code}")
                 break
 
             data = res.json()
@@ -240,20 +249,16 @@ def fetch_submissions(url, token, form_id, start_dt, end_dt):
                 break
 
             all_rows.extend(items)
-            st.sidebar.text(f"Offset {current_offset} ➔ Got {len(items)} rows")
-
             if len(items) < 50:
                 break
 
             current_offset += 50
-
-        except Exception as e:
-            st.sidebar.error(f"Error: {e}")
+        except Exception:
             break
 
     return all_rows
 
-if cache_key not in st.session_state or st.session_state[cache_key].empty:
+if active_form_id != 0 and (cache_key not in st.session_state or st.session_state[cache_key].empty):
     active_token = token_input.strip() if token_input else DEFAULT_TOKEN.strip()
     clean_token = active_token.replace("Bearer ", "").strip()
 
@@ -264,24 +269,138 @@ if cache_key not in st.session_state or st.session_state[cache_key].empty:
                 raw_df = pd.DataFrame({"raw_record": items})
                 st.session_state[cache_key] = raw_df
                 st.session_state[sync_time_key] = datetime.now()
-                st.sidebar.success(f"✓ Loaded {len(items)} total records")
             else:
-                st.sidebar.warning(f"Form {active_form_id} returned 0 entries for this date range.")
-        except Exception as e:
-            st.sidebar.error(f"Sync failed: {e}")
+                st.session_state[cache_key] = pd.DataFrame()
+        except Exception:
+            st.session_state[cache_key] = pd.DataFrame()
 
 raw_records_df = st.session_state.get(cache_key, pd.DataFrame())
 
 # -------------------------------------------------------------
-# 5. ROUTE TO MODULAR RECORD AUDITORS
+# 5. ROUTE TO MODULAR RECORD AUDITORS OR OVERVIEW
 # -------------------------------------------------------------
-if selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
+if selected_record == "🏠 Site 1 Daily Overview":
+    st.markdown('<div class="serif-title">Roswyn (Site 1) — Daily Record Status Overview</div>', unsafe_allow_html=True)
+    st.markdown(f"Operational compliance summary for **{selected_day_str}**. Click any record button below to jump directly to its audit page.")
+    st.write("")
+
+    # Helper function to load data for overview checks
+    def get_form_df(form_id):
+        ck = f"cache_df_{form_id}_v4"
+        if ck not in st.session_state or st.session_state[ck].empty:
+            items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
+            st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
+        return st.session_state[ck]
+
+    df_02 = parse_record_02_submissions(get_form_df(31370))
+    df_04 = parse_all_record_04_dishes(get_form_df(31374))
+    df_05 = parse_record_05_submissions(get_form_df(31375))
+    df_13 = parse_record_13_submissions(get_form_df(31382))
+    df_21 = parse_record_21_submissions(get_form_df(31390))
+    df_25 = parse_record_25_submissions(get_form_df(31393))
+
+    # Compute daily statuses
+    day_02 = df_02[df_02["Date_Str"] == selected_day_str] if not df_02.empty else pd.DataFrame()
+    status_02 = "🔴 Breach Found" if (not day_02.empty and any(day_02["Has_Breach"])) else ("🟢 Compliant" if not day_02.empty else "⏳ Pending")
+
+    day_04 = df_04[df_04["Date_Str"] == selected_day_str] if not df_04.empty else pd.DataFrame()
+    status_04 = "🔴 Temp Breach" if (not day_04.empty and any(day_04["Temp"] < 75.0)) else ("🟢 Verified Complete" if not day_04.empty else "⏳ Pending Shifts")
+
+    day_05 = df_05[df_05["Date_Str"] == selected_day_str] if not df_05.empty else pd.DataFrame()
+    status_05 = "🔴 Cooling Breach" if (not day_05.empty and any(day_05["End_Temp"] > 5.0)) else ("🟢 Chilled Compliant" if not day_05.empty else "⏳ Pending")
+
+    day_13 = df_13[df_13["Date_Str"] == selected_day_str] if not df_13.empty else pd.DataFrame()
+    status_13 = "🔴 Sanitization Breach" if (not day_13.empty and any(day_13["Has_Breach"])) else ("🟢 Units Pass" if not day_13.empty else "⏳ Pending")
+
+    day_21 = df_21[df_21["Date_Str"] == selected_day_str] if not df_21.empty else pd.DataFrame()
+    status_21 = "🔴 PPM / Time Breach" if (not day_21.empty and any(day_21["Has_Breach"])) else ("🟢 Sanitized" if not day_21.empty else "⏳ Pending")
+
+    day_25 = df_25[df_25["Date_Str"] == selected_day_str] if not df_25.empty else pd.DataFrame()
+    status_25 = "🟢 Cleaned & Logged" if not day_25.empty else "⏳ Scheduled / Pending"
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.markdown(f"""
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:16px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-weight:700; font-size:1.05rem; color:#0f172a;">📦 Record 02: Food Delivery Record</div>
+            <div style="font-size:0.85rem; color:#64748b; margin-top:4px;">Status: <b>{status_02}</b></div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Open Record 02 ➔", use_container_width=True, key="btn_r02"):
+            st.session_state.nav_choice = "RECORD 02 - FOOD DELIVERY RECORD"
+            st.rerun()
+
+        st.markdown(f"""
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:16px; margin-bottom:8px; margin-top:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-weight:700; font-size:1.05rem; color:#0f172a;">🔥 Record 04: Cooking / Reheating Temperature</div>
+            <div style="font-size:0.85rem; color:#64748b; margin-top:4px;">Status: <b>{status_04}</b></div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Open Record 04 ➔", use_container_width=True, key="btn_r04"):
+            st.session_state.nav_choice = "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD"
+            st.rerun()
+
+        st.markdown(f"""
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:16px; margin-bottom:8px; margin-top:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-weight:700; font-size:1.05rem; color:#0f172a;">❄️ Record 05: Cooling of Food (Blast Chiller)</div>
+            <div style="font-size:0.85rem; color:#64748b; margin-top:4px;">Status: <b>{status_05}</b></div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Open Record 05 ➔", use_container_width=True, key="btn_r05"):
+            st.session_state.nav_choice = "RECORD 05 - COOLING OF FOOD RECORD"
+            st.rerun()
+
+    with col2:
+        st.markdown(f"""
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:16px; margin-bottom:8px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-weight:700; font-size:1.05rem; color:#0f172a;">🍽️ Record 13: Warewash Sanitization Record</div>
+            <div style="font-size:0.85rem; color:#64748b; margin-top:4px;">Status: <b>{status_13}</b></div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Open Record 13 ➔", use_container_width=True, key="btn_r13"):
+            st.session_state.nav_choice = "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD"
+            st.rerun()
+
+        st.markdown(f"""
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:16px; margin-bottom:8px; margin-top:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-weight:700; font-size:1.05rem; color:#0f172a;">🥗 Record 21: Food Wash Record (Chlorine)</div>
+            <div style="font-size:0.85rem; color:#64748b; margin-top:4px;">Status: <b>{status_21}</b></div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Open Record 21 ➔", use_container_width=True, key="btn_r21"):
+            st.session_state.nav_choice = "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH"
+            st.rerun()
+
+        st.markdown(f"""
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:16px; margin-bottom:8px; margin-top:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+            <div style="font-weight:700; font-size:1.05rem; color:#0f172a;">🧊 Record 25: Ice Machine Cleaning Record</div>
+            <div style="font-size:0.85rem; color:#64748b; margin-top:4px;">Status: <b>{status_25}</b></div>
+        </div>
+        """, unsafe_allow_html=True)
+        if st.button("Open Record 25 ➔", use_container_width=True, key="btn_r25"):
+            st.session_state.nav_choice = "RECORD 25 - ICE MACHINE CLEANING RECORD"
+            st.rerun()
+
+elif selected_record == "RECORD 02 - FOOD DELIVERY RECORD":
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
+
+elif selected_record == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
+
+elif selected_record == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
     st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
     render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif selected_record == "RECORD 05 - COOLING OF FOOD RECORD":
     st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
     render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
+
+elif selected_record == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
+    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
+    render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif selected_record == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
     st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
@@ -302,18 +421,6 @@ elif selected_record == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
 elif selected_record == "RECORD 25 - ICE MACHINE CLEANING RECORD":
     st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
     render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
-
-elif selected_record == "RECORD 02 - FOOD DELIVERY RECORD":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
-    render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
-
-elif selected_record == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
-    render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
-
-elif selected_record == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
-    st.markdown(f'<div class="serif-title">{selected_record}</div>', unsafe_allow_html=True)
-    render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
 
 # -------------------------------------------------------------
 # 6. DIAGNOSTIC PANEL
