@@ -64,7 +64,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. SIDEBAR CONTROLS
+# 2. SIDEBAR CONTROLS & NAVIGATION ROUTING
 # -------------------------------------------------------------
 st.sidebar.title("⚙️ Inspection Controls")
 st.sidebar.markdown("**Site:** Roswyn (Site 1)")
@@ -118,9 +118,6 @@ if token_input != st.session_state["auth_token"]:
 active_token = st.session_state.get("auth_token", DEFAULT_TOKEN).strip()
 clean_token = active_token.replace("Bearer ", "").strip()
 
-# -------------------------------------------------------------
-# 3. RECORD SELECTOR & NAVIGATION STATE
-# -------------------------------------------------------------
 FORM_MAPPING = {
     "🏠 Roswyn - EHCO Status Overview": 0,
     "RECORD 02 - FOOD DELIVERY RECORD": 31370,
@@ -138,28 +135,23 @@ FORM_MAPPING = {
 if "nav_choice" not in st.session_state:
     st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
 
-def update_nav_from_sidebar():
-    st.session_state.nav_choice = st.session_state.sidebar_record_select
+def nav_callback():
+    st.session_state.nav_choice = st.session_state.sidebar_nav_box
 
 selected_record = st.sidebar.selectbox(
     "SELECT FOOD SAFETY RECORD", 
     list(FORM_MAPPING.keys()), 
     index=list(FORM_MAPPING.keys()).index(st.session_state.nav_choice) if st.session_state.nav_choice in FORM_MAPPING else 0,
-    key="sidebar_record_select",
-    on_change=update_nav_from_sidebar
+    key="sidebar_nav_box",
+    on_change=nav_callback
 )
-
-# Ensure selectbox syncs if nav_choice changed via card button
-if st.session_state.sidebar_record_select != st.session_state.nav_choice:
-    st.session_state.sidebar_record_select = st.session_state.nav_choice
 
 active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 
 # -------------------------------------------------------------
-# 4. UNIFIED MASTER DATA FETCHING & CACHING
+# 3. UNIFIED MASTER DATA FETCHING & CACHING
 # -------------------------------------------------------------
 def fetch_submissions(url, token, form_id, start_dt, end_dt):
-    """Paginates form-store using nested paging & sorting payload."""
     if form_id == 0:
         return []
     headers = {
@@ -227,7 +219,7 @@ def get_master_df(form_id):
 raw_records_df = get_master_df(active_form_id) if active_form_id != 0 else pd.DataFrame()
 
 # -------------------------------------------------------------
-# 5. ROUTE TO MODULAR RECORD AUDITORS OR OVERVIEW
+# 4. ROUTE TO MODULAR RECORD AUDITORS OR OVERVIEW
 # -------------------------------------------------------------
 if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     st.markdown("""
@@ -276,9 +268,14 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
 
-    day_15_df = parse_record_15_submissions(get_master_df(31384)) if "parse_record_15_submissions" in globals() else get_master_df(31384)
-    day_15 = day_15_df[day_15_df["Date_Str"] == selected_day_str] if (day_15_df is not None and not day_15_df.empty and "Date_Str" in day_15_df.columns) else pd.DataFrame()
-    logged_15 = len(day_15) if not day_15.empty else 0
+    day_15_df = get_master_df(31384)
+    logged_15 = 0
+    if day_15_df is not None and not day_15_df.empty:
+        for idx, row in day_15_df.iterrows():
+            rec = row.get("raw_record", {})
+            sub_dt = rec.get("dateTimeSubmitted", "")
+            if selected_day_str in sub_dt or selected_day_str.replace("/", "-") in sub_dt:
+                logged_15 += 1
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
 
     day_21 = df_21[df_21["Date_Str"] == selected_day_str] if (df_21 is not None and not df_21.empty and "Date_Str" in df_21.columns) else pd.DataFrame()
