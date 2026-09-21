@@ -9,7 +9,7 @@ RECORD_05_KITCHENS = ["Filia Kitchen"]
 
 def parse_record_05_submissions(raw_df):
     """Robustly parses Record 05 blast chiller submissions from OneBlink nested payloads."""
-    if raw_df.empty:
+    if raw_df is None or raw_df.empty:
         return pd.DataFrame()
 
     rows = []
@@ -81,9 +81,8 @@ def parse_record_05_submissions(raw_df):
 
         if isinstance(entries, dict):
             entries = [entries]
-
-        if not entries and isinstance(sub, dict):
-            entries = [sub]
+        elif not isinstance(entries, list):
+            entries = [sub] if isinstance(sub, dict) else []
 
         for entry in entries:
             if not isinstance(entry, dict):
@@ -213,12 +212,12 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
 
         col_prev, col_status, col_next = st.columns([1, 3, 1])
         with col_prev:
-            if st.button("⬅️ Previous 7 Days", disabled=(st.session_state.rec05_page <= 0), use_container_width=True):
+            if st.button("⬅️ Previous 7 Days", disabled=(st.session_state.rec05_page <= 0), use_container_width=True, key="r05_prev"):
                 st.session_state.rec05_page -= 1
                 st.rerun()
 
         with col_next:
-            if st.button("Next 7 Days ➡️", disabled=(st.session_state.rec05_page >= max_page), use_container_width=True):
+            if st.button("Next 7 Days ➡️", disabled=(st.session_state.rec05_page >= max_page), use_container_width=True, key="r05_next"):
                 st.session_state.rec05_page += 1
                 st.rerun()
 
