@@ -108,13 +108,26 @@ def parse_record_05_submissions(raw_df):
                 errors="coerce",
             )
 
+            # Expanded list of potential keys for 2-hour end temperature
             end_raw = (
                 entry.get("Temperature_After_2_Hours")
                 or entry.get("After_2_Hours")
                 or entry.get("Temp_After_2")
                 or entry.get("End_Temp")
                 or entry.get("Temperature")
+                or entry.get("Temperature_2_Hours")
+                or entry.get("Temperature_after_2_hours")
             )
+            
+            # If not found in entry, search the whole entry dict for any key containing '2' or 'after' or 'end'
+            if pd.isna(pd.to_numeric(str(end_raw).replace("°C", "").strip(), errors="coerce")) or str(end_raw).strip() == "":
+                for k, v in entry.items():
+                    k_lower = str(k).lower()
+                    if any(term in k_lower for term in ["2", "after", "end", "hr"]):
+                        if v is not None and str(v).strip() not in ["", "None", "nan"]:
+                            end_raw = v
+                            break
+
             end_temp = pd.to_numeric(
                 str(end_raw).replace("°C", "").replace("°", "").strip(),
                 errors="coerce",
@@ -143,9 +156,8 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
 
     with st.expander("🔍 Record 05 Diagnostic (Inspect loaded data)"):
         st.write(f"Total parsed cooling records: **{len(df_items)}**")
-        if not df_items.empty and "Date_Obj" in df_items.columns:
-            date_counts = df_items["Date_Obj"].dropna().value_counts().sort_index(ascending=False).to_dict()
-            st.write("Records per date found:", {str(k): v for k, v in date_counts.items()})
+        if not df_items.empty:
+            st.dataframe(df_items.head(10), use_container_width=True)
 
     if not df_items.empty and "Date_Obj" in df_items.columns:
         range_df = df_items[(df_items["Date_Obj"] >= start_date) & (df_items["Date_Obj"] <= end_date)]
@@ -186,7 +198,8 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
             st.markdown('<div style="font-weight:700; color:#dc2626; margin-bottom:8px;">🔴 Temperature Breaches (> 5.0°C)</div>', unsafe_allow_html=True)
             if excursions:
                 for exc in excursions:
-                    st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">🍲 {exc["Food"]} • {exc["Location"]}</div><div style="font-size:0.85rem; color:#dc2626; font-weight:700; margin-top:4px;">Start: {exc["Start_Temp"]}°C ➔ 2hrTemp: {exc["End_Temp"]}°C (Limit ≤ 5.0°C)</div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Time: {exc["Time"]} | Signed: {exc["Sign"]}</div></div>', unsafe_allow_html=True)
+                    end_str = f"{exc['End_Temp']}°C" if pd.notna(exc["End_Temp"]) else "—"
+                    st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">🍲 {exc["Food"]} • {exc["Location"]}</div><div style="font-size:0.85rem; color:#dc2626; font-weight:700; margin-top:4px;">Start: {exc["Start_Temp"]}°C ➔ {end_str} (Limit ≤ 5.0°C)</div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Time: {exc["Time"]} | Signed: {exc["Sign"]}</div></div>', unsafe_allow_html=True)
             else:
                 st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">No cooling excursions on this day.</div>', unsafe_allow_html=True)
 
@@ -194,8 +207,8 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
             st.markdown('<div style="font-weight:700; color:#16a34a; margin-bottom:8px;">🟢 Verified Compliant (≤ 5.0°C)</div>', unsafe_allow_html=True)
             if compliant_logs:
                 for ok in compliant_logs:
-                    temp_txt = f"{ok['End_Temp']}°C" if pd.notna(ok["End_Temp"]) else "—"
-                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">🍲 {ok["Food"]}</div><div style="font-size:0.85rem; color:#334155; margin-top:4px;">Start: <b>{ok["Start_Temp"]}°C</b> ➔ 2hrTemp: <b style="color:#16a34a;">{temp_txt}</b></div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Method: {ok["Method"]} | Signed: {ok["Sign"]}</div></div>', unsafe_allow_html=True)
+                    end_str = f"{ok['End_Temp']}°C" if pd.notna(ok["End_Temp"]) else "—"
+                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">🍲 {ok["Food"]}</div><div style="font-size:0.85rem; color:#334155; margin-top:4px;">Start: <b>{ok["Start_Temp"]}°C</b> ➔ <b style="color:#16a34a;">{end_str}</b></div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Method: {ok["Method"]} | Signed: {ok["Sign"]}</div></div>', unsafe_allow_html=True)
             else:
                 st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">No blast chiller records for this day.</div>', unsafe_allow_html=True)
 
@@ -257,7 +270,7 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
                     for _, dish in matches.iterrows():
                         start_t = f"{dish['Start_Temp']}°C" if pd.notna(dish['Start_Temp']) else "—"
                         end_t = f"{dish['End_Temp']}°C" if pd.notna(dish['End_Temp']) else "—"
-                        items_html += f"<div style='font-size:0.68rem; color:#334155; margin-top:2px; text-align:left; border-top:1px solid #f1f5f9; padding-top:2px;'><b>{dish['Food']}</b><br/><span style='color:#0284c7;'>{start_t} ➔ 2hrTemp: {end_t}</span></div>"
+                        items_html += f"<div style='font-size:0.68rem; color:#334155; margin-top:2px; text-align:left; border-top:1px solid #f1f5f9; padding-top:2px;'><b>{dish['Food']}</b><br/><span style='color:#0284c7;'>{start_t} ➔ {end_t}</span></div>"
 
                     row_cols[i + 1].markdown(f'<div style="background:#ffffff; border:1.5px solid #0f172a; border-radius:8px; padding:6px 6px; min-height:130px; box-shadow:0 1px 3px rgba(0,0,0,0.08);"><div style="font-size:1.1rem; font-weight:800; color:#0f172a; text-align:center; line-height:1;">{count}</div>{items_html}</div>', unsafe_allow_html=True)
 
