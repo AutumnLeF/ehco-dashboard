@@ -244,7 +244,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         "📈 7-Day Grouped Location Matrix"
     ])
 
-with tab_day:
+    with tab_day:
         target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
         next_date_obj = target_date_obj + timedelta(days=1)
 
@@ -282,7 +282,7 @@ with tab_day:
 
         st.write("")
         st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Location Summary Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
-        st.caption("Each location block summarizes Opening & Closing logs and highlights pending units.")
+        st.caption("Each location summary block tracks Opening & Closing logs and displays pending units.")
 
         loc_cols = st.columns(2)
         for idx, (loc_name, units) in enumerate(UNIT_CATALOG.items()):
