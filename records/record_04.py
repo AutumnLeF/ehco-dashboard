@@ -278,6 +278,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                 </div>
                 """
 
+            # Added unsafe_allow_html=True here to fix raw HTML leak on page 1
             col_target.markdown(f"""
             <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                 <div style="font-weight:700; font-size:1rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:10px;">
@@ -299,7 +300,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
     with tab_matrix:
         st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>📈 Cooking Compliance Matrix ({start_date.strftime('%d/%m/%Y')} to {end_date.strftime('%d/%m/%Y')})</h4>", unsafe_allow_html=True)
-        st.caption("Card-style daily shift breakdown across all active kitchens. Past pending shifts are marked as Not Filled (Red).")
+        st.caption("Card-style daily shift breakdown with logged items and temperatures.")
 
         if range_df.empty:
             st.info("No cooking logs found for this date range.")
@@ -328,7 +329,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                 for meal in meals:
                     row_cols = st.columns(col_ratios)
                     row_cols[0].markdown(f"""
-                    <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px; min-height:60px; display:flex; align-items:center;">
+                    <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px; min-height:75px; display:flex; align-items:center;">
                         <b style="font-size:0.85rem; color:#0f172a;">{meal}</b>
                     </div>
                     """, unsafe_allow_html=True)
@@ -355,20 +356,25 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                                 tag_color = "#d97706"
 
                             row_cols[i + 1].markdown(
-                                f'<div style="background:{card_bg}; border:1.5px dashed {border_c}; border-radius:6px; padding:6px; min-height:60px; display:flex; flex-direction:column; justify-content:center; align-items:center;">'
+                                f'<div style="background:{card_bg}; border:1.5px dashed {border_c}; border-radius:6px; padding:6px; min-height:75px; display:flex; flex-direction:column; justify-content:center; align-items:center;">'
                                 f'<span style="color:{tag_color}; font-weight:800; font-size:0.75rem;">{tag_txt}</span>'
                                 f'</div>',
                                 unsafe_allow_html=True
                             )
                         else:
-                            dish_count = len(match_entry)
                             has_exc = any(match_entry["Temp"] < TEMP_THRESHOLD)
                             border_c = "#dc2626" if has_exc else "#16a34a"
-                            tag_txt = f"🔴 {dish_count} dish(es)" if has_exc else f"✓ {dish_count} logged"
+                            
+                            # Build items preview inside matrix cell
+                            items_preview = ""
+                            for _, dish in match_entry.iterrows():
+                                t_val = f"{dish['Temp']}°C" if pd.notna(dish['Temp']) else "—"
+                                items_preview += f"<div style='font-size:0.65rem; color:#475569; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>• {dish['Food']}: <b>{t_val}</b></div>"
 
                             row_cols[i + 1].markdown(
-                                f'<div style="background:#ffffff; border:1.5px solid {border_c}; border-radius:6px; padding:6px; min-height:60px; display:flex; flex-direction:column; justify-content:center; align-items:center;">'
-                                f'<span style="color:{border_c}; font-weight:800; font-size:0.75rem;">{tag_txt}</span>'
+                                f'<div style="background:#ffffff; border:1.5px solid {border_c}; border-radius:6px; padding:4px 6px; min-height:75px; display:flex; flex-direction:column; justify-content:flex-start;">'
+                                f'<div style="font-weight:800; font-size:0.72rem; color:{border_c}; border-bottom:1px solid #f1f5f9; padding-bottom:2px; margin-bottom:2px;">✓ Logged ({len(match_entry)})</div>'
+                                f'{items_preview}'
                                 f'</div>',
                                 unsafe_allow_html=True
                             )
