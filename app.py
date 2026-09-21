@@ -233,8 +233,8 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         </div>
     """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
-    # Use unwind=True across all parsers so repeatable sets are fully flattened
-    df_03_parsed = parse_record_03_submissions(get_master_df(31373, unwind=True))
+    # Fetch data using exact same parsers
+    df_03_parsed = parse_record_03_submissions(get_master_df(31373, unwind=False))
     df_04_parsed = parse_all_record_04_dishes(get_master_df(31374, unwind=True))
     df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
     df_06 = parse_record_06_submissions(get_master_df(31376, unwind=True))
@@ -242,7 +242,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
 
-    # Evaluate Record 03 status matching individual view logic (8 locations total)
+    # Evaluate Record 03 status matching individual view logic (fully logged areas out of 8)
     day_03 = df_03_parsed[df_03_parsed["Date_Str"] == selected_day_str] if (df_03_parsed is not None and not df_03_parsed.empty and "Date_Str" in df_03_parsed.columns) else pd.DataFrame()
     op_completed_areas = 0
     cl_completed_areas = 0
@@ -260,9 +260,12 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     day_04 = df_04_parsed[df_04_parsed["Date_Str"] == selected_day_str] if (df_04_parsed is not None and not df_04_parsed.empty and "Date_Str" in df_04_parsed.columns) else pd.DataFrame()
     bf_count, ln_count, dn_count = 0, 0, 0
     if not day_04.empty and "Meal_Shift" in day_04.columns:
-        bf_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("break", na=False)])
-        ln_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("lunch", na=False)])
-        dn_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("dinner", na=False)])
+        bf_shifts = day_04[day_04["Meal_Shift"].str.lower().str.contains("break", na=False)]
+        ln_shifts = day_04[day_04["Meal_Shift"].str.lower().str.contains("lunch", na=False)]
+        dn_shifts = day_04[day_04["Meal_Shift"].str.lower().str.contains("dinner", na=False)]
+        bf_count = 1 if not bf_shifts.empty else 0
+        ln_count = 1 if not ln_shifts.empty else 0
+        dn_count = dn_shifts["Kitchen"].nunique() if not dn_shifts.empty else 0
 
     stat_04_bf_str = f"Completed - {bf_count}/1" if bf_count > 0 else "Pending - 0/1"
     stat_04_ln_str = f"Completed - {ln_count}/1" if ln_count > 0 else "Pending - 0/1"
