@@ -84,7 +84,7 @@ selected_day_str = st.sidebar.selectbox(
     "Focus Day for Drill-down", options=list(reversed(day_options)), key="sb_day_focus_select"
 )
 
-DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
+DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
 
 if "auth_token" not in st.session_state:
     st.session_state["auth_token"] = DEFAULT_TOKEN.strip()
@@ -142,8 +142,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v12"
-sync_time_key = f"sync_time_{active_form_id}_v12"
+cache_key = f"cache_df_{active_form_id}_v13"
+sync_time_key = f"sync_time_{active_form_id}_v13"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -232,34 +232,32 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     st.write("")
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v12"
+        ck = f"cache_df_{form_id}_v13"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
         return st.session_state[ck]
 
     df_02 = parse_record_02_submissions(get_form_df(31370))
-    df_03_raw = get_form_df(31373)
+    df_03 = parse_record_03_submissions(get_form_df(31373))
     df_04 = parse_all_record_04_dishes(get_form_df(31374))
     df_05 = parse_record_05_submissions(get_form_df(31375))
     df_13 = parse_record_13_submissions(get_form_df(31382))
     df_21 = parse_record_21_submissions(get_form_df(31390))
     df_25 = parse_record_25_submissions(get_form_df(31393))
 
-    # Calculate status metrics
+    # Calculate status metrics safely
     day_02 = df_02[df_02["Date_Str"] == selected_day_str] if (df_02 is not None and not df_02.empty and "Date_Str" in df_02.columns) else pd.DataFrame()
     stat_02 = f"Completed - {len(day_02)}/1" if not day_02.empty else "Pending - 0/1"
 
     # Record 03: Opening & Closing Ratios (8 Areas total)
-    op_count = 0
-    cl_count = 0
-    if df_03 is not None and not df_03.empty:
-        # Check matching date submissions for opening / closing shifts
-        pass
+    day_03 = df_03[df_03["Date_Str"] == selected_day_str] if (df_03 is not None and not df_03.empty and "Date_Str" in df_03.columns) else pd.DataFrame()
+    op_count = len(day_03[day_03["Shift"].str.lower() == "opening"]) if (not day_03.empty and "Shift" in day_03.columns) else 0
+    cl_count = len(day_03[day_03["Shift"].str.lower() == "closing"]) if (not day_03.empty and "Shift" in day_03.columns) else 0
+    
     stat_03_op = f"Completed - {op_count}/8" if op_count > 0 else "Pending - 0/8"
     stat_03_cl = f"Completed - {cl_count}/8" if cl_count > 0 else "Pending - 0/8"
 
-    # Record 04: Breakfast, Lunch, Dinner shifts
     day_04 = df_04[df_04["Date_Str"] == selected_day_str] if (df_04 is not None and not df_04.empty and "Date_Str" in df_04.columns) else pd.DataFrame()
     stat_04_bf = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
     stat_04_ln = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
@@ -290,7 +288,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         is_completed = "Completed" in status_text
         status_color = "#4ade80" if is_completed else "#fbbf24"
         
-        # Use an interactive button container for the whole card
         if col.button(f"""{title}
 Status: {status_text}""", use_container_width=True, key=f"btn_theme_{unique_key}"):
             st.session_state.nav_choice = target_nav
