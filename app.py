@@ -64,8 +64,25 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. SIDEBAR CONTROLS & NAVIGATION ROUTING
+# 2. STATE & NAVIGATION SETUP
 # -------------------------------------------------------------
+FORM_MAPPING = {
+    "🏠 Roswyn - EHCO Status Overview": 0,
+    "RECORD 02 - FOOD DELIVERY RECORD": 31370,
+    "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD": 31373,
+    "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD": 31374,
+    "RECORD 05 - COOLING OF FOOD RECORD": 31375,
+    "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD": 31376,
+    "RECORD 12 - DEFROSTING TEMPERATURE RECORD": 31381,
+    "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD": 31382,
+    "RECORD 15 - PESTICIDE USAGE RECORD": 31384,
+    "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH": 31390,
+    "RECORD 25 - ICE MACHINE CLEANING RECORD": 31393,
+}
+
+if "nav_choice" not in st.session_state:
+    st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
+
 st.sidebar.title("⚙️ Inspection Controls")
 st.sidebar.markdown("**Site:** Roswyn (Site 1)")
 
@@ -132,23 +149,6 @@ if token_input != st.session_state["auth_token"]:
 active_token = st.session_state.get("auth_token", DEFAULT_TOKEN).strip()
 clean_token = active_token.replace("Bearer ", "").strip()
 
-FORM_MAPPING = {
-    "🏠 Roswyn - EHCO Status Overview": 0,
-    "RECORD 02 - FOOD DELIVERY RECORD": 31370,
-    "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD": 31373,
-    "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD": 31374,
-    "RECORD 05 - COOLING OF FOOD RECORD": 31375,
-    "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD": 31376,
-    "RECORD 12 - DEFROSTING TEMPERATURE RECORD": 31381,
-    "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD": 31382,
-    "RECORD 15 - PESTICIDE USAGE RECORD": 31384,
-    "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH": 31390,
-    "RECORD 25 - ICE MACHINE CLEANING RECORD": 31393,
-}
-
-if "nav_choice" not in st.session_state:
-    st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
-
 nav_options = list(FORM_MAPPING.keys())
 current_nav_index = nav_options.index(st.session_state.nav_choice) if st.session_state.nav_choice in nav_options else 0
 
@@ -161,7 +161,6 @@ selected_record = st.sidebar.selectbox(
 
 if selected_record != st.session_state.nav_choice:
     st.session_state.nav_choice = selected_record
-    st.session_state.pop("nav_selectbox", None)
     st.rerun()
 
 active_form_id = FORM_MAPPING[st.session_state.nav_choice]
@@ -282,9 +281,9 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             st.session_state.dashboard_view_mode = view_choice
             st.rerun()
 
-    # Master Data parsing
-    raw_03 = get_master_df(31373, unwind=False)
-    raw_04 = get_master_df(31374, unwind=False)
+    # Master Data parsing (unwind=True for Record 3 to match parser successfully)
+    raw_03 = get_master_df(31373, unwind=True)
+    raw_04 = get_master_df(31374, unwind=True)
     df_03_parsed = parse_record_03_submissions(raw_03)
     df_04_parsed = parse_all_record_04_dishes(raw_04)
     df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
@@ -303,9 +302,8 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
         ]
     else:
-        day_03 = pd.DataFrame()
+        day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
 
-    # Exact Record 03 calculation matching the individual Record 03 page view
     global_opening_logged = 0
     global_closing_logged = 0
     global_total_units = 0
