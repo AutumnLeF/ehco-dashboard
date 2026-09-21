@@ -420,11 +420,11 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
     # =========================================================
-    # VIEW MODE 2: DEPARTMENT-WISE CARD DASHBOARD (EXACT BLUEPRINT)
+    # VIEW MODE 2: DEPARTMENT-WISE CARD DASHBOARD (BLUEPRINT)
     # =========================================================
     else:
         st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location & Department Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
-        st.caption("Detailed department breakdown matching assigned operational records.")
+        st.caption("Detailed department breakdown following assigned operational records.")
         st.write("")
 
         dept_blueprint = [
@@ -442,12 +442,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         for dept in dept_blueprint:
             loc_name = dept["Name"]
             
-            # Combine unit catalog counts (including Filia Show Kitchen into Filia Kitchen if requested)
-            loc_units_total = len(UNIT_CATALOG.get(loc_name, []))
-            if dept["Include_Show"]:
-                loc_units_total += len(UNIT_CATALOG.get("Filia Show Kitchen", []))
-
-            # Record 03 calculation per location
             locations_to_check = [loc_name]
             if dept["Include_Show"]:
                 locations_to_check.append("Filia Show Kitchen")
@@ -455,8 +449,11 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             loc_day_03 = day_03[day_03["Location"].isin(locations_to_check)] if not day_03.empty and "Location" in day_03.columns else pd.DataFrame()
             loc_op_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]) if not loc_day_03.empty and "Shift" in loc_day_03.columns else 0
             loc_cl_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]) if not loc_day_03.empty and "Shift" in loc_day_03.columns else 0
+            
+            loc_units_total = len(UNIT_CATALOG.get(loc_name, []))
+            if dept["Include_Show"]:
+                loc_units_total += len(UNIT_CATALOG.get("Filia Show Kitchen", []))
 
-            # Record 04 calculation
             loc_day_04 = day_04[day_04["Kitchen"] == loc_name] if not day_04.empty and "Kitchen" in day_04.columns else pd.DataFrame()
             
             r3_text = f"🌅 Open: {loc_op_units}/{loc_units_total} &nbsp;|&nbsp; 🌙 Close: {loc_cl_units}/{loc_units_total}" if loc_units_total > 0 else None
@@ -466,10 +463,10 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                 bf_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("break", na=False)].empty if not loc_day_04.empty and "Meal_Shift" in loc_day_04.columns else False
                 ln_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("lunch", na=False)].empty if not loc_day_04.empty and "Meal_Shift" in loc_day_04.columns else False
                 dn_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("dinner", na=False)].empty if not loc_day_04.empty and "Meal_Shift" in loc_day_04.columns else False
-                r4_text = f"Breakfast: {'✅' if bf_done else '⏳'}<br>Lunch: {'✅' if ln_done else '⏳'}<br>Dinner: {'✅' if dn_done else '⏳'}"
+                r4_text = f"Breakfast: {'✅ Completed' if bf_done else '⏳ Pending'}<br>Lunch: {'✅ Completed' if ln_done else '⏳ Pending'}<br>Dinner: {'✅ Completed' if dn_done else '⏳ Pending'}"
             elif dept["Show_R4"] == "dinner":
                 dn_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("dinner", na=False)].empty if not loc_day_04.empty and "Meal_Shift" in loc_day_04.columns else False
-                r4_text = f"Dinner: {'✅ Logged' if dn_done else '⏳ Pending'}"
+                r4_text = f"Dinner: {'✅ Completed' if dn_done else '⏳ Pending'}"
 
             r5_text = "✅ Completed" if not day_05.empty and loc_name in ["Filia Kitchen", "Filia Kitchen - Bakery", "Black Lacquer Kitchen", "Third Room Kitchen"] else "⏳ Pending" if dept["Show_R5"] else None
             r6_text = "✅ Displayed" if not day_06.empty and loc_name in ["Filia Kitchen - Bakery", "Black Lacquer Kitchen", "Filia Bar"] else "⏳ Pending" if dept["Show_R6"] else None
@@ -478,13 +475,11 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             r25_text = "✅ Cleaned" if not day_25.empty and loc_name == "Stewarding" else "⏳ Pending" if dept["Show_R25"] else None
             r15_text = "✅ Logged" if not day_15.empty and loc_name == "Housekeeping" else "⏳ Pending" if dept["Show_R15"] else None
 
-            # Render Record 3 style card header
             st.markdown(f"""
-            <div style="background-color: #0b192c; padding: 14px 20px; border-radius: 8px 8px 0 0; color: white; display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
-                <span style="font-size: 1.1rem; font-weight: 700;">📍 {loc_name}</span>
-                <span style="font-size: 0.8rem; background: #334155; padding: 3px 10px; border-radius: 12px; font-weight: 600;">{loc_units_total if loc_units_total > 0 else "Facility"} Units</span>
+            <div style="background-color: #0b192c; padding: 12px 18px; border-radius: 8px 8px 0 0; color: white; display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
+                <span style="font-size: 1.05rem; font-weight: 700;">📍 {loc_name}</span>
             </div>
-            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 8px 8px; padding: 16px 20px; margin-bottom: 1.2rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 8px 8px; padding: 14px 18px; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
             """, unsafe_allow_html=True)
 
             col_list = []
