@@ -138,20 +138,21 @@ FORM_MAPPING = {
 if "nav_choice" not in st.session_state:
     st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
 
+def update_nav():
+    st.session_state.nav_choice = st.session_state.main_record_selector
+
 selected_record = st.sidebar.selectbox(
     "SELECT FOOD SAFETY RECORD", 
     list(FORM_MAPPING.keys()), 
     index=list(FORM_MAPPING.keys()).index(st.session_state.nav_choice) if st.session_state.nav_choice in FORM_MAPPING else 0,
-    key="main_record_selector"
+    key="main_record_selector",
+    on_change=update_nav
 )
-
-if selected_record != st.session_state.nav_choice:
-    st.session_state.nav_choice = selected_record
 
 active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 
 # -------------------------------------------------------------
-# 4. INGESTION ENGINE WITH CACHING
+# 4. UNIFIED MASTER DATA FETCHING & CACHING
 # -------------------------------------------------------------
 def fetch_submissions(url, token, form_id, start_dt, end_dt):
     """Paginates form-store using nested paging & sorting payload."""
@@ -206,20 +207,21 @@ def fetch_submissions(url, token, form_id, start_dt, end_dt):
 
     return all_rows
 
-def get_cached_form_df(form_id):
-    ck = f"cache_df_{form_id}_v27"
-    if ck not in st.session_state or st.session_state[ck].empty:
-        items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
-        st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
-    return st.session_state[ck]
+if "master_data_cache" not in st.session_state:
+    st.session_state["master_data_cache"] = {}
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 if force_refresh:
-    for fid in FORM_MAPPING.values():
-        if fid != 0:
-            st.session_state.pop(f"cache_df_{fid}_v27", None)
+    st.session_state["master_data_cache"] = {}
 
-raw_records_df = get_cached_form_df(active_form_id) if active_form_id != 0 else pd.DataFrame()
+def get_master_df(form_id):
+    if form_id not in st.session_state["master_data_cache"]:
+        items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
+        st.session_state["master_data_cache"][form_id] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
+    return st.session_state["master_data_cache"][form_id]
+
+# Pre-load or fetch active raw records df for current view
+raw_records_df = get_master_df(active_form_id) if active_form_id != 0 else pd.DataFrame()
 
 # -------------------------------------------------------------
 # 5. ROUTE TO MODULAR RECORD AUDITORS OR OVERVIEW
@@ -232,15 +234,16 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         </div>
     """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
-    df_03_parsed = parse_record_03_submissions(get_cached_form_df(31373))
-    df_04_parsed = parse_all_record_04_dishes(get_cached_form_df(31374))
-    df_05 = parse_record_05_submissions(get_cached_form_df(31375))
-    df_06 = parse_record_06_submissions(get_cached_form_df(31376))
-    df_13 = parse_record_13_submissions(get_cached_form_df(31382))
-    df_21 = parse_record_21_submissions(get_cached_form_df(31390))
-    df_25 = parse_record_25_submissions(get_cached_form_df(31393))
+    # Centralized data ingestion & parsing for overview cards
+    df_03_parsed = parse_record_03_submissions(get_master_df(31373))
+    df_04_parsed = parse_all_record_04_dishes(get_master_df(31374))
+    df_05 = parse_record_05_submissions(get_master_df(31375))
+    df_06 = parse_record_06_submissions(get_master_df(31376))
+    df_13 = parse_record_13_submissions(get_master_df(31382))
+    df_21 = parse_record_21_submissions(get_master_df(31390))
+    df_25 = parse_record_25_submissions(get_master_df(31393))
 
-    # Evaluate Record 03 status for selected focus day
+    # Evaluate Record 03 status
     day_03 = df_03_parsed[df_03_parsed["Date_Str"] == selected_day_str] if (df_03_parsed is not None and not df_03_parsed.empty and "Date_Str" in df_03_parsed.columns) else pd.DataFrame()
     op_count = len(day_03[day_03["Shift"].str.lower().str.contains("open", na=False)]) if (not day_03.empty and "Shift" in day_03.columns) else 0
     cl_count = len(day_03[day_03["Shift"].str.lower().str.contains("clos", na=False)]) if (not day_03.empty and "Shift" in day_03.columns) else 0
@@ -249,7 +252,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_03_cl_str = f"Completed - {cl_count}/8" if cl_count > 0 else "Pending - 0/8"
     html_03 = f'Opening: <span style="color: {"#4ade80" if op_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # Evaluate Record 04 status for selected focus day
+    # Evaluate Record 04 status
     day_04 = df_04_parsed[df_04_parsed["Date_Str"] == selected_day_str] if (df_04_parsed is not None and not df_04_parsed.empty and "Date_Str" in df_04_parsed.columns) else pd.DataFrame()
     bf_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("break", na=False)]) if (not day_04.empty and "Meal_Shift" in day_04.columns) else 0
     ln_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("lunch", na=False)]) if (not day_04.empty and "Meal_Shift" in day_04.columns) else 0
@@ -271,15 +274,9 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
 
-    day_15_df = get_cached_form_df(31384)
-    # Check actual submissions for date in record 15 raw items if needed
-    logged_15 = 0
-    if day_15_df is not None and not day_15_df.empty:
-        for idx, row in day_15_df.iterrows():
-            rec = row.get("raw_record", {})
-            sub_dt = rec.get("dateTimeSubmitted", "")
-            if selected_day_str in sub_dt or selected_day_str.replace("/", "-") in sub_dt:
-                logged_15 += 1
+    day_15_df = parse_record_15_submissions(get_master_df(31384)) if "parse_record_15_submissions" in globals() else get_master_df(31384)
+    day_15 = day_15_df[day_15_df["Date_Str"] == selected_day_str] if (day_15_df is not None and not day_15_df.empty and "Date_Str" in day_15_df.columns) else pd.DataFrame()
+    logged_15 = len(day_15) if not day_15.empty else 0
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
 
     day_21 = df_21[df_21["Date_Str"] == selected_day_str] if (df_21 is not None and not df_21.empty and "Date_Str" in df_21.columns) else pd.DataFrame()
@@ -289,7 +286,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
 
-    # Accurate count of fully completed categories out of 9
     completed_cats = sum([
         1 if op_count > 0 else 0,
         1 if bf_count > 0 else 0,
