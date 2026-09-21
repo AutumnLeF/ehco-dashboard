@@ -294,39 +294,41 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
     df_15 = parse_record_15_submissions(get_master_df(31384, unwind=True))
 
-    target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
-    next_date_obj = target_date_obj + timedelta(days=1)
-
-    if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns and "Timestamp_DT" in df_03_parsed.columns:
-        day_03 = df_03_parsed[
-            (df_03_parsed["Date_Obj"] == target_date_obj) |
-            ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
-        ]
-    else:
-        day_03 = pd.DataFrame()
-
-    global_opening_logged = 0
-    global_closing_logged = 0
-    global_total_units = 0
-
-    for loc_name, units in UNIT_CATALOG.items():
-        for u in units:
-            global_total_units += 1
-            u_id = u["Unit_ID"]
-            clean_target = clean_unit_token(u_id)
-            unit_logs = day_03[day_03["Clean_Unit"] == clean_target] if not day_03.empty and "Clean_Unit" in day_03.columns else pd.DataFrame()
-            n_logs = len(unit_logs)
-            if n_logs == 1:
-                global_opening_logged += 1
-            elif n_logs >= 2:
-                global_opening_logged += 1
-                global_closing_logged += 1
-
-    stat_03_op_str = f"Completed - {global_opening_logged}/{global_total_units}" if global_opening_logged > 0 else f"Pending - 0/{global_total_units}"
-    stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if global_closing_logged > 0 else f"Pending - 0/{global_total_units}"
-    html_03 = f'Opening: <span style="color: {"#4ade80" if global_opening_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if global_closing_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
-
+    day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
     day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
+
+    # --- RECORD 03 COUNTING DIAGNOSTIC BLOCK ---
+    with st.expander("Record 03 counting diagnostic", expanded=True):
+        st.write("Focus-day row count:", len(day_03))
+
+        if not day_03.empty:
+            st.write(
+                day_03[
+                    ["Date_Str", "Time", "Location", "Unit_ID", "Clean_Unit", "Temp"]
+                ].to_string(index=False)
+            )
+
+            st.write("Location counts:")
+            st.write(day_03["Location"].value_counts(dropna=False))
+
+            st.write("Clean_Unit counts:")
+            st.write(day_03["Clean_Unit"].value_counts(dropna=False))
+
+            st.write("Missing Clean_Unit rows:",
+                     int(day_03["Clean_Unit"].isna().sum()))
+    # -------------------------------------------
+
+    op_units = 0
+    cl_units = 0
+    if not day_03.empty and "Clean_Unit" in day_03.columns:
+        unit_counts = day_03["Clean_Unit"].value_counts()
+        op_units = len(unit_counts[unit_counts >= 1])
+        cl_units = len(unit_counts[unit_counts >= 2])
+
+    stat_03_op_str = f"Completed - {op_units}/35" if op_units > 0 else "Pending - 0/35"
+    stat_03_cl_str = f"Completed - {cl_units}/35" if cl_units > 0 else "Pending - 0/35"
+    html_03 = f'Opening: <span style="color: {"#4ade80" if op_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
+
     shift_col = "Meal_Service" if "Meal_Service" in day_04.columns else ("Meal_Shift" if "Meal_Shift" in day_04.columns else None)
 
     bf_count, ln_count, dn_count = 0, 0, 0
@@ -366,7 +368,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
 
     completed_cats = sum([
-        1 if global_opening_logged > 0 else 0,
+        1 if op_units > 0 else 0,
         1 if bf_count > 0 or ln_count > 0 or dn_count > 0 else 0,
         1 if not day_05.empty else 0,
         1 if not day_06.empty else 0,
