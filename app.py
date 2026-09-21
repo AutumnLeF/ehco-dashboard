@@ -420,11 +420,11 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
     # =========================================================
-    # VIEW MODE 2: DEPARTMENT-WISE CARD DASHBOARD (BLUEPRINT)
+    # VIEW MODE 2: DEPARTMENT-WISE CARD DASHBOARD (EXACT BLUEPRINT)
     # =========================================================
     else:
         st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location & Department Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
-        st.caption("Detailed department breakdown following assigned operational records.")
+        st.caption("Detailed department breakdown matching assigned operational records.")
         st.write("")
 
         dept_blueprint = [
@@ -447,7 +447,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             if dept["Include_Show"]:
                 loc_units_total += len(UNIT_CATALOG.get("Filia Show Kitchen", []))
 
-            # Record 03 calculation per location (combining sub-areas if Filia Kitchen)
+            # Record 03 calculation per location
             locations_to_check = [loc_name]
             if dept["Include_Show"]:
                 locations_to_check.append("Filia Show Kitchen")
