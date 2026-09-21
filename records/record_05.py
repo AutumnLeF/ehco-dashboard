@@ -7,31 +7,52 @@ CRITICAL_LIMIT_2HR = 5.0  # Limit: <= 5.0°C after 2 hours
 RECORD_05_KITCHENS = ["Filia Kitchen"]
 
 
-def find_val(row_dict, keywords):
-    for k, v in row_dict.items():
-        k_clean = k.lower().replace("_", "").replace(" ", "").replace(".", "")
-        for kw in keywords:
-            kw_clean = kw.lower().replace("_", "").replace(" ", "")
-            if kw_clean in k_clean:
-                if pd.notna(v) and str(v).strip() != "":
-                    return v
-    return None
-
-
 def parse_record_05_submissions(raw_df):
+    """Robustly parses Record 05 blast chiller submissions from OneBlink nested payloads."""
     if raw_df.empty:
         return pd.DataFrame()
 
     df = raw_df.copy()
+
+    # Broad match for formId
     form_col = next((c for c in df.columns if "formid" in c.lower()), None)
     if form_col:
-        df = df[df[form_col].astype(str) == str(RECORD_05_FORM_ID)]
+        df = df[df[form_col].astype(str).str.contains(str(RECORD_05_FORM_ID), na=False)]
+
+    if df.empty:
+        df = raw_df.copy()
 
     rows = []
-    for _, record in df.iterrows():
-        rec = record.to_dict()
+    for _, row in df.iterrows():
+        rec = row.get("raw_record") if "raw_record" in df.columns else row.to_dict()
+        if not isinstance(rec, dict):
+            rec = row.to_dict()
 
-        raw_date = find_val(rec, ["startdate", "date", "createdat"]) or ""
+        sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
+        entry_parent = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else sub
+
+        location = (
+            sub.get("Location")
+            or rec.get("Location")
+            or entry_parent.get("Location")
+            or "Filia Kitchen"
+        )
+        sign = (
+            sub.get("Sign")
+            or sub.get("sign")
+            or rec.get("Sign")
+            or rec.get("user.email")
+            or "Staff"
+        )
+
+        raw_date = (
+            sub.get("Date")
+            or sub.get("date")
+            or sub.get("StartDate")
+            or rec.get("createdAt")
+            or rec.get("dateTimeSubmitted")
+            or ""
+        )
         parsed_dt = pd.to_datetime(raw_date, errors="coerce")
         if pd.isna(parsed_dt):
             parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
@@ -47,36 +68,92 @@ def parse_record_05_submissions(raw_df):
             norm_date = str(raw_date)[:10]
             date_obj = None
 
-        time_str = str(find_val(rec, ["starttime", "time"]) or "")[:19]
-        location = find_val(rec, ["location"]) or "Filia Kitchen"
-        method = find_val(rec, ["method"]) or "Blast Chiller"
-        food = find_val(rec, ["nameoffood", "fooditem", "food"]) or "Batch Item"
+        raw_time = (
+            sub.get("Time")
+            or sub.get("StartTime")
+            or entry_parent.get("Time")
+            or ""
+        )
+        time_str = str(raw_time).strip()
+        if "T" in time_str:
+            try:
+                time_str = time_str.split("T")[1][:5]
+            except Exception:
+                pass
 
-        start_raw = find_val(rec, ["starttemperature", "starttemp", "tempstart"])
-        start_temp = pd.to_numeric(str(start_raw).replace("°C", "").strip(), errors="coerce")
+        entries = (
+            sub.get("set")
+            or sub.get("Entry")
+            or rec.get("set")
+            or rec.get("Entry")
+            or []
+        )
 
-        end_raw = find_val(rec, ["temperatureafter2hours", "after2hours", "2hours", "tempafter2", "endtemp"])
-        end_temp = pd.to_numeric(str(end_raw).replace("°C", "").strip(), errors="coerce")
+        if isinstance(entries, dict):
+            entries = [entries]
 
-        sign = find_val(rec, ["sign", "initial", "user.email"]) or "Staff"
+        if not entries and isinstance(sub, dict):
+            entries = [sub]
 
-        rows.append({
-            "Date_Str": norm_date,
-            "Date_Obj": date_obj,
-            "Time": time_str,
-            "Location": location,
-            "Method": method,
-            "Food": food,
-            "Start_Temp": start_temp,
-            "End_Temp": end_temp,
-            "Sign": sign,
-        })
+        for entry in entries:
+            if not isinstance(entry, dict):
+                continue
 
-    return pd.DataFrame(rows)
+            method = entry.get("Method") or sub.get("Method") or "Blast Chiller"
+            food = (
+                entry.get("Name_of_Food")
+                or entry.get("Food")
+                or entry.get("Food_Item")
+                or "Batch Item"
+            )
+
+            start_raw = (
+                entry.get("Start_Temperature")
+                or entry.get("StartTemp")
+                or entry.get("Temp_Start")
+            )
+            start_temp = pd.to_numeric(
+                str(start_raw).replace("°C", "").replace("°", "").strip(),
+                errors="coerce",
+            )
+
+            end_raw = (
+                entry.get("Temperature_After_2_Hours")
+                or entry.get("After_2_Hours")
+                or entry.get("Temp_After_2")
+                or entry.get("End_Temp")
+            )
+            end_temp = pd.to_numeric(
+                str(end_raw).replace("°C", "").replace("°", "").strip(),
+                errors="coerce",
+            )
+
+            rows.append({
+                "Date_Str": norm_date,
+                "Date_Obj": date_obj,
+                "Time": time_str,
+                "Location": str(location).strip(),
+                "Method": str(method).strip(),
+                "Food": str(food).strip(),
+                "Start_Temp": start_temp,
+                "End_Temp": end_temp,
+                "Sign": str(sign).strip(),
+            })
+
+    df_out = pd.DataFrame(rows)
+    if not df_out.empty:
+        df_out = df_out.drop_duplicates(subset=["Date_Str", "Time", "Location", "Food", "Start_Temp", "End_Temp"], keep="first")
+    return df_out
 
 
 def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
     df_items = parse_record_05_submissions(raw_df)
+
+    with st.expander("🔍 Record 05 Diagnostic (Inspect loaded data)"):
+        st.write(f"Total parsed cooling records: **{len(df_items)}**")
+        if not df_items.empty and "Date_Obj" in df_items.columns:
+            date_counts = df_items["Date_Obj"].dropna().value_counts().sort_index(ascending=False).to_dict()
+            st.write("Records per date found:", {str(k): v for k, v in date_counts.items()})
 
     if not df_items.empty and "Date_Obj" in df_items.columns:
         range_df = df_items[(df_items["Date_Obj"] >= start_date) & (df_items["Date_Obj"] <= end_date)]
@@ -110,26 +187,25 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
             st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Batches Chilled</div></div>', unsafe_allow_html=True)
 
         st.write("")
+        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>❄️ Blast Chiller Batches ({selected_day_str})</h4>", unsafe_allow_html=True)
 
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f'<div class="kanban-col"><div class="kanban-h" style="color:#dc2626;">🔴 Core Temp Breaches ({len(excursions)})</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-weight:700; color:#dc2626; margin-bottom:8px;">🔴 Temperature Breaches (> 5.0°C)</div>', unsafe_allow_html=True)
             if excursions:
                 for exc in excursions:
-                    st.markdown(f'<div class="check-card" style="border-left: 5px solid #dc2626;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{exc["Food"]} • {exc["Location"]}</div><div style="font-size:0.8rem; color:#dc2626; font-weight:600; margin-top:3px;">Start: {exc["Start_Temp"]}°C &nbsp;➔&nbsp; After 2h: {exc["End_Temp"]}°C (Limit ≤ 5.0°C)</div><div style="font-size:0.75rem; color:#64748b; margin-top:3px;">Time: {exc["Time"]} | Sign: {exc["Sign"]}</div></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:10px; border-radius:6px; margin-bottom:8px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a;">🍲 {exc["Food"]} • {exc["Location"]}</div><div style="font-size:0.82rem; color:#dc2626; font-weight:700; margin-top:3px;">Start: {exc["Start_Temp"]}°C ➔ After 2h: {exc["End_Temp"]}°C (Limit ≤ 5.0°C)</div><div style="font-size:0.72rem; color:#64748b; margin-top:3px;">Time: {exc["Time"]} | Sign: {exc["Sign"]}</div></div>', unsafe_allow_html=True)
             else:
-                st.caption("No cooling excursions on this day.")
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown('<div style="background:#f8fafc; border:1px dashed #cbd5e1; padding:12px; border-radius:6px; color:#64748b; font-size:0.85rem;">No cooling excursions on this day.</div>', unsafe_allow_html=True)
 
         with c2:
-            st.markdown(f'<div class="kanban-col"><div class="kanban-h" style="color:#16a34a;">🟢 Verified Pulled-Down ({len(compliant_logs)})</div>', unsafe_allow_html=True)
+            st.markdown('<div style="font-weight:700; color:#16a34a; margin-bottom:8px;">🟢 Verified Compliant (≤ 5.0°C)</div>', unsafe_allow_html=True)
             if compliant_logs:
                 for ok in compliant_logs:
                     temp_txt = f"{ok['End_Temp']}°C" if pd.notna(ok["End_Temp"]) else "Done"
-                    st.markdown(f'<div class="check-card" style="border-left: 5px solid #16a34a;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{ok["Food"]}</div><div style="font-size:0.8rem; color:#334155; margin-top:3px;">Start: <b>{ok["Start_Temp"]}°C</b> &nbsp;➔&nbsp; After 2h: <b style="color:#16a34a;">{temp_txt}</b></div><div style="font-size:0.75rem; color:#64748b; margin-top:3px;">Method: {ok["Method"]} | Sign: {ok["Sign"]}</div></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:10px; border-radius:6px; margin-bottom:8px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a;">🍲 {ok["Food"]}</div><div style="font-size:0.82rem; color:#334155; margin-top:3px;">Start: <b>{ok["Start_Temp"]}°C</b> ➔ After 2h: <b style="color:#16a34a;">{temp_txt}</b></div><div style="font-size:0.72rem; color:#64748b; margin-top:3px;">Method: {ok["Method"]} | Sign: {ok["Sign"]}</div></div>', unsafe_allow_html=True)
             else:
-                st.caption("No blast chiller records for this day.")
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.markdown('<div style="background:#f8fafc; border:1px dashed #cbd5e1; padding:12px; border-radius:6px; color:#64748b; font-size:0.85rem;">No blast chiller records for this day.</div>', unsafe_allow_html=True)
 
     with tab_matrix:
         st.subheader("7-Day Kitchen Completion Matrix")
