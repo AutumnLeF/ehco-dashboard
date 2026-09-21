@@ -16,7 +16,7 @@ KITCHEN_MEAL_RULES = {
     "IRD Kitchen": ["Breakfast", "Lunch", "Dinner"],
     "Madeleine de Proust": ["Breakfast", "Lunch", "Dinner"],
     "Merchant Kitchen": ["Breakfast", "Lunch", "Dinner"],
-    "Oryn Kitchen": ["Breakfast", "Lunch", "Dinner"],
+    "Oryn Kitchen": ["Lunch", "Dinner"],
     "Samaa Kitchen": ["Lunch", "Dinner"],
 }
 
