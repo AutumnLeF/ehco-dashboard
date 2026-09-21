@@ -252,24 +252,35 @@ def filter_by_focus_date(df, date_variants):
 raw_records_df = get_master_df(active_form_id, unwind=True) if active_form_id != 0 else pd.DataFrame()
 
 # -------------------------------------------------------------
-# 4. ROUTE TO OVERVIEW OR INDIVIDUAL RECORD VIEW
+# 4. ROUTE TO OVERVIEW, DEPARTMENT VIEW, OR INDIVIDUAL RECORD VIEW
 # -------------------------------------------------------------
 if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
-    # Top Scroll/Jump Anchor Target
-    st.markdown('<div id="top-anchor"></div>', unsafe_allow_html=True)
+    
+    # Initialize view mode switch state if not present
+    if "dashboard_view_mode" not in st.session_state:
+        st.session_state.dashboard_view_mode = "📊 Overview Cards"
 
-    header_cols = st.columns([6, 2])
-    with header_cols[0]:
+    # Top Navigation View Switcher Header
+    top_cols = st.columns([4, 4])
+    with top_cols[0]:
         st.markdown(f"""
-            <div class="center-header" style="text-align: left; margin-bottom: 0.5rem;">
-                <div class="serif-title">Roswyn - EHCO Status</div>
+            <div style="margin-bottom: 0.5rem;">
+                <div class="serif-title" style="font-size:1.8rem;">Roswyn - EHCO Status</div>
                 <div class="sub-head">Date: <b>{selected_day_str}</b> &nbsp;|&nbsp; IST Time: <b>{ist_now.strftime("%H:%M:%S")}</b></div>
             </div>
         """, unsafe_allow_html=True)
-    with header_cols[1]:
+    with top_cols[1]:
         st.write("")
-        if st.button("↓ Location Analytics", use_container_width=True, key="jump_to_dept_btn"):
-            st.markdown('<script>window.location.hash="#department-analytics";</script>', unsafe_allow_html=True)
+        view_choice = st.radio(
+            "Dashboard Display Mode", 
+            ["📊 Overview Cards", "🏢 Department-Wise Cards"], 
+            horizontal=True,
+            label_visibility="collapsed",
+            key="dashboard_view_mode_radio"
+        )
+        if view_choice != st.session_state.dashboard_view_mode:
+            st.session_state.dashboard_view_mode = view_choice
+            st.rerun()
 
     # Master Data parsing
     raw_03 = get_master_df(31373, unwind=False)
@@ -364,7 +375,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
 
-    # Accurate Completed Categories Count (Only fully completed items)
     completed_cats = sum([
         1 if not day_05.empty else 0,
         1 if not day_06.empty else 0,
@@ -374,70 +384,90 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     progress_pct = int((completed_cats / total_cats) * 100)
     bar_color = "#4ade80" if progress_pct > 70 else ("#3b82f6" if progress_pct > 30 else "#fbbf24")
 
-    st.markdown(f"""
-    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-            <span style="font-weight: 700; font-size: 0.88rem; color: #0f172a;">📊 Daily Compliance & Progression Tracker</span>
-            <span style="font-weight: 700; font-size: 0.88rem; color: {bar_color};">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
-        </div>
-        <div style="width: 100%; background: #e2e8f0; border-radius: 8px; height: 12px; overflow: hidden;">
-            <div style="width: {progress_pct}%; background: {bar_color}; height: 100%; border-radius: 8px; transition: width 0.5s ease;"></div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns(3)
-
-    def render_theme_card(col, title, status_html, target_nav, unique_key):
-        col.markdown(f"""
-        <div style="background-color: #0b192c; border-radius: 10px; padding: 16px; color: white; margin-bottom: 6px; min-height: 115px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <div style="font-size: 0.88rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px;">{title}</div>
-            <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
+    # =========================================================
+    # VIEW MODE 1: MAIN OVERVIEW CARDS
+    # =========================================================
+    if st.session_state.dashboard_view_mode == "📊 Overview Cards":
+        st.markdown(f"""
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-weight: 700; font-size: 0.88rem; color: #0f172a;">📊 Daily Compliance & Progression Tracker</span>
+                <span style="font-weight: 700; font-size: 0.88rem; color: {bar_color};">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
+            </div>
+            <div style="width: 100%; background: #e2e8f0; border-radius: 8px; height: 12px; overflow: hidden;">
+                <div style="width: {progress_pct}%; background: {bar_color}; height: 100%; border-radius: 8px; transition: width 0.5s ease;"></div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
-        if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
-            st.session_state.nav_choice = target_nav
-            st.rerun()
 
-    with col1:
-        render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03")
-        render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04")
+        col1, col2, col3 = st.columns(3)
 
-    with col2:
-        render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
-        render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
-        render_theme_card(col2, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
+        def render_theme_card(col, title, status_html, target_nav, unique_key):
+            col.markdown(f"""
+            <div style="background-color: #0b192c; border-radius: 10px; padding: 16px; color: white; margin-bottom: 6px; min-height: 115px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 0.88rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px;">{title}</div>
+                <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
+                st.session_state.nav_choice = target_nav
+                st.rerun()
 
-    with col3:
-        render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
-        render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
-        render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
+        with col1:
+            render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03")
+            render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04")
 
-    # -------------------------------------------------------------
-    # 5. LOCATION / DEPARTMENT WISE DASHBOARD (SECOND SECTION)
-    # -------------------------------------------------------------
-    st.markdown('<div id="department-analytics"></div>', unsafe_allow_html=True)
-    st.divider()
-    
-    dept_header_cols = st.columns([5, 1])
-    with dept_header_cols[0]:
-        st.markdown("<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location / Department Wise Dashboard</h3>", unsafe_allow_html=True)
-        st.caption(f"Detailed compliance and operational breakdown per kitchen department for {selected_day_str}.")
-    with dept_header_cols[1]:
-        if st.button("↑ Back to Top", use_container_width=True, key="jump_to_top_btn"):
-            st.markdown('<script>window.location.hash="#top-anchor";</script>', unsafe_allow_html=True)
+        with col2:
+            render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
+            render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
+            render_theme_card(col2, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
 
-    # Department breakdown metrics table & summary
-    dept_data = []
-    for loc_name in UNIT_CATALOG.keys():
-        dept_data.append({
-            "Department / Location": loc_name,
-            "Assigned Units": len(UNIT_CATALOG[loc_name]),
-            "Status": "Active Inspection",
-            "Compliance Tier": "Standard"
-        })
-    
-    st.dataframe(pd.DataFrame(dept_data), use_container_width=True, hide_index=True)
+        with col3:
+            render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
+            render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
+            render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
+
+    # =========================================================
+    # VIEW MODE 2: DEPARTMENT-WISE CARD DASHBOARD
+    # =========================================================
+    else:
+        st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location / Department Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
+        st.caption("Detailed columnar card breakdown per department showing Record 03 and Record 04 status.")
+        st.write("")
+
+        for loc_name, units in UNIT_CATALOG.items():
+            # Calculate metrics for this specific location
+            loc_units_total = len(units)
+            
+            # Record 03 unit matches for this location
+            loc_day_03 = day_03[day_03["Location"] == loc_name] if not day_03.empty and "Location" in day_03.columns else pd.DataFrame()
+            loc_op_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]) if not loc_day_03.empty else 0
+            loc_cl_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]) if not loc_day_03.empty else 0
+
+            # Record 04 matches for this location
+            loc_day_04 = day_04[day_04["Kitchen"] == loc_name] if not day_04.empty and "Kitchen" in day_04.columns else pd.DataFrame()
+            loc_r04_status = "✅ Logged" if not loc_day_04.empty else "⏳ Pending"
+
+            # Render Department Card in columns format
+            st.markdown(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:16px 20px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:10px; margin-bottom:12px;">
+                    <span style="font-weight:700; font-size:1.1rem; color:#0f172a;">📍 {loc_name}</span>
+                    <span style="font-size:0.8rem; background:#e2e8f0; padding:4px 10px; border-radius:12px; font-weight:600; color:#475569;">{loc_units_total} Assigned Units</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            d_col1, d_col2, d_col3, d_col4 = st.columns(4)
+            with d_col1:
+                st.markdown(f"**Department:**<br>`{loc_name}`", unsafe_allow_html=True)
+            with d_col2:
+                st.markdown(f"**Record 03 (Coolroom/Fridge):**<br>🌅 Open: `{loc_op_units}/{loc_units_total}`<br>🌙 Close: `{loc_cl_units}/{loc_units_total}`", unsafe_allow_html=True)
+            with d_col3:
+                st.markdown(f"**Record 04 (Cooking/Reheat):**<br>Status: `{loc_r04_status}`", unsafe_allow_html=True)
+            with d_col4:
+                st.markdown(f"**General Compliance:**<br>🟢 Active & Monitored", unsafe_allow_html=True)
+            st.write("")
 
 else:
     if st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn"):
@@ -487,7 +517,7 @@ else:
         render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
 
 # -------------------------------------------------------------
-# 6. DIAGNOSTIC PANEL
+# 5. DIAGNOSTIC PANEL
 # -------------------------------------------------------------
 st.divider()
 with st.expander("🛠️ Live Form Ingestion & Memory Diagnostic Matrix", expanded=False):
