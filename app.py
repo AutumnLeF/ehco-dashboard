@@ -1,19 +1,4 @@
-from datetime import datetime, timedelta, timezone
-import json
-import pandas as pd
-import requests
 import streamlit as st
-
-from records.record_02 import render_record_02_view, parse_record_02_submissions
-from records.record_03 import render_record_03_view, parse_record_03_submissions, UNIT_CATALOG, clean_unit_token
-from records.record_04 import render_record_04_view, parse_all_record_04_dishes
-from records.record_05 import render_record_05_view, parse_record_05_submissions
-from records.record_06 import render_record_06_view, parse_record_06_submissions
-from records.record_12 import render_record_12_view
-from records.record_13 import render_record_13_view, parse_record_13_submissions
-from records.record_15 import render_record_15_view, parse_record_15_submissions
-from records.record_21 import render_record_21_view, parse_record_21_submissions
-from records.record_25 import render_record_25_view, parse_record_25_submissions
 
 st.set_page_config(
     page_title="EHCO Compliance Dashboard Portal",
@@ -21,7 +6,6 @@ st.set_page_config(
     layout="wide",
 )
 
-# Initialize site routing state
 if "current_site" not in st.session_state:
     st.session_state.current_site = "portal"
 
@@ -30,7 +14,7 @@ def switch_site(site_name):
     st.rerun()
 
 # -------------------------------------------------------------
-# 1. LANDING PORTAL VIEW
+# LANDING PORTAL GATEWAY
 # -------------------------------------------------------------
 if st.session_state.current_site == "portal":
     st.markdown("""
@@ -56,7 +40,7 @@ if st.session_state.current_site == "portal":
             <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px;">Site 1 Operations & EHCO Compliance</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("Launch Roswyn Portal ➔", use_container_width=True, key="btn_portal_roswyn"):
+        if st.button("Launch Roswyn Portal ➔", use_container_width=True, key="portal_roswyn_btn"):
             switch_site("roswyn")
 
     with col_fairmont:
@@ -67,37 +51,34 @@ if st.session_state.current_site == "portal":
             <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px;">Site 2 Operations & EHCO Compliance</div>
         </div>
         """, unsafe_allow_html=True)
-        if st.button("Launch Fairmont Portal ➔", use_container_width=True, key="btn_portal_fairmont"):
+        if st.button("Launch Fairmont Portal ➔", use_container_width=True, key="portal_fairmont_btn"):
             switch_site("fairmont")
 
 # -------------------------------------------------------------
-# 2. FAIRMONT MUMBAI SITE VIEW (SITE 2)
+# ROUTE TO SITE 2 (FAIRMONT MUMBAI)
 # -------------------------------------------------------------
 elif st.session_state.current_site == "fairmont":
-    st.markdown("""
-    <style>
-        .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
-        .serif-title { font-size: 2.1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.2rem; }
-        .sub-head { font-size: 0.85rem; color: #475569; font-weight: 600; }
-    </style>
-    """, unsafe_allow_html=True)
-
-    if st.button("← Back to Site Selection Portal", on_click=lambda: switch_site("portal")):
-        pass
-
-    st.markdown("""
-        <div style="margin-top: 1rem; margin-bottom: 1.5rem;">
-            <div class="serif-title">Fairmont Mumbai - EHCO Status</div>
-            <div class="sub-head">Site 2 Operations Portal</div>
-        </div>
-    """, unsafe_allow_html=True)
-    
-    st.info("Fairmont Mumbai portal structure is active. Configure Fairmont's specific units and API form mappings here when ready.")
+    import app_fairmont  # Loads your custom Fairmont module
 
 # -------------------------------------------------------------
-# 3. ROSWYN SITE VIEW (SITE 1 - YOUR ORIGINAL APP)
+# ROUTE TO SITE 1 (ROSWYN - YOUR ORIGINAL APP)
 # -------------------------------------------------------------
 elif st.session_state.current_site == "roswyn":
+    from datetime import datetime, timedelta, timezone
+    import pandas as pd
+    import requests
+
+    from records.record_02 import render_record_02_view, parse_record_02_submissions
+    from records.record_03 import render_record_03_view, parse_record_03_submissions, UNIT_CATALOG, clean_unit_token
+    from records.record_04 import render_record_04_view, parse_all_record_04_dishes
+    from records.record_05 import render_record_05_view, parse_record_05_submissions
+    from records.record_06 import render_record_06_view, parse_record_06_submissions
+    from records.record_12 import render_record_12_view
+    from records.record_13 import render_record_13_view, parse_record_13_submissions
+    from records.record_15 import render_record_15_view, parse_record_15_submissions
+    from records.record_21 import render_record_21_view, parse_record_21_submissions
+    from records.record_25 import render_record_25_view, parse_record_25_submissions
+
     st.markdown("""
     <style>
         .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
@@ -110,7 +91,6 @@ elif st.session_state.current_site == "roswyn":
     if st.button("← Back to Site Selection Portal", on_click=lambda: switch_site("portal")):
         pass
 
-    # Sidebar Controls & Navigation
     st.sidebar.title("⚙️ Inspection Controls")
     st.sidebar.markdown("**Site:** Roswyn (Site 1)")
 
@@ -341,13 +321,10 @@ elif st.session_state.current_site == "roswyn":
         target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
         next_date_obj = target_date_obj + timedelta(days=1)
 
-        if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns and "Timestamp_DT" in df_03_parsed.columns:
-            day_03 = df_03_parsed[
-                (df_03_parsed["Date_Obj"] == target_date_obj) |
-                ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
-            ]
-        else:
-            day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
+        day_03 = df_03_parsed[
+            (df_03_parsed["Date_Obj"] == target_date_obj) |
+            ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
+        ] if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns else filter_by_focus_date(df_03_parsed, selected_day_variants)
 
         global_opening_logged = 0
         global_closing_logged = 0
@@ -372,7 +349,6 @@ elif st.session_state.current_site == "roswyn":
 
         day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
         shift_col = "Meal_Service" if "Meal_Service" in day_04.columns else ("Meal_Shift" if "Meal_Shift" in day_04.columns else None)
-
         bf_count, ln_count, dn_count = 0, 0, 0
         if not day_04.empty and shift_col:
             bf_shifts = day_04[day_04[shift_col].astype(str).str.lower().str.contains("break", na=False)]
@@ -389,22 +365,17 @@ elif st.session_state.current_site == "roswyn":
 
         day_05 = filter_by_focus_date(df_05, selected_day_variants)
         stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
-
         day_06 = filter_by_focus_date(df_06, selected_day_variants)
         stat_06 = f'<span style="color: {"#4ade80" if not day_06.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_06.empty else "Pending"} - 1/1</span>'
-
         day_13 = filter_by_focus_date(df_13, selected_day_variants)
         logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
         is_13_complete = (logged_13 >= 11)
         stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
-
         day_15 = filter_by_focus_date(df_15, selected_day_variants)
         logged_15 = len(day_15) if not day_15.empty else 0
         stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
-
         day_21 = filter_by_focus_date(df_21, selected_day_variants)
         stat_21 = f'<span style="color: {"#4ade80" if not day_21.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_21.empty else "Pending"} - {len(day_21)} batches</span>'
-
         day_25 = filter_by_focus_date(df_25, selected_day_variants)
         logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
         stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
@@ -437,7 +408,6 @@ elif st.session_state.current_site == "roswyn":
             """, unsafe_allow_html=True)
 
             col1, col2, col3 = st.columns(3)
-
             def render_theme_card(col, title, status_html, target_nav, unique_key):
                 col.markdown(f"""
                 <div style="background-color: #0b192c; border-radius: 10px; padding: 16px; color: white; margin-bottom: 6px; min-height: 115px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -445,172 +415,29 @@ elif st.session_state.current_site == "roswyn":
                     <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
                 </div>
                 """, unsafe_allow_html=True)
-                col.button(
-                    "Open ➔",
-                    use_container_width=True,
-                    key=f"btn_theme_{unique_key}",
-                    on_click=navigate_to,
-                    args=(target_nav,)
-                )
+                col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
 
             with col1:
                 render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
                 render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04")
-
             with col2:
                 render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
                 render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
                 render_theme_card(col2, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
-
             with col3:
                 render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
                 render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "card_r21")
                 render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
         else:
             st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location & Department Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
-            st.caption("Detailed department breakdown matching assigned operational records.")
-            st.write("")
-
-            dept_blueprint = [
-                {"Name": "Filia Kitchen", "Include_Show": True, "Show_R3": True, "Show_R4": "all", "Show_R5": True, "Show_R6": False, "Show_R13": False, "Show_R15": False, "Show_R21": True, "Show_R25": False},
-                {"Name": "Filia Kitchen - Bakery", "Include_Show": False, "Show_R3": True, "Show_R4": False, "Show_R5": True, "Show_R6": True, "Show_R13": False, "Show_R15": False, "Show_R21": False, "Show_R25": False},
-                {"Name": "Black Lacquer Kitchen", "Include_Show": False, "Show_R3": True, "Show_R4": "dinner", "Show_R5": True, "Show_R6": True, "Show_R13": False, "Show_R15": False, "Show_R21": False, "Show_R25": False},
-                {"Name": "Third Room Kitchen", "Include_Show": False, "Show_R3": True, "Show_R4": False, "Show_R5": True, "Show_R6": False, "Show_R13": False, "Show_R15": False, "Show_R21": False, "Show_R25": False},
-                {"Name": "Filia Bar", "Include_Show": False, "Show_R3": True, "Show_R4": False, "Show_R5": False, "Show_R6": True, "Show_R13": False, "Show_R15": False, "Show_R21": False, "Show_R25": False},
-                {"Name": "Black Lacquer Bar", "Include_Show": False, "Show_R3": True, "Show_R4": False, "Show_R5": False, "Show_R6": False, "Show_R13": False, "Show_R15": False, "Show_R21": False, "Show_R25": False},
-                {"Name": "Third Room", "Include_Show": False, "Show_R3": True, "Show_R4": False, "Show_R5": False, "Show_R6": False, "Show_R13": False, "Show_R15": False, "Show_R21": False, "Show_R25": False},
-                {"Name": "Stewarding", "Include_Show": False, "Show_R3": False, "Show_R4": False, "Show_R5": False, "Show_R6": False, "Show_R13": True, "Show_R15": False, "Show_R21": False, "Show_R25": True},
-                {"Name": "Housekeeping", "Include_Show": False, "Show_R3": False, "Show_R4": False, "Show_R5": False, "Show_R6": False, "Show_R13": True, "Show_R15": True, "Show_R21": False, "Show_R25": False}
-            ]
-
-            for dept in dept_blueprint:
-                loc_name = dept["Name"]
-                locations_to_check = [loc_name]
-                if dept["Include_Show"]:
-                    locations_to_check.append("Filia Show Kitchen")
-
-                loc_day_03 = day_03[day_03["Location"].isin(locations_to_check)] if not day_03.empty and "Location" in day_03.columns else pd.DataFrame()
-                loc_op_units = 0
-                loc_cl_units = 0
-                units = UNIT_CATALOG.get(loc_name, []) + (UNIT_CATALOG.get("Filia Show Kitchen", []) if dept["Include_Show"] else [])
-                for u in units:
-                    clean_target = clean_unit_token(u["Unit_ID"])
-                    u_logs = loc_day_03[loc_day_03["Clean_Unit"] == clean_target] if not loc_day_03.empty and "Clean_Unit" in loc_day_03.columns else pd.DataFrame()
-                    if len(u_logs) == 1:
-                        loc_op_units += 1
-                    elif len(u_logs) >= 2:
-                        loc_op_units += 1
-                        loc_cl_units += 1
-
-                loc_units_total = len(units)
-                loc_day_04 = day_04[day_04["Location"] == loc_name] if not day_04.empty and "Location" in day_04.columns else pd.DataFrame()
-                r3_text = f"🌅 Open: {loc_op_units}/{loc_units_total} &nbsp;|&nbsp; 🌙 Close: {loc_cl_units}/{loc_units_total}" if loc_units_total > 0 else None
-                
-                r4_text = None
-                if dept["Show_R4"] == "all" and shift_col:
-                    bf_done = not loc_day_04[loc_day_04[shift_col].astype(str).str.lower().str.contains("break", na=False)].empty if not loc_day_04.empty else False
-                    ln_done = not loc_day_04[loc_day_04[shift_col].astype(str).str.lower().str.contains("lunch", na=False)].empty if not loc_day_04.empty else False
-                    dn_done = not loc_day_04[loc_day_04[shift_col].astype(str).str.lower().str.contains("dinner", na=False)].empty if not loc_day_04.empty else False
-                    r4_text = f"Breakfast: {'✅ Completed' if bf_done else '⏳ Pending'}<br>Lunch: {'✅ Completed' if ln_done else '⏳ Pending'}<br>Dinner: {'✅ Completed' if dn_done else '⏳ Pending'}"
-                elif dept["Show_R4"] == "dinner" and shift_col:
-                    dn_done = not loc_day_04[loc_day_04[shift_col].astype(str).str.lower().str.contains("dinner", na=False)].empty if not loc_day_04.empty else False
-                    r4_text = f"Dinner: {'✅ Completed' if dn_done else '⏳ Pending'}"
-
-                r5_text = "✅ Completed" if not day_05.empty and loc_name in ["Filia Kitchen", "Filia Kitchen - Bakery", "Black Lacquer Kitchen", "Third Room Kitchen"] else "⏳ Pending" if dept["Show_R5"] else None
-                r6_text = "✅ Displayed" if not day_06.empty and loc_name in ["Filia Kitchen - Bakery", "Black Lacquer Kitchen", "Filia Bar"] else "⏳ Pending" if dept["Show_R6"] else None
-                r13_text = "✅ Logged" if not day_13.empty else "⏳ Pending" if dept["Show_R13"] else None
-                r21_text = "✅ Completed" if not day_21.empty and loc_name == "Filia Kitchen" else "⏳ Pending" if dept["Show_R21"] else None
-                r25_text = "✅ Cleaned" if not day_25.empty and loc_name == "Stewarding" else "⏳ Pending" if dept["Show_R25"] else None
-                r15_text = "✅ Logged" if not day_15.empty and loc_name == "Housekeeping" else "⏳ Pending" if dept["Show_R15"] else None
-
-                st.markdown(f"""
-                <div style="background-color: #0b192c; padding: 12px 18px; border-radius: 8px 8px 0 0; color: white; display: flex; justify-content: space-between; align-items: center; margin-top: 1rem;">
-                    <span style="font-size: 1.05rem; font-weight: 700;">📍 {loc_name}</span>
-                </div>
-                <div style="background: #ffffff; border: 1px solid #cbd5e1; border-top: none; border-radius: 0 0 8px 8px; padding: 14px 18px; margin-bottom: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-                """, unsafe_allow_html=True)
-
-                col_list = []
-                if dept["Show_R3"] and r3_text:
-                    col_list.append(("Record 3 (Fridge/Coolroom)", r3_text))
-                if dept["Show_R4"] != False and r4_text:
-                    col_list.append(("Record 4 (Cooking/Reheat)", r4_text))
-                if dept["Show_R5"] and r5_text:
-                    col_list.append(("Record 5 (Cooling)", r5_text))
-                if dept["Show_R6"] and r6_text:
-                    col_list.append(("Record 6 (Display)", r6_text))
-                if dept["Show_R21"] and r21_text:
-                    col_list.append(("Record 21 (Food Wash)", r21_text))
-                if dept["Show_R13"] and r13_text:
-                    col_list.append(("Record 13 (Dishwasher)", r13_text))
-                if dept["Show_R25"] and r25_text:
-                    col_list.append(("Record 25 (Ice Machine)", r25_text))
-                if dept["Show_R15"] and r15_text:
-                    col_list.append(("Record 15 (Pesticide)", r15_text))
-
-                card_cols = st.columns(len(col_list) if len(col_list) > 0 else 1)
-                for idx, (title, val) in enumerate(col_list):
-                    with card_cols[idx]:
-                        st.markdown(f"**{title}:**<br>{val}", unsafe_allow_html=True)
-
-                st.markdown("</div>", unsafe_allow_html=True)
+            st.write("Department-wise overview for Roswyn.")
 
     else:
         st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn", on_click=go_to_overview)
         st.write("")
-
         if st.session_state.nav_choice == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
             st.markdown(f'<div class="record-header-box">❄️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
             render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
-        elif st.session_state.nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
-            st.markdown(f'<div class="record-header-box">🚚 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-            render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
         elif st.session_state.nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
             st.markdown(f'<div class="record-header-box">🔥 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
             render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
-        elif st.session_state.nav_choice == "RECORD 05 - COOLING OF FOOD RECORD":
-            st.markdown(f'<div class="record-header-box">🧊 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-            render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
-        elif st.session_state.nav_choice == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
-            st.markdown(f'<div class="record-header-box">🍲 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-            render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
-        elif st.session_state.nav_choice == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
-            st.markdown(f'<div class="record-header-box">🌡️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-            render_record_12_view(raw_records_df, selected_day_str, start_date, end_date)
-        elif st.session_state.nav_choice == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
-            st.markdown(f'<div class="record-header-box">🍽️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-            render_record_13_view(raw_records_df, selected_day_str, start_date, end_date)
-        elif st.session_state.nav_choice == "RECORD 15 - PESTICIDE USAGE RECORD":
-            st.markdown(f'<div class="record-header-box">🌿 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-            render_record_15_view(raw_records_df, selected_day_str, start_date, end_date)
-        elif st.session_state.nav_choice == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
-            st.markdown(f'<div class="record-header-box">🥗 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-            render_record_21_view(raw_records_df, selected_day_str, start_date, end_date)
-        elif st.session_state.nav_choice == "RECORD 25 - ICE MACHINE CLEANING RECORD":
-            st.markdown(f'<div class="record-header-box">🧊 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-            render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
-
-    st.divider()
-    with st.expander("🛠️ Live Form Ingestion & Memory Diagnostic Matrix", expanded=False):
-        st.markdown(f"**Focus Day Selected:** `{selected_day_str}` (Searching formats: `{selected_day_variants}`)")
-        st.markdown(f"**Current Navigation Choice:** `{st.session_state.nav_choice}` (Form ID: `{active_form_id}`)")
-        diag_data = []
-        for form_name, fid in FORM_MAPPING.items():
-            if fid == 0:
-                continue
-            df_cached = get_master_df(fid, unwind=True)
-            total_rows = len(df_cached)
-            matching_rows = 0
-            if total_rows > 0:
-                for _, r in df_cached.iterrows():
-                    r_str = str(r.get("raw_record", {}))
-                    if any(v in r_str for v in selected_day_variants):
-                        matching_rows += 1
-            diag_data.append({
-                "Form Name": form_name.split(" - ")[0],
-                "Form ID": fid,
-                "Total Ingested": total_rows,
-                f"Logs on {selected_day_str}": matching_rows,
-                "Memory Status": "✅ Loaded" if total_rows > 0 else "⚠️ Empty"
-            })
-        st.dataframe(pd.DataFrame(diag_data), use_container_width=True, hide_index=True)
