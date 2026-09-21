@@ -37,7 +37,7 @@ def clean_str(val):
 
 def parse_record_25_submissions(raw_df):
     """Parses Record 25 Ice Machine cleaning submissions targeting the exact schema."""
-    if raw_df.empty:
+    if raw_df is None or raw_df.empty:
         return pd.DataFrame()
 
     flat_master = []
@@ -47,10 +47,12 @@ def parse_record_25_submissions(raw_df):
 
     rows = []
     for _, record in raw_df.iterrows():
-        rec = record.to_dict()
-        sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else {}
+        rec = record.get("raw_record") if "raw_record" in raw_df.columns else record.to_dict()
+        if not isinstance(rec, dict):
+            rec = record.to_dict()
 
-        # 1. Date: targeting "date" (lowercase) from JSON
+        sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
+
         raw_date = (
             sub.get("date")
             or rec.get("submission.date")
@@ -66,14 +68,16 @@ def parse_record_25_submissions(raw_df):
             parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
 
         if pd.notna(parsed_dt):
-            date_str = parsed_dt.strftime("%d/%m/%Y")
-            date_obj = parsed_dt.date()
+            if parsed_dt.tzinfo is None:
+                parsed_dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
+            else:
+                parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
+            date_str = parsed_dt_ist.strftime("%d/%m/%Y")
+            date_obj = parsed_dt_ist.date()
         else:
             date_str = str(raw_date)[:10]
             date_obj = None
 
-        # 2. Location & Unit ID:
-        # In JSON: "Ice_Machine_Location": "Third Room Kitchen", "location": "RMO/TRK/IM/01"
         kitchen_location = str(
             sub.get("Ice_Machine_Location")
             or rec.get("submission.Ice_Machine_Location")
@@ -104,7 +108,6 @@ def parse_record_25_submissions(raw_df):
 
         final_unit = matched_id if matched_id else str(raw_unit).strip()
 
-        # 3. Status: "USE": "IN USE"
         status_raw = str(
             sub.get("USE")
             or rec.get("submission.USE")
@@ -114,7 +117,6 @@ def parse_record_25_submissions(raw_df):
         ).strip().upper()
         is_in_use = "NOT" not in status_raw
 
-        # 4. Sign: "sign": "Sunil kamble"
         sign = (
             sub.get("sign")
             or rec.get("submission.sign")
@@ -135,12 +137,20 @@ def parse_record_25_submissions(raw_df):
             "Sign": str(sign).strip(),
         })
 
-    return pd.DataFrame(rows)
+    df_out = pd.DataFrame(rows)
+    if not df_out.empty:
+        df_out = df_out.drop_duplicates(subset=["Date_Str", "Location", "Unit_ID"], keep="first")
+    return df_out
 
 
 def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
-    """Renders Record 25 daily audit and 7-day grouped cleaning matrix."""
     df_items = parse_record_25_submissions(raw_df)
+
+    with st.expander("🔍 Record 25 Diagnostic (Inspect loaded data)"):
+        st.write(f"Total parsed ice machine records: **{len(df_items)}**")
+        if not df_items.empty and "Date_Obj" in df_items.columns:
+            date_counts = df_items["Date_Obj"].dropna().value_counts().sort_index(ascending=False).to_dict()
+            st.write("Records per date found:", {str(k): v for k, v in date_counts.items()})
 
     if not df_items.empty and "Date_Obj" in df_items.columns and df_items["Date_Obj"].notna().any():
         range_df = df_items[
@@ -151,13 +161,10 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
         range_df = df_items.copy()
 
     tab_day, tab_matrix = st.tabs([
-        f"📅 Daily Cleaning Audit ({selected_day_str})",
-        "📈 7-Day Grouped Location Matrix",
+        f"Today - {selected_day_str}",
+        "Weekly",
     ])
 
-    # -------------------------------------------------------------
-    # TAB 1: DAILY DRILLDOWN
-    # -------------------------------------------------------------
     with tab_day:
         day_df = (
             range_df[range_df["Date_Str"] == selected_day_str]
@@ -165,81 +172,91 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
             else pd.DataFrame()
         )
 
-        cleaned_units = []
-        inactive_units = []
+        cleaned_count = 0
+        inactive_count = 0
+        pending_count = 0
 
-        if not day_df.empty:
-            for _, r in day_df.iterrows():
-                if not r["In_Use"]:
-                    inactive_units.append(r.to_dict())
+        location_parsed_data = {}
+
+        for loc_name, units in ICE_MACHINE_CATALOG.items():
+            loc_day_df = day_df[day_df["Location"].str.lower() == loc_name.lower()] if not day_df.empty else pd.DataFrame()
+            loc_pending = []
+            loc_cleaned = []
+
+            for u in units:
+                u_id = u["Unit_ID"]
+                u_name = u["Name"]
+                u_token = clean_str(u_id)
+
+                u_logs = pd.DataFrame()
+                if not loc_day_df.empty and "Clean_Unit" in loc_day_df.columns:
+                    u_logs = loc_day_df[loc_day_df["Clean_Unit"] == u_token]
+
+                if u_logs.empty:
+                    pending_count += 1
+                    loc_pending.append({"Unit_ID": u_id, "Name": u_name})
                 else:
-                    cleaned_units.append(r.to_dict())
+                    latest = u_logs.iloc[-1]
+                    if not latest["In_Use"]:
+                        inactive_count += 1
+                    else:
+                        cleaned_count += 1
+                        loc_cleaned.append({"Unit_ID": u_id, "Name": u_name, "Log": latest})
+
+            location_parsed_data[loc_name] = {
+                "Pending": loc_pending,
+                "Cleaned": loc_cleaned
+            }
 
         k1, k2, k3 = st.columns(3)
         with k1:
-            st.markdown(
-                f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{len(cleaned_units)}</div><div class="kpi-lbl">Cleaned & In Use</div></div>',
-                unsafe_allow_html=True,
-            )
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{cleaned_count}</div><div class="kpi-lbl">Cleaned & In Use</div></div>', unsafe_allow_html=True)
         with k2:
-            st.markdown(
-                f'<div class="kpi-box"><div class="kpi-num" style="color:#64748b;">{len(inactive_units)}</div><div class="kpi-lbl">Standby / Not In Use</div></div>',
-                unsafe_allow_html=True,
-            )
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#d97706;">{pending_count}</div><div class="kpi-lbl">Pending / Unlogged Units</div></div>', unsafe_allow_html=True)
         with k3:
-            st.markdown(
-                f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Audited</div></div>',
-                unsafe_allow_html=True,
-            )
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Audited</div></div>', unsafe_allow_html=True)
 
         st.write("")
+        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🧊 Ice Machine Cleaning Summary ({selected_day_str})</h4>", unsafe_allow_html=True)
 
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown(
-                f'<div class="kanban-col"><div class="kanban-h" style="color:#16a34a;">🟢 Cleaned & Verified ({len(cleaned_units)})</div>',
-                unsafe_allow_html=True,
-            )
-            if cleaned_units:
-                for ok in cleaned_units:
-                    st.markdown(
-                        f"""
-                    <div class="check-card" style="border-left: 5px solid #16a34a;">
-                        <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{ok['Unit_ID']} • {ok['Location']}</div>
-                        <div style="font-size:0.8rem; color:#16a34a; font-weight:600; margin-top:3px;">
-                            ✓ Cleaned (In Use)
-                        </div>
-                        <div style="font-size:0.75rem; color:#64748b; margin-top:2px;">Initial: <b>{ok['Sign']}</b></div>
-                    </div>""",
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.caption("No active cleaning logs for this date.")
-            st.markdown("</div>", unsafe_allow_html=True)
+        # 2-Side Layout: Left = Pending, Right = Cleaned
+        col_left, col_right = st.columns(2)
 
-        with c2:
-            st.markdown(
-                f'<div class="kanban-col"><div class="kanban-h" style="color:#64748b;">⚪ Standby / Not In Use ({len(inactive_units)})</div>',
-                unsafe_allow_html=True,
-            )
-            if inactive_units:
-                for off in inactive_units:
-                    st.markdown(
-                        f"""
-                    <div class="check-card" style="border-left: 5px solid #94a3b8;">
-                        <div style="font-weight:700; font-size:0.9rem; color:#0f172a;">{off['Unit_ID']} • {off['Location']}</div>
-                        <div style="font-size:0.8rem; color:#64748b; margin-top:3px;">Status: <b>NOT IN USE</b></div>
-                        <div style="font-size:0.75rem; color:#94a3b8; margin-top:2px;">Sign: {off['Sign']}</div>
-                    </div>""",
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.caption("No standby units logged for this date.")
-            st.markdown("</div>", unsafe_allow_html=True)
+        with col_left:
+            st.markdown('<div style="background:#fffbeb; border:1px solid #fde68a; border-left:5px solid #d97706; padding:10px 14px; border-radius:6px; margin-bottom:12px;"><b style="color:#b45309; font-size:0.98rem;">⏳ Pending Ice Machines by Area</b></div>', unsafe_allow_html=True)
+            
+            has_pending = False
+            for loc_name, data in location_parsed_data.items():
+                p_units = data["Pending"]
+                if p_units:
+                    has_pending = True
+                    units_html = ""
+                    for p in p_units:
+                        units_html += f'<div style="background:#f8fafc; border-left:3px solid #d97706; padding:6px 10px; border-radius:4px; margin-bottom:6px;"><div style="font-size:0.82rem; color:#0f172a; font-weight:700;">🧊 {p["Unit_ID"]} <span style="font-weight:normal; color:#64748b; font-size:0.72rem;">({p["Name"]})</span><span style="color:#d97706; font-weight:700; float:right;">Pending</span></div><div style="font-size:0.7rem; color:#b45309; margin-top:2px;">No cleaning log submitted today</div></div>'
+                    
+                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #0f172a; border-radius:6px; padding:10px 14px; margin-bottom:12px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a; margin-bottom:8px;">📍 {loc_name} <span style="font-size:0.7rem; color:#b45309;">({len(p_units)} pending)</span></div>{units_html}</div>', unsafe_allow_html=True)
 
-    # -------------------------------------------------------------
-    # TAB 2: LOCATION-GROUPED 7-DAY MATRIX
-    # -------------------------------------------------------------
+            if not has_pending:
+                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; padding:12px; border-radius:6px; color:#16a34a; font-size:0.85rem; text-align:center;">All ice machines across all areas have been cleaned and logged!</div>', unsafe_allow_html=True)
+
+        with col_right:
+            st.markdown('<div style="background:#f0fdf4; border:1px solid #bbf7d0; border-left:5px solid #16a34a; padding:10px 14px; border-radius:6px; margin-bottom:12px;"><b style="color:#15803d; font-size:0.98rem;">🟢 Cleaned Units by Area</b></div>', unsafe_allow_html=True)
+            
+            has_cleaned = False
+            for loc_name, data in location_parsed_data.items():
+                c_units = data["Cleaned"]
+                if c_units:
+                    has_cleaned = True
+                    units_html = ""
+                    for c in c_units:
+                        log = c["Log"]
+                        units_html += f'<div style="background:#f8fafc; border-left:3px solid #16a34a; padding:6px 10px; border-radius:4px; margin-bottom:6px;"><div style="font-size:0.82rem; color:#0f172a; font-weight:700;">🧊 {c["Unit_ID"]} <span style="font-weight:normal; color:#64748b; font-size:0.72rem;">({c["Name"]})</span><span style="color:#16a34a; font-weight:700; float:right;">✓ Cleaned</span></div><div style="font-size:0.72rem; color:#15803d; margin-top:2px;">Status: In Use | Sign: {log["Sign"]}</div></div>'
+                    
+                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #0f172a; border-radius:6px; padding:10px 14px; margin-bottom:12px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a; margin-bottom:8px;">📍 {loc_name} <span style="font-size:0.7rem; color:#15803d;">({len(c_units)} cleaned)</span></div>{units_html}</div>', unsafe_allow_html=True)
+
+            if not has_cleaned:
+                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; padding:12px; border-radius:6px; color:#64748b; font-size:0.85rem; text-align:center;">No cleaning logs recorded for today.</div>', unsafe_allow_html=True)
+
     with tab_matrix:
         total_days = (end_date - start_date).days + 1
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
@@ -284,15 +301,9 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
 
-        # Area Quick Filter Pills
         filter_options = ["All Areas"] + list(ICE_MACHINE_CATALOG.keys())
         selected_filter = (
-            st.segmented_control(
-                "Filter Ice Machine Area",
-                options=filter_options,
-                default="All Areas",
-                label_visibility="collapsed",
-            )
+            st.selectbox("📍 Filter Ice Machine Area:", options=filter_options)
             or "All Areas"
         )
 
@@ -380,7 +391,7 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
                         row_cols[i + 1].markdown(
                             """
                         <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:105px; display:flex; align-items:center; justify-content:center;">
-                            <span style="color:#94a3b8; font-weight:600; font-size:0.8rem;">— Not Logged</span>
+                            <span style="color:#b45309; font-weight:600; font-size:0.8rem;">⏳ Pending</span>
                         </div>
                         """,
                             unsafe_allow_html=True,
