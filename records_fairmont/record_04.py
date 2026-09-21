@@ -264,7 +264,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             "Sign": r["Sign"],
         })
 
-    # KPI Panel
     k1, k2, k3, k4 = st.columns(4)
     with k1:
       st.markdown(
@@ -415,7 +414,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         st.markdown(
             f'<div style="background:#0f172a; color:#ffffff; padding:12px'
             ' 16px; border-radius:8px; margin-top:1.5rem;'
-            ' margin-bottom:1rem; font-weight:700; font-size:1.05rem;">📍'
+            ' margin-bottom:1.0rem; font-weight:700; font-size:1.05rem;">📍'
             f" {selected_matrix_kitchen} — Shift Compliance Breakdown</div>",
             unsafe_allow_html=True,
         )
