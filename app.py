@@ -220,7 +220,6 @@ def get_master_df(form_id):
         st.session_state["master_data_cache"][form_id] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
     return st.session_state["master_data_cache"][form_id]
 
-# Pre-load or fetch active raw records df for current view
 raw_records_df = get_master_df(active_form_id) if active_form_id != 0 else pd.DataFrame()
 
 # -------------------------------------------------------------
@@ -234,7 +233,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         </div>
     """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
-    # Centralized data ingestion & parsing for overview cards
     df_03_parsed = parse_record_03_submissions(get_master_df(31373))
     df_04_parsed = parse_all_record_04_dishes(get_master_df(31374))
     df_05 = parse_record_05_submissions(get_master_df(31375))
@@ -323,6 +321,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         """, unsafe_allow_html=True)
         if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
             st.session_state.nav_choice = target_nav
+            st.session_state["main_record_selector"] = target_nav
             st.rerun()
 
     with col1:
@@ -339,45 +338,53 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
         render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
-elif st.session_state.nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
-    st.markdown(f'<div class="record-header-box">🚚 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-    render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
+else:
+    # Back to Overview Button for all drill-down pages
+    if st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn"):
+        st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
+        st.session_state["main_record_selector"] = "🏠 Roswyn - EHCO Status Overview"
+        st.rerun()
+    st.write("")
 
-elif st.session_state.nav_choice == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
-    st.markdown(f'<div class="record-header-box">❄️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-    render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
+    if st.session_state.nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
+        st.markdown(f'<div class="record-header-box">🚚 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif st.session_state.nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
-    st.markdown(f'<div class="record-header-box">🔥 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-    render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
+        st.markdown(f'<div class="record-header-box">❄️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif st.session_state.nav_choice == "RECORD 05 - COOLING OF FOOD RECORD":
-    st.markdown(f'<div class="record-header-box">🧊 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-    render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
+        st.markdown(f'<div class="record-header-box">🔥 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif st.session_state.nav_choice == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
-    st.markdown(f'<div class="record-header-box">🍲 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-    render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 05 - COOLING OF FOOD RECORD":
+        st.markdown(f'<div class="record-header-box">🧊 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif st.session_state.nav_choice == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
-    st.markdown(f'<div class="record-header-box">🌡️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-    render_record_12_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
+        st.markdown(f'<div class="record-header-box">🍲 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif st.session_state.nav_choice == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
-    st.markdown(f'<div class="record-header-box">🍽️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-    render_record_13_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
+        st.markdown(f'<div class="record-header-box">🌡️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_12_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif st.session_state.nav_choice == "RECORD 15 - PESTICIDE USAGE RECORD":
-    st.markdown(f'<div class="record-header-box">🌿 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-    render_record_15_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
+        st.markdown(f'<div class="record-header-box">🍽️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_13_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif st.session_state.nav_choice == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
-    st.markdown(f'<div class="record-header-box">🥗 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-    render_record_21_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 15 - PESTICIDE USAGE RECORD":
+        st.markdown(f'<div class="record-header-box">🌿 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_15_view(raw_records_df, selected_day_str, start_date, end_date)
 
-elif st.session_state.nav_choice == "RECORD 25 - ICE MACHINE CLEANING RECORD":
-    st.markdown(f'<div class="record-header-box">🧊 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-    render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
+        st.markdown(f'<div class="record-header-box">🥗 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_21_view(raw_records_df, selected_day_str, start_date, end_date)
+
+    elif st.session_state.nav_choice == "RECORD 25 - ICE MACHINE CLEANING RECORD":
+        st.markdown(f'<div class="record-header-box">🧊 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
 
 # -------------------------------------------------------------
 # 6. DIAGNOSTIC PANEL
