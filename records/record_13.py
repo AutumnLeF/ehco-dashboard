@@ -200,63 +200,92 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
             else pd.DataFrame()
         )
 
-        excursions = []
-        verified_units = []
-        inactive_units = []
+        total_catalog_units = sum(len(units) for units in LOCATION_CATALOG.values())
+        logged_unit_ids = day_df["Unit_ID"].dropna().unique() if not day_df.empty else []
+        
+        excursions_count = 0
+        compliant_count = 0
+        inactive_count = 0
+        pending_count = 0
 
-        if not day_df.empty:
-            for _, r in day_df.iterrows():
-                if not r["In_Use"]:
-                    inactive_units.append(r.to_dict())
-                elif r["Has_Breach"]:
-                    excursions.append(r.to_dict())
+        # Calculate metrics across master catalog
+        for loc_name, units in LOCATION_CATALOG.items():
+            loc_day_df = day_df[day_df["Location"].str.lower() == loc_name.lower()] if not day_df.empty else pd.DataFrame()
+            for u in units:
+                u_id = u["Unit_ID"]
+                u_logs = loc_day_df[loc_day_df["Unit_ID"] == u_id] if not loc_day_df.empty else pd.DataFrame()
+                if u_logs.empty:
+                    pending_count += 1
                 else:
-                    verified_units.append(r.to_dict())
+                    latest = u_logs.iloc[-1]
+                    if not latest["In_Use"]:
+                        inactive_count += 1
+                    elif latest["Has_Breach"]:
+                        excursions_count += 1
+                    else:
+                        compliant_count += 1
 
         k1, k2, k3, k4 = st.columns(4)
         with k1:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div><div class="kpi-lbl">Sanitization Breaches</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{excursions_count}</div><div class="kpi-lbl">Sanitization Breaches</div></div>', unsafe_allow_html=True)
         with k2:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{len(verified_units)}</div><div class="kpi-lbl">Verified Compliant</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{compliant_count}</div><div class="kpi-lbl">Verified Compliant</div></div>', unsafe_allow_html=True)
         with k3:
-            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#64748b;">{len(inactive_units)}</div><div class="kpi-lbl">Units Not In Use</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#d97706;">{pending_count}</div><div class="kpi-lbl">Pending / Unlogged Units</div></div>', unsafe_allow_html=True)
         with k4:
             st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Audited</div></div>', unsafe_allow_html=True)
 
         st.write("")
-        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🍽️ Warewash Unit Audit Cards ({selected_day_str})</h4>", unsafe_allow_html=True)
+        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Location-wise Unit Audit Summary ({selected_day_str})</h4>", unsafe_allow_html=True)
 
-        c1, c2, c3 = st.columns(3)
-        with c1:
-            st.markdown('<div style="font-weight:700; color:#dc2626; margin-bottom:8px;">🔴 Temperature Breaches</div>', unsafe_allow_html=True)
-            if excursions:
-                for exc in excursions:
-                    errs = []
-                    if exc["Wash_Breach"]:
-                        errs.append(f"Wash: {exc['Wash_Temp']}°C (< 55°C)")
-                    if exc["Rinse_Breach"]:
-                        errs.append(f"Rinse: {exc['Rinse_Temp']}°C (< 82°C)")
-                    st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">⚙️ {exc["Unit_ID"]} • {exc["Location"]}</div><div style="font-size:0.85rem; color:#dc2626; font-weight:700; margin-top:4px;">{" | ".join(errs)}</div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Signed: {exc["Sign"]}</div></div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">All active units met sanitization thresholds.</div>', unsafe_allow_html=True)
+        # Render grouped location cards with their units
+        loc_cols = st.columns(2)
+        for idx, (loc_name, units) in enumerate(LOCATION_CATALOG.items()):
+            col_target = loc_cols[idx % 2]
+            loc_day_df = day_df[day_df["Location"].str.lower() == loc_name.lower()] if not day_df.empty else pd.DataFrame()
 
-        with c2:
-            st.markdown('<div style="font-weight:700; color:#16a34a; margin-bottom:8px;">🟢 Verified Compliant</div>', unsafe_allow_html=True)
-            if verified_units:
-                for ok in verified_units:
-                    w_disp = f"{int(ok['Wash_Temp'])}°C" if pd.notna(ok['Wash_Temp']) else "—"
-                    r_disp = f"{int(ok['Rinse_Temp'])}°C" if pd.notna(ok['Rinse_Temp']) else "—"
-                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">⚙️ {ok["Unit_ID"]}</div><div style="font-size:0.85rem; color:#334155; margin-top:4px;">Wash: <b>{w_disp}</b> | Rinse: <b style="color:#16a34a;">{r_disp}</b></div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Area: {ok["Location"]} | Signed: {ok["Sign"]}</div></div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">No verified wash cycles recorded for this day.</div>', unsafe_allow_html=True)
+            units_html = ""
+            for u in units:
+                u_id = u["Unit_ID"]
+                u_type = u["Type"]
+                u_logs = loc_day_df[loc_day_df["Unit_ID"] == u_id] if not loc_day_df.empty else pd.DataFrame()
 
-        with c3:
-            st.markdown('<div style="font-weight:700; color:#64748b; margin-bottom:8px;">⚪ Standby / Inactive</div>', unsafe_allow_html=True)
-            if inactive_units:
-                for off in inactive_units:
-                    st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #94a3b8; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">⚙️ {off["Unit_ID"]} • {off["Location"]}</div><div style="font-size:0.85rem; color:#64748b; margin-top:4px;">Logged: <b>NOT IN USE</b></div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Signed: {off["Sign"]}</div></div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">No machines logged as inactive.</div>', unsafe_allow_html=True)
+                if u_logs.empty:
+                    badge = "<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending</span>"
+                    detail = "<div style='font-size:0.72rem; color:#b45309; margin-top:2px;'>No log submitted today</div>"
+                    border_c = "#d97706"
+                else:
+                    latest = u_logs.iloc[-1]
+                    if not latest["In_Use"]:
+                        badge = "<span style='color:#64748b; font-weight:700; float:right;'>STANDBY</span>"
+                        detail = "<div style='font-size:0.72rem; color:#64748b; margin-top:2px;'>Logged: Not In Use</div>"
+                        border_c = "#94a3b8"
+                    elif latest["Has_Breach"]:
+                        badge = "<span style='color:#dc2626; font-weight:700; float:right;'>🔴 BREACH</span>"
+                        detail = f"<div style='font-size:0.72rem; color:#dc2626; margin-top:2px; font-weight:700;'>Wash: {latest['Wash_Temp']}°C | Rinse: {latest['Rinse_Temp']}°C</div>"
+                        border_c = "#dc2626"
+                    else:
+                        badge = "<span style='color:#16a34a; font-weight:700; float:right;'>✓ Compliant</span>"
+                        detail = f"<div style='font-size:0.72rem; color:#15803d; margin-top:2px;'>Wash: {latest['Wash_Temp']}°C | Rinse: {latest['Rinse_Temp']}°C</div>"
+                        border_c = "#16a34a"
+
+                units_html += f"""
+                <div style="background:#f8fafc; border-left:3px solid {border_c}; padding:8px 10px; border-radius:4px; margin-bottom:8px;">
+                    <div style="font-size:0.85rem; color:#0f172a; font-weight:700;">
+                        ⚙️ {u_id} <span style="font-weight:normal; color:#64748b; font-size:0.75rem;">({u_type})</span> {badge}
+                    </div>
+                    {detail}
+                </div>
+                """
+
+            col_target.markdown(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+                <div style="font-weight:700; font-size:1rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:10px;">
+                    📍 {loc_name} <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">({len(units)} Units)</span>
+                </div>
+                {units_html}
+            </div>
+            """, unsafe_allow_html=True)
 
     with tab_matrix:
         total_days = (end_date - start_date).days + 1
@@ -359,7 +388,7 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
                     if matches.empty:
                         row_cols[i + 1].markdown("""
                         <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:105px; display:flex; align-items:center; justify-content:center;">
-                            <span style="color:#94a3b8; font-weight:600; font-size:0.8rem;">— Not Logged</span>
+                            <span style="color:#b45309; font-weight:600; font-size:0.8rem;">⏳ Pending</span>
                         </div>
                         """, unsafe_allow_html=True)
                     else:
