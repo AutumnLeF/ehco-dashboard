@@ -318,49 +318,31 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             op_count = len(opening_logged)
             cl_count = len(closing_logged)
 
-            # Segment 1: Opening Pending list
-            pending_op_html = ""
-            if pending_opening:
-                items_str = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:8px; margin-top:2px;'>• {item}</div>" for item in pending_opening])
-                pending_op_html = f"<div style='margin-top:4px; margin-bottom:8px;'>{items_str}</div>"
+            pending_op_html = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:8px; margin-top:2px;'>• {item}</div>" for item in pending_opening]) if pending_opening else "<div style='font-size:0.75rem; color:#16a34a; margin-top:2px; margin-left:8px;'>• All units logged for opening.</div>"
+            
+            pending_cl_html = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:8px; margin-top:2px;'>• {item}</div>" for item in pending_closing]) if pending_closing else "<div style='font-size:0.75rem; color:#16a34a; margin-top:2px; margin-left:8px;'>• All units logged for closing.</div>"
 
-            # Segment 2: Closing Pending list
-            pending_cl_html = ""
-            if pending_closing:
-                items_str = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:8px; margin-top:2px;'>• {item}</div>" for item in pending_closing])
-                pending_cl_html = f"<div style='margin-top:4px; margin-bottom:8px;'>{items_str}</div>"
-
-            # Segment 3: Breaches / Status badge
             breach_badge = f"<span style='color:#dc2626; font-weight:700; font-size:0.75rem; float:right;'>🔴 {loc_breaches} Breach(es)</span>" if loc_breaches > 0 else f"<span style='color:#16a34a; font-weight:700; font-size:0.75rem; float:right;'>🟢 Fully Compliant</span>"
 
             col_target.markdown(f"""
-            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                <!-- Header Segment -->
-                <div style="font-weight:700; font-size:1rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:10px;">
-                    📍 {loc_name} 
-                    <span style="font-size:0.75rem; color:#64748b; font-weight:normal; margin-left:6px;">({total_u} Units)</span>
-                    {breach_badge}
-                </div>
-
-                <!-- Segment 1: Opening Shift -->
-                <div style="background:#f8fafc; border-left:3px solid #16a34a; padding:8px 10px; border-radius:4px; margin-bottom:8px;">
-                    <div style="font-size:0.85rem; color:#15803d; font-weight:700; display:flex; justify-content:space-between;">
-                        <span>🌅 Opening Shift</span>
-                        <span>{op_count}/{total_u} Logged</span>
-                    </div>
-                    {pending_op_html if pending_opening else "<div style='font-size:0.75rem; color:#16a34a; margin-top:2px; margin-left:8px;'>• All units logged for opening.</div>"}
-                </div>
-
-                <!-- Segment 2: Closing Shift -->
-                <div style="background:#f8fafc; border-left:3px solid #0284c7; padding:8px 10px; border-radius:4px; margin-bottom:4px;">
-                    <div style="font-size:0.85rem; color:#0369a1; font-weight:700; display:flex; justify-content:space-between;">
-                        <span>🌙 Closing Shift</span>
-                        <span>{cl_count}/{total_u} Logged</span>
-                    </div>
-                    {pending_cl_html if pending_closing else "<div style='font-size:0.75rem; color:#16a34a; margin-top:2px; margin-left:8px;'>• All units logged for closing.</div>"}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+<div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+    <div style="font-weight:700; font-size:1rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:10px;">
+        📍 {loc_name} <span style="font-size:0.75rem; color:#64748b; font-weight:normal; margin-left:6px;">({total_u} Units)</span> {breach_badge}
+    </div>
+    <div style="background:#f8fafc; border-left:3px solid #16a34a; padding:8px 10px; border-radius:4px; margin-bottom:8px;">
+        <div style="font-size:0.85rem; color:#15803d; font-weight:700; display:flex; justify-content:space-between;">
+            <span>🌅 Opening Shift</span><span>{op_count}/{total_u} Logged</span>
+        </div>
+        <div style="margin-top:4px;">{pending_op_html}</div>
+    </div>
+    <div style="background:#f8fafc; border-left:3px solid #0284c7; padding:8px 10px; border-radius:4px; margin-bottom:4px;">
+        <div style="font-size:0.85rem; color:#0369a1; font-weight:700; display:flex; justify-content:space-between;">
+            <span>🌙 Closing Shift</span><span>{cl_count}/{total_u} Logged</span>
+        </div>
+        <div style="margin-top:4px;">{pending_cl_html}</div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
     with tab_matrix:
         total_days = max(1, (end_date - start_date).days + 1)
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
