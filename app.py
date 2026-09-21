@@ -5,7 +5,7 @@ import requests
 import streamlit as st
 
 from records.record_02 import render_record_02_view, parse_record_02_submissions
-from records.record_03 import render_record_03_view, parse_record_03_submissions
+from records.record_03 import render_record_03_view, parse_record_03_submissions, UNIT_CATALOG, clean_unit_token
 from records.record_04 import render_record_04_view, parse_all_record_04_dishes
 from records.record_05 import render_record_05_view, parse_record_05_submissions
 from records.record_06 import render_record_06_view, parse_record_06_submissions
@@ -108,7 +108,7 @@ def get_date_variants(d_str):
 
 selected_day_variants = get_date_variants(selected_day_str)
 
-DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
+DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOijjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
 
 if "auth_token" not in st.session_state:
     st.session_state["auth_token"] = DEFAULT_TOKEN.strip()
@@ -273,33 +273,48 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
 
-    # Robust Record 03 Evaluation directly reading from raw records & parsed output
-    op_units = 0
-    cl_units = 0
+    # Calculate Record 03 Unit Counter exactly matching render_record_03_view logic
+    target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
+    next_date_obj = target_date_obj + timedelta(days=1)
+
     if not df_03_parsed.empty:
-        day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
-        if not day_03.empty and "Shift" in day_03.columns:
-            op_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]
-            cl_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]
-            op_units = len(op_df)
-            cl_units = len(cl_df)
-    
-    # Fallback direct scan on raw_03 if parsed output is empty for the date string
-    if op_units == 0 and cl_units == 0 and not raw_03.empty:
-        for _, row in raw_03.iterrows():
-            rec = row.get("raw_record", {})
-            r_str = json.dumps(rec).lower()
-            if any(v in r_str for v in selected_day_variants):
-                if "open" in r_str:
-                    op_units = max(op_units, 19) # Matches your active sample count
-                if "clos" in r_str:
-                    cl_units = max(cl_units, 0)
+        day_03 = df_03_parsed[
+            (df_03_parsed["Date_Obj"] == target_date_obj) |
+            ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
+        ]
+    else:
+        day_03 = pd.DataFrame()
 
-    stat_03_op_str = f"Completed - {op_units}/35" if op_units > 0 else "Pending - 0/35"
-    stat_03_cl_str = f"Completed - {cl_units}/35" if cl_units > 0 else "Pending - 0/35"
-    html_03 = f'Opening: <span style="color: {"#4ade80" if op_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
+    global_opening_logged = 0
+    global_closing_logged = 0
+    global_total_units = 0
 
-    # Robust Record 04 Evaluation matching individual view logic
+    for loc_name, units in UNIT_CATALOG.items():
+        total_u = len(units)
+        global_total_units += total_u
+        opening_logged = []
+        closing_logged = []
+
+        for u in units:
+            u_id = u["Unit_ID"]
+            clean_target = clean_unit_token(u_id)
+            unit_logs = day_03[day_03["Clean_Unit"] == clean_target] if not day_03.empty else pd.DataFrame()
+            n_logs = len(unit_logs)
+
+            if n_logs == 1:
+                opening_logged.append(u_id)
+                global_opening_logged += 1
+            elif n_logs >= 2:
+                opening_logged.append(u_id)
+                closing_logged.append(u_id)
+                global_opening_logged += 1
+                global_closing_logged += 1
+
+    stat_03_op_str = f"Completed - {global_opening_logged}/{global_total_units}" if global_opening_logged > 0 else f"Pending - 0/{global_total_units}"
+    stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if global_closing_logged > 0 else f"Pending - 0/{global_total_units}"
+    html_03 = f'Opening: <span style="color: {"#4ade80" if global_opening_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if global_closing_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
+
+    # Evaluate Record 04 status matching individual view logic (Breakfast, Lunch, Dinner shifts)
     day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
     bf_count, ln_count, dn_count = 0, 0, 0
     if not day_04.empty and "Meal_Shift" in day_04.columns:
@@ -309,16 +324,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         bf_count = 1 if not bf_shifts.empty else 0
         ln_count = 1 if not ln_shifts.empty else 0
         dn_count = dn_shifts["Kitchen"].nunique() if ("Kitchen" in dn_shifts.columns and not dn_shifts.empty) else 0
-
-    if bf_count == 0 and ln_count == 0 and not raw_04.empty:
-        for _, row in raw_04.iterrows():
-            rec = row.get("raw_record", {})
-            r_str = json.dumps(rec).lower()
-            if any(v in r_str for v in selected_day_variants):
-                if "break" in r_str or "boiled chicken" in r_str:
-                    bf_count = 1
-                if "lunch" in r_str or "calamarata" in r_str:
-                    ln_count = 1
 
     stat_04_bf_str = f"Completed - {bf_count}/1" if bf_count > 0 else "Pending - 0/1"
     stat_04_ln_str = f"Completed - {ln_count}/1" if ln_count > 0 else "Pending - 0/1"
@@ -353,7 +358,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
 
     completed_cats = sum([
-        1 if op_units > 0 else 0,
+        1 if global_opening_logged > 0 else 0,
         1 if bf_count > 0 else 0,
         1 if not day_05.empty else 0,
         1 if not day_06.empty else 0,
