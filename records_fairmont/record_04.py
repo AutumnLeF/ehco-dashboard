@@ -2,7 +2,7 @@ from datetime import datetime, timedelta
 import pandas as pd
 import streamlit as st
 
-RECORD_04_FORM_ID = 31374
+RECORD_04_FORM_ID = 23706
 TEMP_THRESHOLD = 75.0  # Minimum required core temp (°C)
 
 KITCHEN_MEAL_RULES = {
@@ -114,7 +114,6 @@ def parse_all_record_04_dishes(raw_df):
           or "Unassigned"
       )
 
-      # Robust food name extraction avoiding generic "Other" fallbacks when specific names exist
       food = entry.get("Name_of_Food") or entry.get("Food") or ""
       other_food = entry.get("Name_of_Food_Other") or ""
 
@@ -303,7 +302,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         unsafe_allow_html=True,
     )
 
-    # Clean, spacious single-column layout for each kitchen card
     for k_info in kitchen_status_list:
       k_name = k_info["Kitchen"]
       m_list = k_info["Meals"]
