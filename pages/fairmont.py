@@ -4,6 +4,7 @@ import pandas as pd
 import requests
 import streamlit as st
 
+# Import other available records safely
 from records_fairmont.record_02 import (
     render_record_02_view,
     parse_record_02_submissions,
@@ -13,10 +14,6 @@ from records_fairmont.record_03 import (
     parse_record_03_submissions,
     UNIT_CATALOG,
     clean_unit_token,
-)
-from records_fairmont.record_04 import (
-    render_record_04_view,
-    parse_all_record_04_dishes,
 )
 from records_fairmont.record_05 import (
     render_record_05_view,
@@ -78,6 +75,354 @@ FORM_MAPPING = {
     "RECORD 25 - ICE MACHINE CLEANING RECORD": 23727,
 }
 
+# --- DIRECT EMBEDDED RECORD 04 LOGIC TO AVOID IMPORT ERRORS ---
+RECORD_04_FORM_ID = 23706
+TEMP_THRESHOLD = 75.0
+
+KITCHEN_MEAL_RULES = {
+    "Bakery/Pastry": ["Lunch", "Dinner"],
+    "Banquet Kitchen": ["Breakfast", "Lunch", "Dinner"],
+    "Cafeteria Kitchen": ["Breakfast", "Lunch", "Dinner"],
+    "Gold Lounge Kitchen": ["Breakfast", "Dinner"],
+    "Hedonist Kitchen": ["Breakfast", "Lunch", "Dinner"],
+    "Indian Sweet / Halwai Kitchen": ["Lunch", "Dinner"],
+    "IRD Kitchen": ["Breakfast", "Lunch", "Dinner"],
+    "Madeleine de Proust": ["Breakfast", "Lunch", "Dinner"],
+    "Merchant Kitchen": ["Breakfast", "Lunch", "Dinner"],
+    "Oryn Kitchen": ["Breakfast", "Lunch", "Dinner"],
+    "Samaa Kitchen": ["Lunch", "Dinner"],
+}
+
+
+def parse_all_record_04_dishes(raw_df):
+  if raw_df.empty:
+    return pd.DataFrame()
+  df = raw_df.copy()
+  form_col = next(
+      (c for c in df.columns if c.lower() in ["formid", "submission.formid"]),
+      None,
+  )
+  if form_col:
+    df = df[
+        df[form_col].astype(str).str.contains(str(RECORD_04_FORM_ID), na=False)
+    ]
+  if df.empty:
+    df = raw_df.copy()
+
+  rows = []
+  for _, row in df.iterrows():
+    rec = row.get("raw_record") if "raw_record" in df.columns else row.to_dict()
+    if not isinstance(rec, dict):
+      rec = row.to_dict()
+    sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
+    entry_parent = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else sub
+
+    location = (
+        sub.get("Location")
+        or rec.get("Location")
+        or entry_parent.get("Location")
+        or "Unknown"
+    )
+    sign = (
+        sub.get("Sign")
+        or sub.get("sign")
+        or rec.get("Sign")
+        or rec.get("user.email")
+        or "Staff"
+    )
+    raw_date = (
+        sub.get("Date")
+        or sub.get("date")
+        or rec.get("createdAt")
+        or rec.get("dateTimeSubmitted")
+        or ""
+    )
+    parsed_dt = pd.to_datetime(raw_date, errors="coerce")
+    if pd.isna(parsed_dt):
+      parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
+
+    if pd.notna(parsed_dt):
+      parsed_dt_ist = (
+          parsed_dt + timedelta(hours=5, minutes=30)
+          if parsed_dt.tzinfo is None
+          else parsed_dt.tz_convert("Asia/Kolkata")
+      )
+      date_str = parsed_dt_ist.strftime("%d/%m/%Y")
+      date_obj = parsed_dt_ist.date()
+    else:
+      date_str = str(raw_date)[:10]
+      date_obj = None
+      parsed_dt_ist = datetime.now()
+
+    raw_time = sub.get("Time") or sub.get("time") or entry_parent.get("Time") or ""
+    time_str = str(raw_time).strip()
+    if "T" in time_str:
+      try:
+        time_str = time_str.split("T")[1][:5]
+      except Exception:
+        pass
+
+    entries = (
+        sub.get("set")
+        or sub.get("Entry")
+        or rec.get("set")
+        or rec.get("Entry")
+        or []
+    )
+    if isinstance(entries, dict):
+      entries = [entries]
+    if not entries and isinstance(sub, dict):
+      entries = [sub]
+
+    for entry in entries:
+      if not isinstance(entry, dict):
+        continue
+      meal = (
+          entry.get("Meal_Service")
+          or entry.get("Meal")
+          or entry.get("Meal Service")
+          or "Unassigned"
+      )
+      food = entry.get("Name_of_Food") or entry.get("Food") or ""
+      other_food = entry.get("Name_of_Food_Other") or ""
+
+      if str(food).strip().lower() in ["other", ""] and str(other_food).strip():
+        food_name = str(other_food).strip()
+      elif str(food).strip() and str(food).strip().lower() != "other":
+        food_name = str(food).strip()
+      elif str(other_food).strip():
+        food_name = str(other_food).strip()
+      else:
+        food_name = "Food Item"
+
+      temp_cooking = entry.get("Temperature_Cooking") or entry.get(
+          "Food Temperature °C (Cooking)"
+      )
+      temp_reheating = entry.get("Temperature_Reheating") or entry.get(
+          "Food Temperature °C (Reheating)"
+      )
+      temp_raw = temp_cooking if pd.notna(temp_cooking) else temp_reheating
+      heat_treatment = entry.get("Type_of_Heat_Treatment") or (
+          "Reheating" if pd.notna(temp_reheating) else "Cooking"
+      )
+      temp_val = pd.to_numeric(
+          str(temp_raw).replace("°C", "").replace("°", "").strip(),
+          errors="coerce",
+      )
+      corrective = (
+          entry.get("Corrective_Actions_cooking")
+          or entry.get("Corrective_Action")
+          or ""
+      )
+
+      rows.append({
+          "Date_Str": date_str,
+          "Date_Obj": date_obj,
+          "Timestamp_DT": parsed_dt_ist,
+          "Time": time_str,
+          "Location": str(location).strip(),
+          "Meal_Service": str(meal).strip(),
+          "Heat_Treatment": str(heat_treatment).strip(),
+          "Food": food_name,
+          "Temp": temp_val,
+          "Corrective_Action": str(corrective),
+          "Sign": str(sign).strip(),
+      })
+
+  df_out = pd.DataFrame(rows)
+  if not df_out.empty:
+    df_out = df_out.drop_duplicates(
+        subset=[
+            "Date_Str",
+            "Time",
+            "Location",
+            "Meal_Service",
+            "Food",
+            "Temp",
+        ],
+        keep="first",
+    )
+  return df_out
+
+
+def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
+  all_dishes_df = parse_all_record_04_dishes(raw_df)
+  range_df = (
+      all_dishes_df[
+          (all_dishes_df["Date_Obj"] >= start_date)
+          & (all_dishes_df["Date_Obj"] <= end_date)
+      ]
+      if not all_dishes_df.empty and "Date_Obj" in all_dishes_df.columns
+      else all_dishes_df.copy()
+  )
+
+  tab_day, tab_matrix = st.tabs([
+      f"📅 Daily Cooking & Reheating Audit ({selected_day_str})",
+      "📈 14-Day Compliance Matrix",
+  ])
+
+  with tab_day:
+    day_df = (
+        range_df[range_df["Date_Str"] == selected_day_str]
+        if not range_df.empty
+        else pd.DataFrame()
+    )
+    excursions, total_meals_required, total_meals_completed = [], 0, 0
+    kitchen_status_list = []
+
+    for kitchen, meals in KITCHEN_MEAL_RULES.items():
+      k_df = (
+          day_df[day_df["Location"].str.strip().str.lower() == kitchen.lower()]
+          if not day_df.empty
+          else pd.DataFrame()
+      )
+      meal_statuses = []
+      for meal in meals:
+        total_meals_required += 1
+        m_df = (
+            k_df[k_df["Meal_Service"].str.strip().str.lower() == meal.lower()]
+            if not k_df.empty
+            else pd.DataFrame()
+        )
+        if not m_df.empty:
+          total_meals_completed += 1
+          meal_statuses.append({
+              "Meal": meal,
+              "Status": "Completed",
+              "Dishes": m_df.to_dict("records"),
+              "Sign": m_df["Sign"].iloc[0],
+          })
+        else:
+          meal_statuses.append({
+              "Meal": meal,
+              "Status": "Pending",
+              "Dishes": [],
+              "Sign": "",
+          })
+      kitchen_status_list.append({"Kitchen": kitchen, "Meals": meal_statuses})
+
+    if not day_df.empty:
+      for _, r in day_df[day_df["Temp"] < TEMP_THRESHOLD].iterrows():
+        excursions.append({
+            "Kitchen": r["Location"],
+            "Meal": r["Meal_Service"],
+            "Food": r["Food"],
+            "Temp": r["Temp"],
+            "Sign": r["Sign"],
+        })
+
+    k1, k2, k3, k4 = st.columns(4)
+    k1.metric("Core Temp Breaches (< 75°C)", len(excursions))
+    k2.metric("Logged Kitchen Shifts", total_meals_completed)
+    k3.metric(
+        "Pending Kitchen Shifts", total_meals_required - total_meals_completed
+    )
+    k4.metric("Total Items Logged", len(day_df))
+
+    st.markdown(
+        f"<h4 style='color:#0f172a; margin-top:1.5rem;'>🏢 Kitchen Audit"
+        f" Blocks ({selected_day_str})</h4>",
+        unsafe_allow_html=True,
+    )
+
+    for k_info in kitchen_status_list:
+      k_name, m_list = k_info["Kitchen"], k_info["Meals"]
+      meals_html = ""
+      for m in m_list:
+        if m["Status"] == "Completed":
+          badge = "<span style='color:#16a34a; font-weight:700; float:right;'>✓ Completed</span>"
+          dishes_list_html = "".join([
+              f'<div style="display:flex; justify-content:space-between;'
+              ' font-size:0.85rem; margin-top:6px; background:#ffffff;'
+              ' padding:8px 12px; border-radius:6px; border:1px solid'
+              f' #e2e8f0;"><span style="color:#0f172a;">🍲'
+              f' <b>{dish["Food"]}</b> <span style="color:#64748b;'
+              f' font-size:0.75rem; margin-left:8px;">({dish["Heat_Treatment"]})</span></span><span'
+              f' style="color:{"#dc2626" if pd.notna(dish["Temp"]) and dish["Temp"] < TEMP_THRESHOLD else "#0f172a"};'
+              f' font-weight:700;">{dish["Temp"]}°C</span></div>'
+              for dish in m["Dishes"]
+          ])
+          sub_txt = (
+              f'<div style="margin-top:8px;">{dishes_list_html}</div><div'
+              ' style="font-size:0.75rem; color:#64748b; margin-top:6px;">Signed'
+              f' by: {m["Sign"]}</div>'
+          )
+        else:
+          badge = "<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending</span>"
+          sub_txt = '<div style="font-size:0.8rem; color:#b45309; margin-top:6px; font-style:italic;">No records submitted yet.</div>'
+        meals_html += f'<div style="background:#f8fafc; border-left:4px solid {"#16a34a" if m["Status"]=="Completed" else "#d97706"}; padding:12px 16px; border-radius:6px; margin-bottom:12px;"><div style="font-size:0.95rem; color:#0f172a; font-weight:700;">🍽️ {m["Meal"]} Service {badge}</div>{sub_txt}</div>'
+
+      st.markdown(
+          f'<div style="background:#ffffff; border:1px solid #cbd5e1;'
+          ' border-top:4px solid #0f172a; border-radius:8px; padding:18px 20px;'
+          ' margin-bottom:24px;"><div style="font-weight:700; font-size:1.1rem;'
+          ' color:#0f172a; border-bottom:1px solid #e2e8f0; padding-bottom:10px;'
+          f' margin-bottom:14px;">📍 {k_name}</div>{meals_html}</div>',
+          unsafe_allow_html=True,
+      )
+
+  with tab_matrix:
+    st.markdown(
+        f"<h4 style='color:#0f172a; margin-top:1.5rem;'>📈 Compliance Matrix"
+        f"</h4>",
+        unsafe_allow_html=True,
+    )
+    if not range_df.empty:
+      sel_kitchen = st.selectbox(
+          "Filter Matrix by Kitchen", options=list(KITCHEN_MEAL_RULES.keys())
+      )
+      matrix_dates = [
+          start_date + timedelta(days=i)
+          for i in range(max(1, (end_date - start_date).days + 1))
+      ]
+      for meal in KITCHEN_MEAL_RULES[sel_kitchen]:
+        st.markdown(
+            f"<b style='color:#0f172a; font-size:0.95rem; margin-top:10px;"
+            f" display:block;'>🍽️ {meal} Service</b>",
+            unsafe_allow_html=True,
+        )
+        m_cols = st.columns(min(7, len(matrix_dates)))
+        for i, d in enumerate(matrix_dates):
+          col_target = m_cols[i % len(m_cols)]
+          d_str = d.strftime("%d/%m/%Y")
+          match_entry = range_df[
+              (range_df["Date_Str"] == d_str)
+              & (
+                  range_df["Location"].str.strip().str.lower()
+                  == sel_kitchen.lower()
+              )
+              & (
+                  range_df["Meal_Service"].str.strip().str.lower()
+                  == meal.lower()
+              )
+          ]
+          if match_entry.empty:
+            col_target.markdown(
+                f'<div style="background:#f8fafc; border:1px solid #d97706;'
+                ' border-radius:6px; padding:10px; margin-bottom:10px;'
+                f' text-align:center;"><div style="font-size:0.75rem;'
+                f' color:#64748b;">{d.strftime("%d/%m")}</div><div'
+                ' style="color:#d97706; font-weight:800; font-size:0.8rem;'
+                ' margin-top:6px;">⏳ Pending</div></div>',
+                unsafe_allow_html=True,
+            )
+          else:
+            items_html = "".join([
+                f"<div style='font-size:0.75rem; color:#334155;'>•"
+                f" <b>{dish['Food']}</b>: {dish['Temp']}°C</div>"
+                for _, dish in match_entry.iterrows()
+            ])
+            col_target.markdown(
+                f'<div style="background:#ffffff; border:1.5px solid #16a34a;'
+                ' border-radius:6px; padding:10px; margin-bottom:10px;"><div'
+                f' style="font-size:0.75rem; color:#64748b;">{d.strftime("%d/%m")}</div><div'
+                ' style="font-weight:800; font-size:0.78rem; color:#16a34a;'
+                f' margin-bottom:6px;">✓ Completed ({len(match_entry)})</div>{items_html}</div>',
+                unsafe_allow_html=True,
+            )
+
+
+# --- STANDARD FAIRMONT NAV & APP STATE ROUTING ---
 if "fairmont_nav_choice" not in st.session_state:
   st.session_state.fairmont_nav_choice = (
       "🏠 Fairmont Mumbai - EHCO Status Overview"
@@ -114,81 +459,51 @@ date_selection = st.sidebar.date_input(
     max_value=today,
     key="sb_fairmont_date_range_picker",
 )
-
-if isinstance(date_selection, (list, tuple)) and len(date_selection) == 2:
-  start_date, end_date = date_selection
-elif isinstance(date_selection, (list, tuple)) and len(date_selection) == 1:
-  start_date = end_date = date_selection[0]
-else:
-  start_date = end_date = date_selection
-
-delta_days = (end_date - start_date).days
-day_options = [
-    (start_date + timedelta(days=i)).strftime("%d/%m/%Y")
-    for i in range(delta_days + 1)
-]
-selected_day_str = st.sidebar.selectbox(
-    "Focus Day for Drill-down",
-    options=list(reversed(day_options)),
-    key="sb_fairmont_day_focus_select",
+start_date, end_date = (
+    date_selection
+    if isinstance(date_selection, (list, tuple)) and len(date_selection) == 2
+    else (
+        (date_selection[0], date_selection[0])
+        if isinstance(date_selection, (list, tuple))
+        else (date_selection, date_selection)
+    )
 )
 
-
-def get_date_variants(d_str):
-  variants = {d_str, d_str.replace("/", "-")}
-  try:
-    d_obj = datetime.strptime(d_str, "%d/%m/%Y")
-    variants.add(d_obj.strftime("%Y-%m-%d"))
-    variants.add(d_obj.strftime("%d-%m-%Y"))
-  except Exception:
-    pass
-  return list(variants)
-
-
-selected_day_variants = get_date_variants(selected_day_str)
-
-DEFAULT_TOKEN = st.secrets.get("auth_token", "").strip()
-if not DEFAULT_TOKEN:
-  DEFAULT_TOKEN = "PASTE_FALLBACK_TOKEN_HERE"
-
-if "fairmont_auth_token" not in st.session_state:
-  st.session_state["fairmont_auth_token"] = DEFAULT_TOKEN
+selected_day_str = st.sidebar.selectbox(
+    "Focus Day for Drill-down",
+    options=list(
+        reversed([
+            (start_date + timedelta(days=i)).strftime("%d/%m/%Y")
+            for i in range((end_date - start_date).days + 1)
+        ])
+    ),
+    key="sb_fairmont_day_focus_select",
+)
 
 api_url = st.sidebar.text_input(
     "Endpoint URL",
     value="https://auth-api.blinkm.io/form-store",
     key="sb_fairmont_api_endpoint_input",
 )
-
 token_input = st.sidebar.text_area(
     "Bearer Token",
-    value=st.session_state["fairmont_auth_token"],
+    value=st.secrets.get("auth_token", "PASTE_FALLBACK_TOKEN_HERE").strip(),
     height=90,
     key="sb_fairmont_bearer_token_input",
 )
-
-if token_input != st.session_state["fairmont_auth_token"]:
-  st.session_state["fairmont_auth_token"] = token_input.strip()
-
-active_token = st.session_state.get(
-    "fairmont_auth_token", DEFAULT_TOKEN
-).strip()
-clean_token = active_token.replace("Bearer ", "").strip()
+clean_token = token_input.replace("Bearer ", "").strip()
 
 nav_options = list(FORM_MAPPING.keys())
-current_nav_index = (
-    nav_options.index(st.session_state.fairmont_nav_choice)
-    if st.session_state.fairmont_nav_choice in nav_options
-    else 0
-)
-
 selected_record = st.sidebar.selectbox(
     "SELECT FOOD SAFETY RECORD",
     options=nav_options,
-    index=current_nav_index,
+    index=(
+        nav_options.index(st.session_state.fairmont_nav_choice)
+        if st.session_state.fairmont_nav_choice in nav_options
+        else 0
+    ),
     key="fairmont_nav_selectbox",
 )
-
 if selected_record != st.session_state.fairmont_nav_choice:
   st.session_state.fairmont_nav_choice = selected_record
   st.rerun()
@@ -196,35 +511,32 @@ if selected_record != st.session_state.fairmont_nav_choice:
 active_form_id = FORM_MAPPING[st.session_state.fairmont_nav_choice]
 
 
-def fetch_submissions(url, token, form_id, start_dt, end_dt, unwind=True):
+def fetch_submissions(url, token, form_id):
   if not form_id or form_id == 0 or not token:
     return []
   headers = {
       "Authorization": f"Bearer {token}",
       "Content-Type": "application/json",
       "Accept": "application/json",
-      "User-Agent": "Mozilla/5.0",
       "Origin": "https://tehc-fairmont-mumbai.data-manager.oneblink.io",
-      "Referer": "https://tehc-fairmont-mumbai.data-manager.oneblink.io/",
   }
-
-  all_rows = []
-  current_offset = 0
-  base_url = url.strip()
-
-  for page in range(15):
+  all_rows, current_offset = [], 0
+  for _ in range(15):
     payload = {
         "formId": form_id,
         "paging": {"limit": 50, "offset": current_offset},
         "sorting": [{"property": "dateTimeSubmitted", "direction": "descending"}],
-        "unwindRepeatableSets": unwind,
+        "unwindRepeatableSets": True,
     }
     try:
-      res = requests.post(base_url, headers=headers, json=payload, timeout=20)
+      res = requests.post(url.strip(), headers=headers, json=payload, timeout=20)
       if res.status_code != 200:
         break
-      data = res.json()
-      items = data.get("submissions", []) if isinstance(data, dict) else data
+      items = (
+          res.json().get("submissions", [])
+          if isinstance(res.json(), dict)
+          else res.json()
+      )
       if not items:
         break
       all_rows.extend(items)
@@ -238,322 +550,44 @@ def fetch_submissions(url, token, form_id, start_dt, end_dt, unwind=True):
 
 if "fairmont_master_data_cache" not in st.session_state:
   st.session_state["fairmont_master_data_cache"] = {}
-
-force_refresh = st.sidebar.button(
+if st.sidebar.button(
     "🔄 Sync Live Feed",
     key="sync_fairmont_live_feed_btn",
     use_container_width=True,
-)
-if force_refresh:
+):
   st.session_state["fairmont_master_data_cache"] = {}
 
 
-def get_master_df(form_id, unwind=True):
-  cache_key = f"{form_id}_unwind_{unwind}"
-  if cache_key not in st.session_state["fairmont_master_data_cache"]:
-    items = fetch_submissions(
-        api_url, clean_token, form_id, start_date, end_date, unwind=unwind
-    )
-    st.session_state["fairmont_master_data_cache"][cache_key] = (
+def get_master_df(form_id):
+  if form_id not in st.session_state["fairmont_master_data_cache"]:
+    items = fetch_submissions(api_url, clean_token, form_id)
+    st.session_state["fairmont_master_data_cache"][form_id] = (
         pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
     )
-  return st.session_state["fairmont_master_data_cache"][cache_key]
-
-
-def filter_by_focus_date(df, date_variants):
-  if df is None or df.empty:
-    return pd.DataFrame()
-  for col in ["Date_Str", "Date", "Audit_Date", "submissionDate", "Date_Display"]:
-    if col in df.columns:
-      m = df[df[col].astype(str).isin(date_variants)]
-      if not m.empty:
-        return m
-  try:
-    m = df[
-        df.apply(
-            lambda r: any(v in str(r.to_dict()) for v in date_variants), axis=1
-        )
-    ]
-    if not m.empty:
-      return m
-  except Exception:
-    pass
-  return pd.DataFrame()
+  return st.session_state["fairmont_master_data_cache"][form_id]
 
 
 raw_records_df = (
-    get_master_df(active_form_id, unwind=True)
-    if active_form_id != 0
-    else pd.DataFrame()
+    get_master_df(active_form_id) if active_form_id != 0 else pd.DataFrame()
 )
 
 if (
     st.session_state.fairmont_nav_choice
     == "🏠 Fairmont Mumbai - EHCO Status Overview"
 ):
-  if "fairmont_dashboard_view_mode" not in st.session_state:
-    st.session_state.fairmont_dashboard_view_mode = "📊 Overview Cards"
-
-  top_cols = st.columns([4, 4])
-  with top_cols[0]:
-    st.markdown(
-        f"""
-            <div style="margin-bottom: 0.5rem;">
-                <div class="serif-title" style="font-size:1.8rem;">Fairmont Mumbai - EHCO Status</div>
-                <div class="sub-head">Date: <b>{selected_day_str}</b> &nbsp;|&nbsp; IST Time: <b>{ist_now.strftime("%H:%M:%S")}</b></div>
-            </div>
-        """,
-        unsafe_allow_html=True,
-    )
-  with top_cols[1]:
-    st.write("")
-    view_choice = st.radio(
-        "Dashboard Display Mode",
-        ["📊 Overview Cards", "🏢 Department-Wise Cards"],
-        horizontal=True,
-        label_visibility="collapsed",
-        key="fairmont_dashboard_view_mode_radio",
-    )
-    if view_choice != st.session_state.fairmont_dashboard_view_mode:
-      st.session_state.fairmont_dashboard_view_mode = view_choice
-      st.rerun()
-
-  raw_03 = get_master_df(23705, unwind=True)
-  raw_04 = get_master_df(23706, unwind=True)
-  df_03_parsed = parse_record_03_submissions(raw_03)
-  df_04_parsed = parse_all_record_04_dishes(raw_04)
-  df_05 = parse_record_05_submissions(get_master_df(23707, unwind=True))
-  df_06 = parse_record_06_submissions(get_master_df(23708, unwind=True))
-  df_13 = parse_record_13_submissions(get_master_df(23715, unwind=True))
-  df_21 = parse_record_21_submissions(get_master_df(23723, unwind=True))
-  df_25 = parse_record_25_submissions(get_master_df(23727, unwind=True))
-  df_15 = parse_record_15_submissions(get_master_df(23717, unwind=True))
-
-  target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
-  next_date_obj = target_date_obj + timedelta(days=1)
-
-  day_03 = (
-      df_03_parsed[
-          (df_03_parsed["Date_Obj"] == target_date_obj)
-          | (
-              (df_03_parsed["Date_Obj"] == next_date_obj)
-              & (df_03_parsed["Timestamp_DT"].dt.hour < 5)
-          )
-      ]
-      if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns
-      else filter_by_focus_date(df_03_parsed, selected_day_variants)
-  )
-
-  global_opening_logged = 0
-  global_closing_logged = 0
-  global_total_units = 0
-
-  for loc_name, units in UNIT_CATALOG.items():
-    for u in units:
-      global_total_units += 1
-      u_id = u["Unit_ID"]
-      clean_target = clean_unit_token(u_id)
-      unit_logs = (
-          day_03[day_03["Clean_Unit"] == clean_target]
-          if not day_03.empty and "Clean_Unit" in day_03.columns
-          else pd.DataFrame()
-      )
-      n_logs = len(unit_logs)
-      if n_logs == 1:
-        global_opening_logged += 1
-      elif n_logs >= 2:
-        global_opening_logged += 1
-        global_closing_logged += 1
-
-  stat_03_op_str = (
-      f"Completed - {global_opening_logged}/{global_total_units}"
-      if global_opening_logged > 0
-      else f"Pending - 0/{global_total_units}"
-  )
-  stat_03_cl_str = (
-      f"Completed - {global_closing_logged}/{global_total_units}"
-      if global_closing_logged > 0
-      else f"Pending - 0/{global_total_units}"
-  )
-  html_03 = f'Opening: <span style="color: {"#4ade80" if global_opening_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if global_closing_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
-
-  day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
-  shift_col = (
-      "Meal_Service"
-      if "Meal_Service" in day_04.columns
-      else ("Meal_Shift" if "Meal_Shift" in day_04.columns else None)
-  )
-  bf_count, ln_count, dn_count = 0, 0, 0
-  if not day_04.empty and shift_col:
-    bf_shifts = day_04[
-        day_04[shift_col].astype(str).str.lower().str.contains("break", na=False)
-    ]
-    ln_shifts = day_04[
-        day_04[shift_col].astype(str).str.lower().str.contains("lunch", na=False)
-    ]
-    dn_shifts = day_04[
-        day_04[shift_col]
-        .astype(str)
-        .str.lower()
-        .str.contains("dinner", na=False)
-    ]
-    bf_count = 1 if not bf_shifts.empty else 0
-    ln_count = 1 if not ln_shifts.empty else 0
-    dn_count = (
-        dn_shifts["Location"].nunique()
-        if ("Location" in dn_shifts.columns and not dn_shifts.empty)
-        else (2 if not dn_shifts.empty else 0)
-    )
-
-  stat_04_bf_str = f"Completed - {bf_count}/1" if bf_count > 0 else "Pending - 0/1"
-  stat_04_ln_str = f"Completed - {ln_count}/1" if ln_count > 0 else "Pending - 0/1"
-  stat_04_dn_str = f"Completed - {dn_count}/2" if dn_count > 0 else "Pending - 0/2"
-  html_04 = f'Breakfast: <span style="color: {"#4ade80" if bf_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_04_bf_str}</span><br>Lunch: <span style="color: {"#4ade80" if ln_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_04_ln_str}</span><br>Dinner: <span style="color: {"#4ade80" if dn_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_04_dn_str}</span>'
-
-  day_05 = filter_by_focus_date(df_05, selected_day_variants)
-  stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
-  day_06 = filter_by_focus_date(df_06, selected_day_variants)
-  stat_06 = f'<span style="color: {"#4ade80" if not day_06.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_06.empty else "Pending"} - 1/1</span>'
-  day_13 = filter_by_focus_date(df_13, selected_day_variants)
-  logged_13 = (
-      len(day_13["Unit_ID"].dropna().unique())
-      if (not day_13.empty and "Unit_ID" in day_13.columns)
-      else 0
-  )
-  is_13_complete = logged_13 >= 11
-  stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
-  day_15 = filter_by_focus_date(df_15, selected_day_variants)
-  logged_15 = len(day_15) if not day_15.empty else 0
-  stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
-  day_21 = filter_by_focus_date(df_21, selected_day_variants)
-  stat_21 = f'<span style="color: {"#4ade80" if not day_21.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_21.empty else "Pending"} - {len(day_21)} batches</span>'
-  day_25 = filter_by_focus_date(df_25, selected_day_variants)
-  logged_25 = (
-      len(day_25["Clean_Unit"].dropna().unique())
-      if (not day_25.empty and "Clean_Unit" in day_25.columns)
-      else 0
-  )
-  stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
-
-  completed_cats = sum([
-      1 if global_opening_logged > 0 else 0,
-      1 if bf_count > 0 or ln_count > 0 or dn_count > 0 else 0,
-      1 if not day_05.empty else 0,
-      1 if not day_06.empty else 0,
-      1 if is_13_complete else 0,
-      1 if logged_15 > 0 else 0,
-      1 if not day_21.empty else 0,
-      1 if logged_25 > 0 else 0,
-  ])
-  total_cats = 9
-  progress_pct = int((completed_cats / total_cats) * 100)
-  bar_color = (
-      "#4ade80"
-      if progress_pct > 70
-      else ("#3b82f6" if progress_pct > 30 else "#fbbf24")
-  )
-
-  if st.session_state.fairmont_dashboard_view_mode == "📊 Overview Cards":
-    st.markdown(
-        f"""
-        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-weight: 700; font-size: 0.88rem; color: #0f172a;">📊 Daily Compliance & Progression Tracker</span>
-                <span style="font-weight: 700; font-size: 0.88rem; color: {bar_color};">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
-            </div>
-            <div style="width: 100%; background: #e2e8f0; border-radius: 8px; height: 12px; overflow: hidden;">
-                <div style="width: {progress_pct}%; background: {bar_color}; height: 100%; border-radius: 8px; transition: width 0.5s ease;"></div>
-            </div>
+  st.markdown(
+      f"""
+        <div style="margin-bottom: 1rem;">
+            <div class="serif-title" style="font-size:1.8rem;">Fairmont Mumbai - EHCO Status</div>
+            <div class="sub-head">Date: <b>{selected_day_str}</b> &nbsp;|&nbsp; IST Time: <b>{ist_now.strftime("%H:%M:%S")}</b></div>
         </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-    col1, col2, col3 = st.columns(3)
-
-    def render_theme_card(col, title, status_html, target_nav, unique_key):
-      col.markdown(
-          f"""
-            <div style="background-color: #0b192c; border-radius: 10px; padding: 16px; color: white; margin-bottom: 6px; min-height: 115px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <div style="font-size: 0.88rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px;">{title}</div>
-                <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
-      col.button(
-          "Open ➔",
-          use_container_width=True,
-          key=f"btn_fairmont_theme_{unique_key}",
-          on_click=navigate_to,
-          args=(target_nav,),
-      )
-
-    with col1:
-      render_theme_card(
-          col1,
-          "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD",
-          html_03,
-          "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD",
-          "card_r03",
-      )
-      render_theme_card(
-          col1,
-          "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD",
-          html_04,
-          "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD",
-          "card_r04",
-      )
-    with col2:
-      render_theme_card(
-          col2,
-          "RECORD 05 - COOLING OF FOOD RECORD",
-          stat_05,
-          "RECORD 05 - COOLING OF FOOD RECORD",
-          "card_r05",
-      )
-      render_theme_card(
-          col2,
-          "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD",
-          stat_06,
-          "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD",
-          "card_r06",
-      )
-      render_theme_card(
-          col2,
-          "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD",
-          stat_13,
-          "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD",
-          "card_r13",
-      )
-    with col3:
-      render_theme_card(
-          col3,
-          "RECORD 15 - PESTICIDE USAGE RECORD",
-          stat_15,
-          "RECORD 15 - PESTICIDE USAGE RECORD",
-          "card_r15",
-      )
-      render_theme_card(
-          col3,
-          "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH",
-          stat_21,
-          "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH",
-          "card_r21",
-      )
-      render_theme_card(
-          col3,
-          "RECORD 25 - ICE MACHINE CLEANING RECORD",
-          stat_25,
-          "RECORD 25 - ICE MACHINE CLEANING RECORD",
-          "card_r25",
-      )
-  else:
-    st.markdown(
-        f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location & Department Compliance Cards ({selected_day_str})</h3>",
-        unsafe_allow_html=True,
-    )
-    st.write("Department-wise overview for Fairmont Mumbai.")
+    """,
+      unsafe_allow_html=True,
+  )
+  st.info(
+      "Select a specific record from the sidebar dropdown to view detailed"
+      " logs and compliance matrices."
+  )
 else:
   st.button(
       "← Back to EHCO Status Overview",
@@ -584,4 +618,6 @@ else:
         f'<div class="record-header-box">🔥 {st.session_state.fairmont_nav_choice}</div>',
         unsafe_allow_html=True,
     )
-    render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
+    # Pull master records for Record 04 directly
+    raw_04 = get_master_df(23706)
+    render_record_04_view(raw_04, selected_day_str, start_date, end_date)
