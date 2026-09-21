@@ -299,13 +299,14 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
     with tab_matrix:
         st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>📈 Cooking Compliance Matrix ({start_date.strftime('%d/%m/%Y')} to {end_date.strftime('%d/%m/%Y')})</h4>", unsafe_allow_html=True)
-        st.caption("Card-style daily shift breakdown across all active kitchens.")
+        st.caption("Card-style daily shift breakdown across all active kitchens. Past pending shifts are marked as Not Filled (Red).")
 
         if range_df.empty:
             st.info("No cooking logs found for this date range.")
         else:
             total_days = max(1, (end_date - start_date).days + 1)
             matrix_dates = [start_date + timedelta(days=i) for i in range(total_days)]
+            today_date_obj = datetime.now().date()
 
             for kitchen, meals in KITCHEN_MEAL_RULES.items():
                 st.markdown(f"""
@@ -341,8 +342,22 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                         ]
 
                         if match_entry.empty:
+                            is_past = d < today_date_obj
+                            if is_past:
+                                card_bg = "#fef2f2"
+                                border_c = "#dc2626"
+                                tag_txt = "❌ Not Filled"
+                                tag_color = "#dc2626"
+                            else:
+                                card_bg = "#f8fafc"
+                                border_c = "#d97706"
+                                tag_txt = "⏳ Pending"
+                                tag_color = "#d97706"
+
                             row_cols[i + 1].markdown(
-                                '<div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px; padding:6px; min-height:60px; display:flex; align-items:center; justify-content:center; color:#b45309; font-size:0.72rem; font-weight:700;">⏳ Pending</div>',
+                                f'<div style="background:{card_bg}; border:1.5px dashed {border_c}; border-radius:6px; padding:6px; min-height:60px; display:flex; flex-direction:column; justify-content:center; align-items:center;">'
+                                f'<span style="color:{tag_color}; font-weight:800; font-size:0.75rem;">{tag_txt}</span>'
+                                f'</div>',
                                 unsafe_allow_html=True
                             )
                         else:
