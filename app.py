@@ -295,44 +295,42 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
     df_15 = parse_record_15_submissions(get_master_df(31384, unwind=True))
 
-    target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
-    next_date_obj = target_date_obj + timedelta(days=1)
+    day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
+    day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
 
-    if not df_03_parsed.empty:
-        day_03 = df_03_parsed[
-            (df_03_parsed["Date_Obj"] == target_date_obj) |
-            ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
-        ]
-    else:
-        day_03 = pd.DataFrame()
+    # --- DEBUG EXPANDER BLOCK ---
+    with st.expander("🔍 DEBUG Record 03 & 04", expanded=True):
+        st.write("Selected day:", selected_day_str)
+        st.write("Date variants:", selected_day_variants)
 
-    global_opening_logged = 0
-    global_closing_logged = 0
-    global_total_units = sum(len(units) for units in UNIT_CATALOG.values())
+        st.write("Record 03 raw rows:", len(raw_03))
+        st.write("Record 03 parsed rows:", len(df_03_parsed))
+        st.write("Record 03 parsed columns:", df_03_parsed.columns.tolist() if not df_03_parsed.empty else [])
+        st.write("Record 03 parsed sample:")
+        st.dataframe(df_03_parsed.head(10), use_container_width=True)
 
-    for loc_name, units in UNIT_CATALOG.items():
-        for u in units:
-            u_id = u["Unit_ID"]
-            clean_target = clean_unit_token(u_id)
-            unit_logs = day_03[day_03["Clean_Unit"] == clean_target] if not day_03.empty and "Clean_Unit" in day_03.columns else pd.DataFrame()
-            n_logs = len(unit_logs)
-            if n_logs == 1:
-                global_opening_logged += 1
-            elif n_logs >= 2:
-                global_opening_logged += 1
-                global_closing_logged += 1
+        st.write("Record 03 focus-day rows:", len(day_03))
 
-    stat_03_op_str = f"Completed - {global_opening_logged}/{global_total_units}" if global_opening_logged > 0 else f"Pending - 0/{global_total_units}"
-    stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if global_closing_logged > 0 else f"Pending - 0/{global_total_units}"
-    html_03 = f'Opening: <span style="color: {"#4ade80" if global_opening_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if global_closing_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
+        st.write("Record 04 raw rows:", len(raw_04))
+        st.write("Record 04 parsed rows:", len(df_04_parsed))
+        st.write("Record 04 parsed columns:", df_04_parsed.columns.tolist() if not df_04_parsed.empty else [])
+        st.write("Record 04 parsed sample:")
+        st.dataframe(df_04_parsed.head(10), use_container_width=True)
 
-    if not df_04_parsed.empty:
-        day_04 = df_04_parsed[
-            (df_04_parsed["Date_Obj"] == target_date_obj) |
-            ((df_04_parsed["Date_Obj"] == next_date_obj) & (df_04_parsed["Timestamp_DT"].dt.hour < 5))
-        ]
-    else:
-        day_04 = pd.DataFrame()
+        st.write("Record 04 focus-day rows:", len(day_04))
+    # -----------------------------
+
+    # Record 03 Unit Count calculation using Clean_Unit
+    op_units = 0
+    cl_units = 0
+    if not day_03.empty and "Clean_Unit" in day_03.columns:
+        unit_counts = day_03["Clean_Unit"].value_counts()
+        op_units = len(unit_counts[unit_counts >= 1])
+        cl_units = len(unit_counts[unit_counts >= 2])
+
+    stat_03_op_str = f"Completed - {op_units}/35" if op_units > 0 else "Pending - 0/35"
+    stat_03_cl_str = f"Completed - {cl_units}/35" if cl_units > 0 else "Pending - 0/35"
+    html_03 = f'Opening: <span style="color: {"#4ade80" if op_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
     bf_count, ln_count, dn_count = 0, 0, 0
     if not day_04.empty and "Meal_Shift" in day_04.columns:
@@ -371,8 +369,8 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
 
     completed_cats = sum([
-        1 if global_opening_logged > 0 else 0,
-        1 if bf_count > 0 or ln_count > 0 or dn_count > 0 else 0,
+        1 if op_units > 0 else 0,
+        1 if bf_count > 0 else 0,
         1 if not day_05.empty else 0,
         1 if not day_06.empty else 0,
         1 if is_13_complete else 0,
@@ -455,8 +453,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                 locations_to_check.append("Filia Show Kitchen")
 
             loc_day_03 = day_03[day_03["Location"].isin(locations_to_check)] if not day_03.empty and "Location" in day_03.columns else pd.DataFrame()
-            loc_op_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]) if not loc_day_03.empty and "Shift" in loc_day_03.columns else 0
-            loc_cl_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]) if not loc_day_03.empty and "Shift" in loc_day_03.columns else 0
+            loc_op_units = len(loc_day_03[loc_day_03["Clean_Unit"].isin([clean_unit_token(u["Unit_ID"]) for u in UNIT_CATALOG.get(loc_name, []) + (UNIT_CATALOG.get("Filia Show Kitchen", []) if dept["Include_Show"] else [])])]) if not loc_day_03.empty else 0
             
             loc_units_total = len(UNIT_CATALOG.get(loc_name, []))
             if dept["Include_Show"]:
@@ -464,7 +461,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
             loc_day_04 = day_04[day_04["Kitchen"] == loc_name] if not day_04.empty and "Kitchen" in day_04.columns else pd.DataFrame()
             
-            r3_text = f"🌅 Open: {loc_op_units}/{loc_units_total} &nbsp;|&nbsp; 🌙 Close: {loc_cl_units}/{loc_units_total}" if loc_units_total > 0 else None
+            r3_text = f"🌅 Open/Close Logged: {loc_op_units}/{loc_units_total}" if loc_units_total > 0 else None
             
             r4_text = None
             if dept["Show_R4"] == "all":
