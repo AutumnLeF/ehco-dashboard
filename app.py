@@ -83,6 +83,11 @@ FORM_MAPPING = {
 if "nav_choice" not in st.session_state:
     st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
 
+# Callback function to handle card navigation and sync the sidebar selectbox state
+def navigate_to(target_nav):
+    st.session_state.nav_choice = target_nav
+    st.session_state.nav_selectbox = target_nav
+
 st.sidebar.title("⚙️ Inspection Controls")
 st.sidebar.markdown("**Site:** Roswyn (Site 1)")
 
@@ -403,9 +408,13 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                 <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
             </div>
             """, unsafe_allow_html=True)
-            if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
-                st.session_state.nav_choice = target_nav
-                st.rerun()
+            col.button(
+                "Open ➔",
+                use_container_width=True,
+                key=f"btn_theme_{unique_key}",
+                on_click=navigate_to,
+                args=(target_nav,)
+            )
 
         with col1:
             render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
@@ -519,6 +528,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 else:
     if st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn"):
         st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
+        st.session_state.nav_selectbox = "🏠 Roswyn - EHCO Status Overview"
         st.rerun()
     st.write("")
 
