@@ -108,7 +108,7 @@ def get_date_variants(d_str):
 
 selected_day_variants = get_date_variants(selected_day_str)
 
-DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOijjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
+DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
 
 if "auth_token" not in st.session_state:
     st.session_state["auth_token"] = DEFAULT_TOKEN.strip()
@@ -420,11 +420,11 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
     # =========================================================
-    # VIEW MODE 2: DEPARTMENT-WISE CARD DASHBOARD (EXACT BLUEPRINT)
+    # VIEW MODE 2: DEPARTMENT-WISE CARD DASHBOARD (BLUEPRINT)
     # =========================================================
     else:
         st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location & Department Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
-        st.caption("Detailed department breakdown matching assigned operational records.")
+        st.caption("Detailed department breakdown following assigned operational records.")
         st.write("")
 
         dept_blueprint = [
@@ -459,25 +459,24 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             # Record 04 calculation
             loc_day_04 = day_04[day_04["Kitchen"] == loc_name] if not day_04.empty and "Kitchen" in day_04.columns else pd.DataFrame()
             
-            r3_text = f"🌅 Open: {loc_op_units}/{loc_units_total} &nbsp;|&nbsp; 🌙 Close: {loc_cl_units}/{loc_units_total}" if loc_units_total > 0 else "N/A"
+            r3_text = f"🌅 Open: {loc_op_units}/{loc_units_total} &nbsp;|&nbsp; 🌙 Close: {loc_cl_units}/{loc_units_total}" if loc_units_total > 0 else None
             
+            r4_text = None
             if dept["Show_R4"] == "all":
-                bf_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("break", na=False)].empty
-                ln_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("lunch", na=False)].empty
-                dn_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("dinner", na=False)].empty
+                bf_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("break", na=False)].empty if not loc_day_04.empty and "Meal_Shift" in loc_day_04.columns else False
+                ln_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("lunch", na=False)].empty if not loc_day_04.empty and "Meal_Shift" in loc_day_04.columns else False
+                dn_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("dinner", na=False)].empty if not loc_day_04.empty and "Meal_Shift" in loc_day_04.columns else False
                 r4_text = f"Breakfast: {'✅' if bf_done else '⏳'}<br>Lunch: {'✅' if ln_done else '⏳'}<br>Dinner: {'✅' if dn_done else '⏳'}"
             elif dept["Show_R4"] == "dinner":
-                dn_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("dinner", na=False)].empty
+                dn_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("dinner", na=False)].empty if not loc_day_04.empty and "Meal_Shift" in loc_day_04.columns else False
                 r4_text = f"Dinner: {'✅ Logged' if dn_done else '⏳ Pending'}"
-            else:
-                r4_text = "N/A"
 
-            r5_text = "✅ Completed" if not day_05.empty and loc_name in ["Filia Kitchen", "Filia Kitchen - Bakery", "Black Lacquer Kitchen", "Third Room Kitchen"] else "⏳ Pending"
-            r6_text = "✅ Displayed" if not day_06.empty and loc_name in ["Filia Kitchen - Bakery", "Black Lacquer Kitchen", "Filia Bar"] else "⏳ Pending"
-            r13_text = "✅ Logged" if not day_13.empty else "⏳ Pending"
-            r21_text = "✅ Completed" if not day_21.empty and loc_name == "Filia Kitchen" else "⏳ Pending"
-            r25_text = "✅ Cleaned" if not day_25.empty and loc_name == "Stewarding" else "⏳ Pending"
-            r15_text = "✅ Logged" if not day_15.empty and loc_name == "Housekeeping" else "⏳ Pending"
+            r5_text = "✅ Completed" if not day_05.empty and loc_name in ["Filia Kitchen", "Filia Kitchen - Bakery", "Black Lacquer Kitchen", "Third Room Kitchen"] else "⏳ Pending" if dept["Show_R5"] else None
+            r6_text = "✅ Displayed" if not day_06.empty and loc_name in ["Filia Kitchen - Bakery", "Black Lacquer Kitchen", "Filia Bar"] else "⏳ Pending" if dept["Show_R6"] else None
+            r13_text = "✅ Logged" if not day_13.empty else "⏳ Pending" if dept["Show_R13"] else None
+            r21_text = "✅ Completed" if not day_21.empty and loc_name == "Filia Kitchen" else "⏳ Pending" if dept["Show_R21"] else None
+            r25_text = "✅ Cleaned" if not day_25.empty and loc_name == "Stewarding" else "⏳ Pending" if dept["Show_R25"] else None
+            r15_text = "✅ Logged" if not day_15.empty and loc_name == "Housekeeping" else "⏳ Pending" if dept["Show_R15"] else None
 
             # Render Record 3 style card header
             st.markdown(f"""
@@ -489,21 +488,21 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             """, unsafe_allow_html=True)
 
             col_list = []
-            if dept["Show_R3"]:
+            if dept["Show_R3"] and r3_text:
                 col_list.append(("Record 3 (Fridge/Coolroom)", r3_text))
-            if dept["Show_R4"] != False:
+            if dept["Show_R4"] != False and r4_text:
                 col_list.append(("Record 4 (Cooking/Reheat)", r4_text))
-            if dept["Show_R5"]:
+            if dept["Show_R5"] and r5_text:
                 col_list.append(("Record 5 (Cooling)", r5_text))
-            if dept["Show_R6"]:
+            if dept["Show_R6"] and r6_text:
                 col_list.append(("Record 6 (Display)", r6_text))
-            if dept["Show_R21"]:
+            if dept["Show_R21"] and r21_text:
                 col_list.append(("Record 21 (Food Wash)", r21_text))
-            if dept["Show_R13"]:
+            if dept["Show_R13"] and r13_text:
                 col_list.append(("Record 13 (Dishwasher)", r13_text))
-            if dept["Show_R25"]:
+            if dept["Show_R25"] and r25_text:
                 col_list.append(("Record 25 (Ice Machine)", r25_text))
-            if dept["Show_R15"]:
+            if dept["Show_R15"] and r15_text:
                 col_list.append(("Record 15 (Pesticide)", r15_text))
 
             card_cols = st.columns(len(col_list) if len(col_list) > 0 else 1)
