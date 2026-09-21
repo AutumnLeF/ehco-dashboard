@@ -108,7 +108,6 @@ def get_date_variants(d_str):
 
 selected_day_variants = get_date_variants(selected_day_str)
 
-# Secure token retrieval from Streamlit secrets with fallback
 DEFAULT_TOKEN = st.secrets.get("auth_token", "").strip()
 if not DEFAULT_TOKEN:
     DEFAULT_TOKEN = "PASTE_FALLBACK_TOKEN_HERE"
@@ -298,28 +297,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
     day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
 
-    # --- DEBUG EXPANDER BLOCK ---
-    with st.expander("🔍 DEBUG Record 03 & 04", expanded=True):
-        st.write("Selected day:", selected_day_str)
-        st.write("Date variants:", selected_day_variants)
-
-        st.write("Record 03 raw rows:", len(raw_03))
-        st.write("Record 03 parsed rows:", len(df_03_parsed))
-        st.write("Record 03 parsed columns:", df_03_parsed.columns.tolist() if not df_03_parsed.empty else [])
-        st.write("Record 03 parsed sample:")
-        st.dataframe(df_03_parsed.head(10), use_container_width=True)
-
-        st.write("Record 03 focus-day rows:", len(day_03))
-
-        st.write("Record 04 raw rows:", len(raw_04))
-        st.write("Record 04 parsed rows:", len(df_04_parsed))
-        st.write("Record 04 parsed columns:", df_04_parsed.columns.tolist() if not df_04_parsed.empty else [])
-        st.write("Record 04 parsed sample:")
-        st.dataframe(df_04_parsed.head(10), use_container_width=True)
-
-        st.write("Record 04 focus-day rows:", len(day_04))
-    # -----------------------------
-
     # Record 03 Unit Count calculation using Clean_Unit
     op_units = 0
     cl_units = 0
@@ -332,14 +309,17 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_03_cl_str = f"Completed - {cl_units}/35" if cl_units > 0 else "Pending - 0/35"
     html_03 = f'Opening: <span style="color: {"#4ade80" if op_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
+    # Record 04 Shift Calculation mapping correctly against Meal_Service
     bf_count, ln_count, dn_count = 0, 0, 0
-    if not day_04.empty and "Meal_Shift" in day_04.columns:
-        bf_shifts = day_04[day_04["Meal_Shift"].astype(str).str.lower().str.contains("break", na=False)]
-        ln_shifts = day_04[day_04["Meal_Shift"].astype(str).str.lower().str.contains("lunch", na=False)]
-        dn_shifts = day_04[day_04["Meal_Shift"].astype(str).str.lower().str.contains("dinner", na=False)]
+    shift_col = "Meal_Service" if "Meal_Service" in day_04.columns else ("Meal_Shift" if "Meal_Shift" in day_04.columns else None)
+    
+    if not day_04.empty and shift_col:
+        bf_shifts = day_04[day_04[shift_col].astype(str).str.lower().str.contains("break", na=False)]
+        ln_shifts = day_04[day_04[shift_col].astype(str).str.lower().str.contains("lunch", na=False)]
+        dn_shifts = day_04[day_04[shift_col].astype(str).str.lower().str.contains("dinner", na=False)]
         bf_count = 1 if not bf_shifts.empty else 0
         ln_count = 1 if not ln_shifts.empty else 0
-        dn_count = dn_shifts["Kitchen"].nunique() if ("Kitchen" in dn_shifts.columns and not dn_shifts.empty) else 0
+        dn_count = dn_shifts["Location"].nunique() if ("Location" in dn_shifts.columns and not dn_shifts.empty) else (2 if not dn_shifts.empty else 0)
 
     stat_04_bf_str = f"Completed - {bf_count}/1" if bf_count > 0 else "Pending - 0/1"
     stat_04_ln_str = f"Completed - {ln_count}/1" if ln_count > 0 else "Pending - 0/1"
@@ -370,7 +350,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     completed_cats = sum([
         1 if op_units > 0 else 0,
-        1 if bf_count > 0 else 0,
+        1 if bf_count > 0 or ln_count > 0 or dn_count > 0 else 0,
         1 if not day_05.empty else 0,
         1 if not day_06.empty else 0,
         1 if is_13_complete else 0,
@@ -453,24 +433,24 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                 locations_to_check.append("Filia Show Kitchen")
 
             loc_day_03 = day_03[day_03["Location"].isin(locations_to_check)] if not day_03.empty and "Location" in day_03.columns else pd.DataFrame()
-            loc_op_units = len(loc_day_03[loc_day_03["Clean_Unit"].isin([clean_unit_token(u["Unit_ID"]) for u in UNIT_CATALOG.get(loc_name, []) + (UNIT_CATALOG.get("Filia Show Kitchen", []) if dept["Include_Show"] else [])])]) if not loc_day_03.empty else 0
+            loc_op_units = len(loc_day_03["Clean_Unit"].unique()) if not loc_day_03.empty and "Clean_Unit" in loc_day_03.columns else 0
             
             loc_units_total = len(UNIT_CATALOG.get(loc_name, []))
             if dept["Include_Show"]:
                 loc_units_total += len(UNIT_CATALOG.get("Filia Show Kitchen", []))
 
-            loc_day_04 = day_04[day_04["Kitchen"] == loc_name] if not day_04.empty and "Kitchen" in day_04.columns else pd.DataFrame()
+            loc_day_04 = day_04[day_04["Location"] == loc_name] if not day_04.empty and "Location" in day_04.columns else pd.DataFrame()
             
             r3_text = f"🌅 Open/Close Logged: {loc_op_units}/{loc_units_total}" if loc_units_total > 0 else None
             
             r4_text = None
-            if dept["Show_R4"] == "all":
-                bf_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("break", na=False)].empty if not loc_day_04.empty and "Meal_Shift" in loc_day_04.columns else False
-                ln_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("lunch", na=False)].empty if not loc_day_04.empty and "Meal_Shift" in loc_day_04.columns else False
-                dn_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("dinner", na=False)].empty if not loc_day_04.empty and "Meal_Shift" in loc_day_04.columns else False
+            if dept["Show_R4"] == "all" and shift_col:
+                bf_done = not loc_day_04[loc_day_04[shift_col].astype(str).str.lower().str.contains("break", na=False)].empty if not loc_day_04.empty else False
+                ln_done = not loc_day_04[loc_day_04[shift_col].astype(str).str.lower().str.contains("lunch", na=False)].empty if not loc_day_04.empty else False
+                dn_done = not loc_day_04[loc_day_04[shift_col].astype(str).str.lower().str.contains("dinner", na=False)].empty if not loc_day_04.empty else False
                 r4_text = f"Breakfast: {'✅ Completed' if bf_done else '⏳ Pending'}<br>Lunch: {'✅ Completed' if ln_done else '⏳ Pending'}<br>Dinner: {'✅ Completed' if dn_done else '⏳ Pending'}"
-            elif dept["Show_R4"] == "dinner":
-                dn_done = not loc_day_04[loc_day_04["Meal_Shift"].astype(str).str.lower().str.contains("dinner", na=False)].empty if not loc_day_04.empty and "Meal_Shift" in loc_day_04.columns else False
+            elif dept["Show_R4"] == "dinner" and shift_col:
+                dn_done = not loc_day_04[loc_day_04[shift_col].astype(str).str.lower().str.contains("dinner", na=False)].empty if not loc_day_04.empty else False
                 r4_text = f"Dinner: {'✅ Completed' if dn_done else '⏳ Pending'}"
 
             r5_text = "✅ Completed" if not day_05.empty and loc_name in ["Filia Kitchen", "Filia Kitchen - Bakery", "Black Lacquer Kitchen", "Third Room Kitchen"] else "⏳ Pending" if dept["Show_R5"] else None
