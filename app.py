@@ -405,7 +405,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             """, unsafe_allow_html=True)
             if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
                 st.session_state.nav_choice = target_nav
-                st.session_state["nav_selectbox"] = target_nav
                 st.rerun()
 
         with col1:
@@ -520,7 +519,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 else:
     if st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn"):
         st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
-        st.session_state.pop("nav_selectbox", None)
         st.rerun()
     st.write("")
 
