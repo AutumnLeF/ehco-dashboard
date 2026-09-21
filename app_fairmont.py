@@ -11,7 +11,7 @@ st.set_page_config(
 )
 
 # -------------------------------------------------------------
-# 1. EDITORIAL STYLING & THEME
+# 1. FAIRMONT SPECIFIC STYLING & THEME
 # -------------------------------------------------------------
 st.markdown("""
 <style>
@@ -22,7 +22,6 @@ st.markdown("""
         font-family: 'Inter', sans-serif; 
         color: #0f172a; 
     }
-    
     .serif-title { 
         font-size: 2.1rem; 
         font-weight: 700; 
@@ -36,7 +35,7 @@ st.markdown("""
         font-weight: 600; 
     }
     .record-header-box {
-        background-color: #0b192c;
+        background-color: #1e293b;
         padding: 18px 24px;
         border-radius: 10px;
         color: white;
@@ -49,13 +48,39 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------------------------------------------------
-# 2. SIDEBAR CONTROLS & NAVIGATION ROUTING
+# 2. FAIRMONT UNIQUE UNITS & LOCATIONS CATALOG
 # -------------------------------------------------------------
-st.sidebar.title("⚙️ Inspection Controls")
-st.sidebar.markdown("**Site:** Fairmont Mumbai (Site 2)")
+FAIRMONT_UNIT_CATALOG = {
+    "Fairmont Main Kitchen": [
+        {"Unit_ID": "FM/MK/UC/01", "Type": "Fridge"},
+        {"Unit_ID": "FM/MK/CR/01", "Type": "Coolroom"},
+        {"Unit_ID": "FM/MK/WF/01", "Type": "Freezer"},
+    ],
+    "Fairmont Bakery Kitchen": [
+        {"Unit_ID": "FM/FBK/UC/01", "Type": "Fridge"},
+        {"Unit_ID": "FM/FBK/VF/01", "Type": "Freezer"},
+    ],
+    "Fairmont Pool Bar": [
+        {"Unit_ID": "FM/PB/UC/01", "Type": "Fridge"},
+    ]
+}
 
-if st.sidebar.button("🏠 Return to Site Selection Portal", use_container_width=True):
-    st.switch_page("landing.py")
+FAIRMONT_FORM_MAPPING = {
+    "🏠 Fairmont - EHCO Status Overview": 0,
+    "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD": 0, # Update with Fairmont Form ID
+    "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD": 0,          # Update with Fairmont Form ID
+}
+
+if "fairmont_nav_choice" not in st.session_state:
+    st.session_state.fairmont_nav_choice = "🏠 Fairmont - EHCO Status Overview"
+
+def go_to_portal():
+    st.session_state.current_site = "portal"
+    st.rerun()
+
+st.sidebar.title("⚙️ Fairmont Controls")
+if st.sidebar.button("← Return to Site Portal", use_container_width=True, on_click=go_to_portal):
+    pass
 
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
 today = ist_now.date()
@@ -65,65 +90,25 @@ date_selection = st.sidebar.date_input(
     "Audit Date Range (7 Days)",
     value=[default_start_7d, today],
     max_value=today,
-    key="sb_fairmont_date_range"
+    key="fairmont_date_picker"
 )
 
-if isinstance(date_selection, (list, tuple)) and len(date_selection) == 2:
-    start_date, end_date = date_selection
-elif isinstance(date_selection, (list, tuple)) and len(date_selection) == 1:
-    start_date = end_date = date_selection[0]
-else:
-    start_date = end_date = date_selection
-
-delta_days = (end_date - start_date).days
-day_options = [
-    (start_date + timedelta(days=i)).strftime("%d/%m/%Y")
-    for i in range(delta_days + 1)
-]
 selected_day_str = st.sidebar.selectbox(
-    "Focus Day for Drill-down", options=list(reversed(day_options)), key="sb_fairmont_day_select"
+    "Focus Day for Drill-down", options=[today.strftime("%d/%m/%Y")], key="fairmont_day_select"
 )
 
-FORM_MAPPING = {
-    "🏠 Fairmont - EHCO Status Overview": 0,
-    "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD": 0,  # Update with Fairmont Form ID
-    "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD": 0,
-    "RECORD 05 - COOLING OF FOOD RECORD": 0,
-    "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD": 0,
-}
+st.markdown(f"""
+    <div style="margin-bottom: 1.5rem;">
+        <div class="serif-title">Fairmont Mumbai - EHCO Status</div>
+        <div class="sub-head">Site 2 Active Operations &nbsp;|&nbsp; Date: <b>{selected_day_str}</b></div>
+    </div>
+""", unsafe_allow_html=True)
 
-if "fairmont_nav_choice" not in st.session_state:
-    st.session_state.fairmont_nav_choice = "🏠 Fairmont - EHCO Status Overview"
+st.info("Fairmont site configuration is active. You can add Fairmont-specific API endpoints, record keywords, and form store mappings directly into this file.")
 
-nav_options = list(FORM_MAPPING.keys())
-current_nav_index = nav_options.index(st.session_state.fairmont_nav_choice) if st.session_state.fairmont_nav_choice in nav_options else 0
-
-selected_record = st.sidebar.selectbox(
-    "SELECT FOOD SAFETY RECORD", 
-    options=nav_options, 
-    index=current_nav_index,
-    key="fairmont_nav_selectbox"
-)
-
-if selected_record != st.session_state.fairmont_nav_choice:
-    st.session_state.fairmont_nav_choice = selected_record
-    st.rerun()
-
-# -------------------------------------------------------------
-# 3. FAIRMONT OVERVIEW DASHBOARD VIEW
-# -------------------------------------------------------------
-if st.session_state.fairmont_nav_choice == "🏠 Fairmont - EHCO Status Overview":
-    st.markdown(f"""
-        <div style="margin-bottom: 1.5rem;">
-            <div class="serif-title">Fairmont Mumbai - EHCO Status</div>
-            <div class="sub-head">Date: <b>{selected_day_str}</b> &nbsp;|&nbsp; IST Time: <b>{ist_now.strftime("%H:%M:%S")}</b></div>
-        </div>
-    """, unsafe_allow_html=True)
-
-    st.info("Fairmont Mumbai site connected. Configure specific kitchen units and Form IDs inside `app_fairmont.py` to activate live data streams.")
-    
-    col1, col2 = st.columns(2)
-    with col1:
-        st.metric(label="Active Kitchen Units", value="0 Units", delta="Pending Configuration")
-    with col2:
-        st.metric(label="Daily Compliance Rate", value="0%", delta="--")
+col1, col2 = st.columns(2)
+with col1:
+    st.metric(label="Configured Kitchen Locations", value=str(len(FAIRMONT_UNIT_CATALOG)))
+with col2:
+    total_fairmont_units = sum(len(units) for units in FAIRMONT_UNIT_CATALOG.values())
+    st.metric(label="Total Tracked Units", value=str(total_fairmont_units))
