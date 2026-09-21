@@ -51,12 +51,11 @@ st.markdown("""
         font-weight: 600; 
     }
     .record-header-box {
-        background-color: #0b192c;
-        padding: 20px 24px;
-        border-radius: 10px;
-        color: white;
-        margin-bottom: 1.5rem;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        font-size: 1.85rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 1rem;
+        letter-spacing: -0.02em;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -152,8 +151,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v18"
-sync_time_key = f"sync_time_{active_form_id}_v18"
+cache_key = f"cache_df_{active_form_id}_v19"
+sync_time_key = f"sync_time_{active_form_id}_v19"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -245,7 +244,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v18"
+        ck = f"cache_df_{form_id}_v19"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -268,9 +267,9 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     html_03 = f'Opening: <span style="color: {"#4ade80" if op_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
     day_04 = df_04[df_04["Date_Str"] == selected_day_str] if (df_04 is not None and not df_04.empty and "Date_Str" in df_04.columns) else pd.DataFrame()
-    bf_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("break", na=False)]) if (not day_04.empty and "Meal_Shift" in day_04.columns) else len(day_04)
-    ln_count = 0
-    dn_count = 0
+    bf_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("break", na=False)]) if (not day_04.empty and "Meal_Shift" in day_04.columns) else 0
+    ln_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("lunch", na=False)]) if (not day_04.empty and "Meal_Shift" in day_04.columns) else 0
+    dn_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("dinner", na=False)]) if (not day_04.empty and "Meal_Shift" in day_04.columns) else 0
 
     stat_04_bf_str = f"Completed - {bf_count}/1" if bf_count > 0 else "Pending - 0/1"
     stat_04_ln_str = f"Completed - {ln_count}/1" if ln_count > 0 else "Pending - 0/1"
@@ -295,7 +294,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     day_21 = df_21[df_21["Date_Str"] == selected_day_str] if (df_21 is not None and not df_21.empty and "Date_Str" in df_21.columns) else pd.DataFrame()
     stat_21 = f'<span style="color: {"#4ade80" if not day_21.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_21.empty else "Pending"} - {len(day_21)} batches</span>'
 
-    day_25 = df_25[df_25["Date_Str"] == selected_day_str] if (df_25 is not None and not df_25.empty and "Date_Str" in day_25.columns) else pd.DataFrame()
+    day_25 = df_25[df_25["Date_Str"] == selected_day_str] if (df_25 is not None and not df_25.empty and "Date_Str" in df_25.columns) else pd.DataFrame()
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
 
@@ -354,43 +353,43 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
 elif st.session_state.nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
-    st.markdown(f'<div class="record-header-box"><div class="serif-title" style="color:white; margin:0;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem;"><div style="font-size: 1.6rem; font-weight: 700;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
     render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
-    st.markdown(f'<div class="record-header-box"><div class="serif-title" style="color:white; margin:0;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem;"><div style="font-size: 1.6rem; font-weight: 700;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
     render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
-    st.markdown(f'<div class="record-header-box"><div class="serif-title" style="color:white; margin:0;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem;"><div style="font-size: 1.6rem; font-weight: 700;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
     render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 05 - COOLING OF FOOD RECORD":
-    st.markdown(f'<div class="record-header-box"><div class="serif-title" style="color:white; margin:0;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem;"><div style="font-size: 1.6rem; font-weight: 700;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
     render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
-    st.markdown(f'<div class="record-header-box"><div class="serif-title" style="color:white; margin:0;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem;"><div style="font-size: 1.6rem; font-weight: 700;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
     render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
-    st.markdown(f'<div class="record-header-box"><div class="serif-title" style="color:white; margin:0;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem;"><div style="font-size: 1.6rem; font-weight: 700;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
     render_record_12_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
-    st.markdown(f'<div class="record-header-box"><div class="serif-title" style="color:white; margin:0;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem;"><div style="font-size: 1.6rem; font-weight: 700;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
     render_record_13_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 15 - PESTICIDE USAGE RECORD":
-    st.markdown(f'<div class="record-header-box"><div class="serif-title" style="color:white; margin:0;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem;"><div style="font-size: 1.6rem; font-weight: 700;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
     render_record_15_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
-    st.markdown(f'<div class="record-header-box"><div class="serif-title" style="color:white; margin:0;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem;"><div style="font-size: 1.6rem; font-weight: 700;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
     render_record_21_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 25 - ICE MACHINE CLEANING RECORD":
-    st.markdown(f'<div class="record-header-box"><div class="serif-title" style="color:white; margin:0;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem;"><div style="font-size: 1.6rem; font-weight: 700;">{st.session_state.nav_choice}</div></div>', unsafe_allow_html=True)
     render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
 
 # -------------------------------------------------------------
