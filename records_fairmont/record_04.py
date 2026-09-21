@@ -126,29 +126,36 @@ def parse_all_record_04_dishes(raw_df):
       else:
         food_name = "Food Item"
 
-      # Comprehensive temperature key matching for both cooking and reheating columns
-      temp_cooking = (
+      # Robust temperature search across all possible keys to prevent nan°C
+      temp_raw = (
           entry.get("Temperature_Cooking")
           or entry.get("Food Temperature °C (Cooking)")
-          or entry.get("Temp_Cooking")
-      )
-      temp_reheating = (
-          entry.get("Temperature_Reheating")
+          or entry.get("Temperature_Reheating")
           or entry.get("Food Temperature °C (Reheating)")
-          or entry.get("Temp_Reheating")
+          or entry.get("Temperature")
+          or entry.get("Temp")
       )
 
-      temp_raw = temp_cooking if pd.notna(temp_cooking) else temp_reheating
-      if pd.isna(temp_raw) or str(temp_raw).strip() in ["", "nan", "None"]:
-        # Fallback search inside entry keys
+      if pd.isna(temp_raw) or str(temp_raw).strip() in ["", "nan", "None", "null"]:
         for k, v in entry.items():
-          if "temp" in k.lower() and pd.notna(v) and str(v).strip() != "":
+          if (
+              any(sub in k.lower() for sub in ["temp", "temperature"])
+              and pd.notna(v)
+              and str(v).strip() not in ["", "nan", "None", "null"]
+          ):
             temp_raw = v
             break
 
-      heat_treatment = entry.get("Type_of_Heat_Treatment") or (
-          "Reheating" if pd.notna(temp_reheating) else "Cooking"
+      heat_treatment = entry.get("Type_of_Heat_Treatment") or entry.get(
+          "Heat_Treatment"
       )
+      if not heat_treatment or str(heat_treatment).strip() in ["", "nan"]:
+        heat_treatment = (
+            "Reheating"
+            if "reheat" in str(entry).lower()
+            or pd.notna(entry.get("Temperature_Reheating"))
+            else "Cooking"
+        )
 
       temp_val = pd.to_numeric(
           str(temp_raw).replace("°C", "").replace("°", "").strip(),
@@ -314,7 +321,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         unsafe_allow_html=True,
     )
 
-    # Clean, compact 2-column card grid for kitchens
+    # Small, balanced 2-column card grid so it doesn't take over the whole page
     loc_cols = st.columns(2)
     for idx, k_info in enumerate(kitchen_status_list):
       col_target = loc_cols[idx % 2]
@@ -401,7 +408,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
     with tab_matrix:
       st.markdown(
-          f"<h4 style='color:#0f172a; margin-top:1.5rem;'>📈 14-Day Compliance"
+          f"<h4 style='color:#0f172a; margin-top:1.5rem;'>📈 Cooking Compliance"
           f" Matrix ({start_date.strftime('%d/%m/%Y')} to"
           f" {end_date.strftime('%d/%m/%Y')})</h4>",
           unsafe_allow_html=True,
@@ -420,7 +427,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         ]
         today_date_obj = datetime.now().date()
 
-        # Traditional matrix layout: Kitchen on left, dates as columns
         for kitchen, meals in KITCHEN_MEAL_RULES.items():
           st.markdown(
               f'<div style="background:#0f172a; color:#ffffff; padding:8px'
