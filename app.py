@@ -271,15 +271,18 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
 
-    # Evaluate Record 03 Unit Counter (Out of 35 total units)
-    day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
+    # Evaluate Record 03 Unit Counter directly from parsed output
+    day_03 = df_03_parsed[df_03_parsed["Date_Str"] == selected_day_str] if (df_03_parsed is not None and not df_03_parsed.empty and "Date_Str" in df_03_parsed.columns) else pd.DataFrame()
+    
     op_units = 0
     cl_units = 0
     if not day_03.empty and "Shift" in day_03.columns:
         op_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]
         cl_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]
-        op_units = len(op_df) if "Unit_Name" not in op_df.columns else op_df["Unit_Name"].nunique()
-        cl_units = len(cl_df) if "Unit_Name" not in cl_df.columns else cl_df["Unit_Name"].nunique()
+        
+        # Pull exact unit counts matching the individual record page logic
+        op_units = len(op_df)
+        cl_units = len(cl_df)
 
     stat_03_op_str = f"Completed - {op_units}/35" if op_units > 0 else "Pending - 0/35"
     stat_03_cl_str = f"Completed - {cl_units}/35" if cl_units > 0 else "Pending - 0/35"
