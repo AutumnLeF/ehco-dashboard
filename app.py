@@ -138,16 +138,20 @@ FORM_MAPPING = {
 if "nav_choice" not in st.session_state:
     st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
 
-def update_nav():
-    st.session_state.nav_choice = st.session_state.main_record_selector
+def update_nav_from_sidebar():
+    st.session_state.nav_choice = st.session_state.sidebar_record_select
 
 selected_record = st.sidebar.selectbox(
     "SELECT FOOD SAFETY RECORD", 
     list(FORM_MAPPING.keys()), 
     index=list(FORM_MAPPING.keys()).index(st.session_state.nav_choice) if st.session_state.nav_choice in FORM_MAPPING else 0,
-    key="main_record_selector",
-    on_change=update_nav
+    key="sidebar_record_select",
+    on_change=update_nav_from_sidebar
 )
+
+# Ensure selectbox syncs if nav_choice changed via card button
+if st.session_state.sidebar_record_select != st.session_state.nav_choice:
+    st.session_state.sidebar_record_select = st.session_state.nav_choice
 
 active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 
@@ -321,7 +325,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         """, unsafe_allow_html=True)
         if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
             st.session_state.nav_choice = target_nav
-            st.session_state["main_record_selector"] = target_nav
             st.rerun()
 
     with col1:
@@ -339,10 +342,8 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
 else:
-    # Back to Overview Button for all drill-down pages
     if st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn"):
         st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
-        st.session_state["main_record_selector"] = "🏠 Roswyn - EHCO Status Overview"
         st.rerun()
     st.write("")
 
