@@ -154,16 +154,6 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v22"
-sync_time_key = f"sync_time_{active_form_id}_v22"
-
-force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
-
-if force_refresh:
-    st.session_state.pop(cache_key, None)
-    st.session_state.pop(sync_time_key, None)
-
-
 def fetch_submissions(url, token, form_id, start_dt, end_dt):
     """Paginates form-store using nested paging & sorting payload."""
     if form_id == 0:
@@ -217,23 +207,21 @@ def fetch_submissions(url, token, form_id, start_dt, end_dt):
 
     return all_rows
 
-if active_form_id != 0 and (cache_key not in st.session_state or st.session_state[cache_key].empty):
-    active_token = token_input.strip() if token_input else DEFAULT_TOKEN.strip()
-    clean_token = active_token.replace("Bearer ", "").strip()
+# Helper to fetch and cache data for any form ID
+def get_cached_form_df(form_id):
+    ck = f"cache_df_{form_id}_v23"
+    if ck not in st.session_state or st.session_state[ck].empty:
+        items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
+        st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
+    return st.session_state[ck]
 
-    with st.spinner(f"Fetching weekly logs for Form {active_form_id}..."):
-        try:
-            items = fetch_submissions(api_url, clean_token, active_form_id, start_date, end_date)
-            if items:
-                raw_df = pd.DataFrame({"raw_record": items})
-                st.session_state[cache_key] = raw_df
-                st.session_state[sync_time_key] = ist_now
-            else:
-                st.session_state[cache_key] = pd.DataFrame()
-        except Exception:
-            st.session_state[cache_key] = pd.DataFrame()
+force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
+if force_refresh:
+    for fid in FORM_MAPPING.values():
+        if fid != 0:
+            st.session_state.pop(f"cache_df_{fid}_v23", None)
 
-raw_records_df = st.session_state.get(cache_key, pd.DataFrame())
+raw_records_df = get_cached_form_df(active_form_id) if active_form_id != 0 else pd.DataFrame()
 
 # -------------------------------------------------------------
 # 5. ROUTE TO MODULAR RECORD AUDITORS OR OVERVIEW
@@ -246,20 +234,14 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         </div>
     """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
-    def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v22"
-        if ck not in st.session_state or st.session_state[ck].empty:
-            items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
-            st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
-        return st.session_state[ck]
-
-    df_03 = parse_record_03_submissions(get_form_df(31373))
-    df_04 = parse_all_record_04_dishes(get_form_df(31374))
-    df_05 = parse_record_05_submissions(get_form_df(31375))
-    df_06 = parse_record_06_submissions(get_form_df(31376))
-    df_13 = parse_record_13_submissions(get_form_df(31382))
-    df_21 = parse_record_21_submissions(get_form_df(31390))
-    df_25 = parse_record_25_submissions(get_form_df(31393))
+    # Ingest data for all 9 overview forms
+    df_03 = parse_record_03_submissions(get_cached_form_df(31373))
+    df_04 = parse_all_record_04_dishes(get_cached_form_df(31374))
+    df_05 = parse_record_05_submissions(get_cached_form_df(31375))
+    df_06 = parse_record_06_submissions(get_cached_form_df(31376))
+    df_13 = parse_record_13_submissions(get_cached_form_df(31382))
+    df_21 = parse_record_21_submissions(get_cached_form_df(31390))
+    df_25 = parse_record_25_submissions(get_cached_form_df(31393))
 
     # Evaluate exact status per category for the selected focus day
     day_03 = df_03[df_03["Date_Str"] == selected_day_str] if (df_03 is not None and not df_03.empty and "Date_Str" in df_03.columns) else pd.DataFrame()
@@ -291,8 +273,8 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
 
-    day_15_df = get_form_df(31384)
-    day_15 = day_15_df[day_15_df["Date_Str"] == selected_day_str] if (day_15_df is not None and not day_15_df.empty and "Date_Str" in day_15_df.columns) else pd.DataFrame()
+    day_15_df = get_cached_form_df(31384)
+    day_15 = day_15_df if (day_15_df is not None and not day_15_df.empty) else pd.DataFrame()
     logged_15 = len(day_15) if not day_15.empty else 0
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
 
