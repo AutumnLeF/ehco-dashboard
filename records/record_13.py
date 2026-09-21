@@ -171,7 +171,6 @@ def parse_record_13_submissions(raw_df):
 
 
 def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
-    """Renders location-grouped warewash audit matrix and daily drilldown."""
     df_items = parse_record_13_submissions(raw_df)
 
     with st.expander("🔍 Record 13 Diagnostic (Inspect loaded data)"):
@@ -200,15 +199,11 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
             else pd.DataFrame()
         )
 
-        total_catalog_units = sum(len(units) for units in LOCATION_CATALOG.values())
-        logged_unit_ids = day_df["Unit_ID"].dropna().unique() if not day_df.empty else []
-        
         excursions_count = 0
         compliant_count = 0
         inactive_count = 0
         pending_count = 0
 
-        # Calculate metrics across master catalog
         for loc_name, units in LOCATION_CATALOG.items():
             loc_day_df = day_df[day_df["Location"].str.lower() == loc_name.lower()] if not day_df.empty else pd.DataFrame()
             for u in units:
@@ -238,7 +233,6 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
         st.write("")
         st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Location-wise Unit Audit Summary ({selected_day_str})</h4>", unsafe_allow_html=True)
 
-        # Render grouped location cards with their units
         loc_cols = st.columns(2)
         for idx, (loc_name, units) in enumerate(LOCATION_CATALOG.items()):
             col_target = loc_cols[idx % 2]
@@ -269,23 +263,10 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
                         detail = f"<div style='font-size:0.72rem; color:#15803d; margin-top:2px;'>Wash: {latest['Wash_Temp']}°C | Rinse: {latest['Rinse_Temp']}°C</div>"
                         border_c = "#16a34a"
 
-                units_html += f"""
-                <div style="background:#f8fafc; border-left:3px solid {border_c}; padding:8px 10px; border-radius:4px; margin-bottom:8px;">
-                    <div style="font-size:0.85rem; color:#0f172a; font-weight:700;">
-                        ⚙️ {u_id} <span style="font-weight:normal; color:#64748b; font-size:0.75rem;">({u_type})</span> {badge}
-                    </div>
-                    {detail}
-                </div>
-                """
+                units_html += f'<div style="background:#f8fafc; border-left:3px solid {border_c}; padding:8px 10px; border-radius:4px; margin-bottom:8px;"><div style="font-size:0.85rem; color:#0f172a; font-weight:700;">⚙️ {u_id} <span style="font-weight:normal; color:#64748b; font-size:0.75rem;">({u_type})</span> {badge}</div>{detail}</div>'
 
-            col_target.markdown(f"""
-            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                <div style="font-weight:700; font-size:1rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:10px;">
-                    📍 {loc_name} <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">({len(units)} Units)</span>
-                </div>
-                {units_html}
-            </div>
-            """, unsafe_allow_html=True)
+            card_html = f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);"><div style="font-weight:700; font-size:1rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:6px; margin-bottom:10px;">📍 {loc_name} <span style="font-size:0.75rem; color:#64748b; font-weight:normal;">({len(units)} Units)</span></div>{units_html}</div>'
+            col_target.markdown(card_html, unsafe_allow_html=True)
 
     with tab_matrix:
         total_days = (end_date - start_date).days + 1
@@ -343,26 +324,13 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
             badge_color = "#16a34a" if active_count > 0 else "#64748b"
             badge_text = f"{active_count} Logs Recorded" if active_count > 0 else "Standby / No Logs"
 
-            st.markdown(f"""
-            <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:6px solid #0f172a; border-radius:8px; padding:10px 14px; margin-top:1.2rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center;">
-                <div style="font-size:1.05rem; font-weight:700; color:#0f172a;">📍 {location} <span style="font-size:0.8rem; font-weight:500; color:#64748b;">({total_units} Assigned Units)</span></div>
-                <div style="background:{badge_color}; color:#ffffff; font-size:0.75rem; font-weight:700; padding:3px 10px; border-radius:12px;">{badge_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:6px solid #0f172a; border-radius:8px; padding:10px 14px; margin-top:1.2rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center;"><div style="font-size:1.05rem; font-weight:700; color:#0f172a;">📍 {location} <span style="font-size:0.8rem; font-weight:500; color:#64748b;">({total_units} Assigned Units)</span></div><div style="background:{badge_color}; color:#ffffff; font-size:0.75rem; font-weight:700; padding:3px 10px; border-radius:12px;">{badge_text}</div></div>', unsafe_allow_html=True)
 
             cols = st.columns([1.6, 1, 1, 1, 1, 1, 1, 1])
-            cols[0].markdown("""
-            <div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.8rem; padding:8px 4px; border-radius:6px; text-align:center;">
-                Unit & Machine
-            </div>
-            """, unsafe_allow_html=True)
+            cols[0].markdown('<div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.8rem; padding:8px 4px; border-radius:6px; text-align:center;">Unit & Machine</div>', unsafe_allow_html=True)
 
             for i, d in enumerate(page_dates):
-                cols[i + 1].markdown(f"""
-                <div style="background:#1e293b; color:#ffffff; font-weight:700; font-size:0.78rem; padding:8px 2px; border-radius:6px; text-align:center;">
-                    {d.strftime('%d/%m (%a)')}
-                </div>
-                """, unsafe_allow_html=True)
+                cols[i + 1].markdown(f'<div style="background:#1e293b; color:#ffffff; font-weight:700; font-size:0.78rem; padding:8px 2px; border-radius:6px; text-align:center;">{d.strftime("%d/%m (%a)")}</div>', unsafe_allow_html=True)
 
             st.write("")
 
@@ -372,12 +340,7 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
 
                 row_cols = st.columns([1.6, 1, 1, 1, 1, 1, 1, 1])
 
-                row_cols[0].markdown(f"""
-                <div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:8px 6px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:105px; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-                    <div style="font-weight:700; color:#0f172a; font-size:0.85rem;">{unit}</div>
-                    <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">{m_type}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                row_cols[0].markdown(f'<div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:8px 6px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:105px; display:flex; flex-direction:column; align-items:center; justify-content:center;"><div style="font-weight:700; color:#0f172a; font-size:0.85rem;">{unit}</div><div style="font-size:0.72rem; color:#64748b; margin-top:2px;">{m_type}</div></div>', unsafe_allow_html=True)
 
                 u_df = loc_df[loc_df["Unit_ID"] == unit] if not loc_df.empty else pd.DataFrame()
 
@@ -386,11 +349,7 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
                     matches = u_df[u_df["Date_Str"] == d_str] if not u_df.empty else pd.DataFrame()
 
                     if matches.empty:
-                        row_cols[i + 1].markdown("""
-                        <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:105px; display:flex; align-items:center; justify-content:center;">
-                            <span style="color:#b45309; font-weight:600; font-size:0.8rem;">⏳ Pending</span>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        row_cols[i + 1].markdown('<div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:8px; text-align:center; min-height:105px; display:flex; align-items:center; justify-content:center;"><span style="color:#b45309; font-weight:600; font-size:0.8rem;">⏳ Pending</span></div>', unsafe_allow_html=True)
                     else:
                         latest = matches.iloc[-1]
                         w_val = f"{int(latest['Wash_Temp'])}°" if pd.notna(latest['Wash_Temp']) else "—"
@@ -409,16 +368,7 @@ def render_record_13_view(raw_df, selected_day_str, start_date, end_date):
                             temp_detail = f"W: {w_val} | R: {r_val}"
                             card_border = "1.5px solid #0f172a"
 
-                        row_cols[i + 1].markdown(f"""
-                        <div style="background:#ffffff; border:{card_border}; border-radius:8px; padding:6px 3px; text-align:center; min-height:105px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                            <div>{status_badge}</div>
-                            <div style="height:1px; background:#e2e8f0; margin:4px 0;"></div>
-                            <div style="font-size:0.8rem; font-weight:700; color:#0f172a; line-height:1.2;">
-                                {temp_detail}
-                            </div>
-                            <div style="font-size:0.65rem; color:#64748b; margin-top:3px;">By: {latest['Sign']}</div>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        row_cols[i + 1].markdown(f'<div style="background:#ffffff; border:{card_border}; border-radius:8px; padding:6px 3px; text-align:center; min-height:105px; box-shadow:0 1px 3px rgba(0,0,0,0.08);"><div>{status_badge}</div><div style="height:1px; background:#e2e8f0; margin:4px 0;"></div><div style="font-size:0.8rem; font-weight:700; color:#0f172a; line-height:1.2;">{temp_detail}</div><div style="font-size:0.65rem; color:#64748b; margin-top:3px;">By: {latest['Sign']}</div></div>', unsafe_allow_html=True)
 
                 st.write("")
 
