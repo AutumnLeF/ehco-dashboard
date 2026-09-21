@@ -305,6 +305,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     else:
         day_03 = pd.DataFrame()
 
+    # Exact Record 03 calculation matching the individual Record 03 page view
     global_opening_logged = 0
     global_closing_logged = 0
     global_total_units = 0
