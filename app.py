@@ -282,7 +282,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     # Master Data parsing
     raw_03 = get_master_df(31373, unwind=False)
-    raw_04 = get_master_df(31374, unwind=False)
+    raw_04 = get_master_df(31374, unwind=True)
     df_03_parsed = parse_record_03_submissions(raw_03)
     df_04_parsed = parse_all_record_04_dishes(raw_04)
     df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
@@ -292,44 +292,20 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
     df_15 = parse_record_15_submissions(get_master_df(31384, unwind=True))
 
-    target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
-    next_date_obj = target_date_obj + timedelta(days=1)
+    day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
+    day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
 
-    if not df_03_parsed.empty:
-        day_03 = df_03_parsed[
-            (df_03_parsed["Date_Obj"] == target_date_obj) |
-            ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
-        ]
-    else:
-        day_03 = pd.DataFrame()
+    op_units = 0
+    cl_units = 0
+    if not day_03.empty and "Shift" in day_03.columns:
+        op_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]
+        cl_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]
+        op_units = len(op_df) if "Unit_Name" not in op_df.columns else op_df["Unit_Name"].nunique()
+        cl_units = len(cl_df) if "Unit_Name" not in cl_df.columns else cl_df["Unit_Name"].nunique()
 
-    global_opening_logged = 0
-    global_closing_logged = 0
-    global_total_units = sum(len(units) for units in UNIT_CATALOG.values())
-
-    for loc_name, units in UNIT_CATALOG.items():
-        for u in units:
-            u_id = u["Unit_ID"]
-            clean_target = clean_unit_token(u_id)
-            unit_logs = day_03[day_03["Clean_Unit"] == clean_target] if not day_03.empty and "Clean_Unit" in day_03.columns else pd.DataFrame()
-            n_logs = len(unit_logs)
-            if n_logs == 1:
-                global_opening_logged += 1
-            elif n_logs >= 2:
-                global_opening_logged += 1
-                global_closing_logged += 1
-
-    stat_03_op_str = f"Completed - {global_opening_logged}/{global_total_units}" if global_opening_logged > 0 else f"Pending - 0/{global_total_units}"
-    stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if global_closing_logged > 0 else f"Pending - 0/{global_total_units}"
-    html_03 = f'Opening: <span style="color: {"#4ade80" if global_opening_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if global_closing_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
-
-    if not df_04_parsed.empty:
-        day_04 = df_04_parsed[
-            (df_04_parsed["Date_Obj"] == target_date_obj) |
-            ((df_04_parsed["Date_Obj"] == next_date_obj) & (df_04_parsed["Timestamp_DT"].dt.hour < 5))
-        ]
-    else:
-        day_04 = pd.DataFrame()
+    stat_03_op_str = f"Completed - {op_units}/35" if op_units > 0 else "Pending - 0/35"
+    stat_03_cl_str = f"Completed - {cl_units}/35" if cl_units > 0 else "Pending - 0/35"
+    html_03 = f'Opening: <span style="color: {"#4ade80" if op_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
     bf_count, ln_count, dn_count = 0, 0, 0
     if not day_04.empty and "Meal_Shift" in day_04.columns:
@@ -368,9 +344,14 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
 
     completed_cats = sum([
+        1 if op_units > 0 else 0,
+        1 if bf_count > 0 else 0,
         1 if not day_05.empty else 0,
         1 if not day_06.empty else 0,
+        1 if is_13_complete else 0,
+        1 if logged_15 > 0 else 0,
         1 if not day_21.empty else 0,
+        1 if logged_25 > 0 else 0
     ])
     total_cats = 9
     progress_pct = int((completed_cats / total_cats) * 100)
@@ -420,11 +401,11 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
     # =========================================================
-    # VIEW MODE 2: DEPARTMENT-WISE CARD DASHBOARD (BLUEPRINT)
+    # VIEW MODE 2: DEPARTMENT-WISE CARD DASHBOARD
     # =========================================================
     else:
         st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location & Department Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
-        st.caption("Detailed department breakdown following assigned operational records.")
+        st.caption("Detailed department breakdown matching assigned operational records.")
         st.write("")
 
         dept_blueprint = [
