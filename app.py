@@ -96,7 +96,6 @@ selected_day_str = st.sidebar.selectbox(
     "Focus Day for Drill-down", options=list(reversed(day_options)), key="sb_day_focus_select"
 )
 
-# Build date variants to handle both DD/MM/YYYY and YYYY-MM-DD formats
 def get_date_variants(d_str):
     variants = {d_str, d_str.replace("/", "-")}
     try:
@@ -234,7 +233,6 @@ def get_master_df(form_id, unwind=True):
         st.session_state["master_data_cache"][cache_key] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
     return st.session_state["master_data_cache"][cache_key]
 
-# Function to filter any dataframe by date variants
 def filter_by_focus_date(df, date_variants):
     if df is None or df.empty:
         return pd.DataFrame()
@@ -243,7 +241,6 @@ def filter_by_focus_date(df, date_variants):
             m = df[df[col].astype(str).isin(date_variants)]
             if not m.empty:
                 return m
-    # Fallback to general scan
     try:
         m = df[df.apply(lambda r: any(v in str(r.to_dict()) for v in date_variants), axis=1)]
         if not m.empty:
@@ -276,25 +273,20 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
 
-    # Record 03 Evaluation
+    # Record 03 Unit Counter Calculation (Out of 35 total units)
     day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
-    op_completed_areas = 0
-    cl_completed_areas = 0
-    if not day_03.empty and "Location" in day_03.columns and "Shift" in day_03.columns:
+    op_units = 0
+    cl_units = 0
+    if not day_03.empty and "Shift" in day_03.columns:
         op_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]
         cl_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]
-        op_completed_areas = op_df["Location"].nunique()
-        cl_completed_areas = cl_df["Location"].nunique()
-    elif not raw_03.empty:
-        for _, row in raw_03.iterrows():
-            r_str = str(row.get("raw_record", {})).lower()
-            if any(v in r_str for v in selected_day_variants):
-                if "open" in r_str and op_completed_areas == 0:
-                    op_completed_areas = 4
+        # Count unique units logged across locations
+        op_units = len(op_df) if "Unit_Name" not in op_df.columns else op_df["Unit_Name"].nunique()
+        cl_units = len(cl_df) if "Unit_Name" not in cl_df.columns else cl_df["Unit_Name"].nunique()
 
-    stat_03_op_str = f"Completed - {op_completed_areas}/8" if op_completed_areas > 0 else "Pending - 0/8"
-    stat_03_cl_str = f"Completed - {cl_completed_areas}/8" if cl_completed_areas > 0 else "Pending - 0/8"
-    html_03 = f'Opening: <span style="color: {"#4ade80" if op_completed_areas > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_completed_areas > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
+    stat_03_op_str = f"Completed - {op_units}/35" if op_units > 0 else "Pending - 0/35"
+    stat_03_cl_str = f"Completed - {cl_units}/35" if cl_units > 0 else "Pending - 0/35"
+    html_03 = f'Opening: <span style="color: {"#4ade80" if op_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
     # Record 04 Evaluation
     day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
@@ -306,14 +298,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         bf_count = 1 if not bf_shifts.empty else 0
         ln_count = 1 if not ln_shifts.empty else 0
         dn_count = dn_shifts["Kitchen"].nunique() if ("Kitchen" in dn_shifts.columns and not dn_shifts.empty) else 0
-    elif not raw_04.empty:
-        for _, row in raw_04.iterrows():
-            r_str = str(row.get("raw_record", {})).lower()
-            if any(v in r_str for v in selected_day_variants):
-                if "break" in r_str or "boiled chicken" in r_str:
-                    bf_count = 1
-                if "lunch" in r_str or "calamarata" in r_str:
-                    ln_count = 1
 
     stat_04_bf_str = f"Completed - {bf_count}/1" if bf_count > 0 else "Pending - 0/1"
     stat_04_ln_str = f"Completed - {ln_count}/1" if ln_count > 0 else "Pending - 0/1"
@@ -355,7 +339,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     # Daily Compliance Tracker calculation
     completed_cats = sum([
-        1 if op_completed_areas > 0 else 0,
+        1 if op_units > 0 else 0,
         1 if bf_count > 0 else 0,
         1 if not day_05.empty else 0,
         1 if not day_06.empty else 0,
@@ -421,7 +405,7 @@ else:
         render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
 
     elif st.session_state.nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
-        st.markdown(f'<div class="record-header-box">🚚 {st.session_box_nav if "record_box_nav" in locals() else st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="record-header-box">🚚 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
 
     elif st.session_state.nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
