@@ -108,10 +108,13 @@ def get_date_variants(d_str):
 
 selected_day_variants = get_date_variants(selected_day_str)
 
-DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
+# Secure token retrieval from Streamlit secrets with fallback
+DEFAULT_TOKEN = st.secrets.get("auth_token", "").strip()
+if not DEFAULT_TOKEN:
+    DEFAULT_TOKEN = "PASTE_FALLBACK_TOKEN_HERE"
 
 if "auth_token" not in st.session_state:
-    st.session_state["auth_token"] = DEFAULT_TOKEN.strip()
+    st.session_state["auth_token"] = DEFAULT_TOKEN
 
 api_url = st.sidebar.text_input(
     "Endpoint URL", value="https://auth-api.blinkm.io/form-store", key="sb_api_endpoint_input"
@@ -168,7 +171,7 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # 3. UNIFIED MASTER DATA FETCHING & CACHING
 # -------------------------------------------------------------
 def fetch_submissions(url, token, form_id, start_dt, end_dt, unwind=True):
-    if not form_id or form_id == 0:
+    if not form_id or form_id == 0 or not token:
         return []
     headers = {
         "Authorization": f"Bearer {token}",
@@ -282,7 +285,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     # Master Data parsing
     raw_03 = get_master_df(31373, unwind=False)
-    raw_04 = get_master_df(31374, unwind=True)
+    raw_04 = get_master_df(31374, unwind=False)
     df_03_parsed = parse_record_03_submissions(raw_03)
     df_04_parsed = parse_all_record_04_dishes(raw_04)
     df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
@@ -292,20 +295,44 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
     df_15 = parse_record_15_submissions(get_master_df(31384, unwind=True))
 
-    day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
-    day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
+    target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
+    next_date_obj = target_date_obj + timedelta(days=1)
 
-    op_units = 0
-    cl_units = 0
-    if not day_03.empty and "Shift" in day_03.columns:
-        op_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]
-        cl_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]
-        op_units = len(op_df) if "Unit_Name" not in op_df.columns else op_df["Unit_Name"].nunique()
-        cl_units = len(cl_df) if "Unit_Name" not in cl_df.columns else cl_df["Unit_Name"].nunique()
+    if not df_03_parsed.empty:
+        day_03 = df_03_parsed[
+            (df_03_parsed["Date_Obj"] == target_date_obj) |
+            ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
+        ]
+    else:
+        day_03 = pd.DataFrame()
 
-    stat_03_op_str = f"Completed - {op_units}/35" if op_units > 0 else "Pending - 0/35"
-    stat_03_cl_str = f"Completed - {cl_units}/35" if cl_units > 0 else "Pending - 0/35"
-    html_03 = f'Opening: <span style="color: {"#4ade80" if op_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_units > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
+    global_opening_logged = 0
+    global_closing_logged = 0
+    global_total_units = sum(len(units) for units in UNIT_CATALOG.values())
+
+    for loc_name, units in UNIT_CATALOG.items():
+        for u in units:
+            u_id = u["Unit_ID"]
+            clean_target = clean_unit_token(u_id)
+            unit_logs = day_03[day_03["Clean_Unit"] == clean_target] if not day_03.empty and "Clean_Unit" in day_03.columns else pd.DataFrame()
+            n_logs = len(unit_logs)
+            if n_logs == 1:
+                global_opening_logged += 1
+            elif n_logs >= 2:
+                global_opening_logged += 1
+                global_closing_logged += 1
+
+    stat_03_op_str = f"Completed - {global_opening_logged}/{global_total_units}" if global_opening_logged > 0 else f"Pending - 0/{global_total_units}"
+    stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if global_closing_logged > 0 else f"Pending - 0/{global_total_units}"
+    html_03 = f'Opening: <span style="color: {"#4ade80" if global_opening_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if global_closing_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
+
+    if not df_04_parsed.empty:
+        day_04 = df_04_parsed[
+            (df_04_parsed["Date_Obj"] == target_date_obj) |
+            ((df_04_parsed["Date_Obj"] == next_date_obj) & (df_04_parsed["Timestamp_DT"].dt.hour < 5))
+        ]
+    else:
+        day_04 = pd.DataFrame()
 
     bf_count, ln_count, dn_count = 0, 0, 0
     if not day_04.empty and "Meal_Shift" in day_04.columns:
@@ -344,8 +371,8 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
 
     completed_cats = sum([
-        1 if op_units > 0 else 0,
-        1 if bf_count > 0 else 0,
+        1 if global_opening_logged > 0 else 0,
+        1 if bf_count > 0 or ln_count > 0 or dn_count > 0 else 0,
         1 if not day_05.empty else 0,
         1 if not day_06.empty else 0,
         1 if is_13_complete else 0,
