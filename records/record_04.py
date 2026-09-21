@@ -244,7 +244,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         st.write("")
         st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Kitchen Meal Audit Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
 
-        # Summary Cards per Kitchen with proper item & temperature breakdown
         loc_cols = st.columns(2)
         for idx, k_info in enumerate(kitchen_status_list):
             col_target = loc_cols[idx % 2]
@@ -344,7 +343,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                         if match_entry.empty:
                             row_cols[i + 1].markdown(
                                 '<div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px; padding:6px; min-height:60px; display:flex; align-items:center; justify-content:center; color:#b45309; font-size:0.72rem; font-weight:700;">⏳ Pending</div>',
-                                unsafe_allow_html=True,
                                 unsafe_allow_html=True
                             )
                         else:
