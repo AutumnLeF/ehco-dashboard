@@ -30,9 +30,8 @@ with col_roswyn:
         <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px;">Site 1 Operations & EHCO Compliance</div>
     </div>
     """, unsafe_allow_html=True)
-    # Point this to your original working Roswyn file path
     if st.button("Launch Roswyn Portal ➔", use_container_width=True, key="btn_roswyn"):
-        st.switch_page("app_ros/app_ros.py")
+        st.switch_page("pages/roswyn.py")
 
 with col_fairmont:
     st.markdown("""
@@ -42,6 +41,5 @@ with col_fairmont:
         <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px;">Site 2 Operations & EHCO Compliance</div>
     </div>
     """, unsafe_allow_html=True)
-    # Streamlit automatically maps files in pages/ by their filename
     if st.button("Launch Fairmont Portal ➔", use_container_width=True, key="btn_fairmont"):
         st.switch_page("pages/fairmont.py")
