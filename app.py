@@ -146,6 +146,9 @@ selected_record = st.sidebar.selectbox(
     on_change=update_nav_from_sidebar
 )
 
+if st.session_state.sidebar_nav_box != st.session_state.nav_choice:
+    st.session_state.sidebar_nav_box = st.session_state.nav_choice
+
 active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 
 # -------------------------------------------------------------
@@ -218,14 +221,6 @@ def get_master_df(form_id):
 
 raw_records_df = get_master_df(active_form_id) if active_form_id != 0 else pd.DataFrame()
 
-# Helper to check date match
-def submission_matches_date(sub_dict, target_date_str):
-    sub_date = sub_dict.get("submissionDate", "") or sub_dict.get("dateTimeSubmitted", "")
-    sub_json_str = json.dumps(sub_dict)
-    if target_date_str in sub_date or target_date_str.replace("/", "-") in sub_date or target_date_str in sub_json_str:
-        return True
-    return False
-
 # -------------------------------------------------------------
 # 4. ROUTE TO MODULAR RECORD AUDITORS OR OVERVIEW
 # -------------------------------------------------------------
@@ -237,7 +232,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         </div>
     """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
-    # Pull data directly using Record 3 and Record 4 specialized parsers
+    # Use the EXACT same parsers as individual record pages
     df_03_parsed = parse_record_03_submissions(get_master_df(31373))
     df_04_parsed = parse_all_record_04_dishes(get_master_df(31374))
     df_05 = parse_record_05_submissions(get_master_df(31375))
@@ -246,20 +241,29 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_21 = parse_record_21_submissions(get_master_df(31390))
     df_25 = parse_record_25_submissions(get_master_df(31393))
 
-    # Evaluate Record 03 status directly from parsed data
+    # Evaluate Record 03 status matching individual view logic (8 locations total)
     day_03 = df_03_parsed[df_03_parsed["Date_Str"] == selected_day_str] if (df_03_parsed is not None and not df_03_parsed.empty and "Date_Str" in df_03_parsed.columns) else pd.DataFrame()
-    op_count = len(day_03[day_03["Shift"].str.lower().str.contains("open", na=False)]) if (not day_03.empty and "Shift" in day_03.columns) else 0
-    cl_count = len(day_03[day_03["Shift"].str.lower().str.contains("clos", na=False)]) if (not day_03.empty and "Shift" in day_03.columns) else 0
+    
+    # Count completed/logged opening & closing areas from the parsed data
+    op_completed_areas = 0
+    cl_completed_areas = 0
+    if not day_03.empty and "Location" in day_03.columns and "Shift" in day_03.columns:
+        op_df = day_03[day_03["Shift"].str.lower().str.contains("open", na=False)]
+        cl_df = day_03[day_03["Shift"].str.lower().str.contains("clos", na=False)]
+        op_completed_areas = op_df["Location"].nunique()
+        cl_completed_areas = cl_df["Location"].nunique()
 
-    stat_03_op_str = f"Completed - {op_count}/8" if op_count > 0 else "Pending - 0/8"
-    stat_03_cl_str = f"Completed - {cl_count}/8" if cl_count > 0 else "Pending - 0/8"
-    html_03 = f'Opening: <span style="color: {"#4ade80" if op_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
+    stat_03_op_str = f"Completed - {op_completed_areas}/8" if op_completed_areas > 0 else "Pending - 0/8"
+    stat_03_cl_str = f"Completed - {cl_completed_areas}/8" if cl_completed_areas > 0 else "Pending - 0/8"
+    html_03 = f'Opening: <span style="color: {"#4ade80" if op_completed_areas > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if cl_completed_areas > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # Evaluate Record 04 status directly from parsed data
+    # Evaluate Record 04 status matching individual view logic (Breakfast, Lunch, Dinner shifts)
     day_04 = df_04_parsed[df_04_parsed["Date_Str"] == selected_day_str] if (df_04_parsed is not None and not df_04_parsed.empty and "Date_Str" in df_04_parsed.columns) else pd.DataFrame()
-    bf_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("break", na=False)]) if (not day_04.empty and "Meal_Shift" in day_04.columns) else 0
-    ln_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("lunch", na=False)]) if (not day_04.empty and "Meal_Shift" in day_04.columns) else 0
-    dn_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("dinner", na=False)]) if (not day_04.empty and "Meal_Shift" in day_04.columns) else 0
+    bf_count, ln_count, dn_count = 0, 0, 0
+    if not day_04.empty and "Meal_Shift" in day_04.columns:
+        bf_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("break", na=False)])
+        ln_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("lunch", na=False)])
+        dn_count = len(day_04[day_04["Meal_Shift"].str.lower().str.contains("dinner", na=False)])
 
     stat_04_bf_str = f"Completed - {bf_count}/1" if bf_count > 0 else "Pending - 0/1"
     stat_04_ln_str = f"Completed - {ln_count}/1" if ln_count > 0 else "Pending - 0/1"
@@ -277,12 +281,9 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
 
-    day_15_df = get_master_df(31384)
-    logged_15 = 0
-    if day_15_df is not None and not day_15_df.empty:
-        for idx, row in day_15_df.iterrows():
-            if submission_matches_date(row.get("raw_record", {}), selected_day_str):
-                logged_15 += 1
+    day_15_df = parse_record_15_submissions(get_master_df(31384)) if "parse_record_15_submissions" in globals() else get_master_df(31384)
+    day_15 = day_15_df[day_15_df["Date_Str"] == selected_day_str] if (day_15_df is not None and not day_15_df.empty and "Date_Str" in day_15_df.columns) else pd.DataFrame()
+    logged_15 = len(day_15) if not day_15.empty else 0
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
 
     day_21 = df_21[df_21["Date_Str"] == selected_day_str] if (df_21 is not None and not df_21.empty and "Date_Str" in df_21.columns) else pd.DataFrame()
