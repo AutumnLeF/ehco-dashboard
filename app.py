@@ -83,10 +83,14 @@ FORM_MAPPING = {
 if "nav_choice" not in st.session_state:
     st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
 
-# Callback function to handle card navigation and sync the sidebar selectbox state
+# Callback functions for clean state management before rerun
 def navigate_to(target_nav):
     st.session_state.nav_choice = target_nav
     st.session_state.nav_selectbox = target_nav
+
+def go_to_overview():
+    st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
+    st.session_state.nav_selectbox = "🏠 Roswyn - EHCO Status Overview"
 
 st.sidebar.title("⚙️ Inspection Controls")
 st.sidebar.markdown("**Site:** Roswyn (Site 1)")
@@ -526,10 +530,11 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             st.markdown("</div>", unsafe_allow_html=True)
 
 else:
-    if st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn"):
-        st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
-        st.session_state.nav_selectbox = "🏠 Roswyn - EHCO Status Overview"
-        st.rerun()
+    st.button(
+        "← Back to EHCO Status Overview",
+        key="back_to_overview_top_btn",
+        on_click=go_to_overview
+    )
     st.write("")
 
     if st.session_state.nav_choice == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
