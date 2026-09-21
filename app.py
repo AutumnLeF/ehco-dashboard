@@ -262,25 +262,24 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         </div>
     """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
-    # CRITICAL: Record 03 requires unwind=False to match its native parser structure
-    df_03_parsed = parse_record_03_submissions(get_master_df(31373, unwind=False))
-    df_04_parsed = parse_all_record_04_dishes(get_master_df(31374, unwind=True))
+    # Master Data parsing (unwind=False for Record 3 to match individual page parser expectations)
+    raw_03 = get_master_df(31373, unwind=False)
+    raw_04 = get_master_df(31374, unwind=True)
+    df_03_parsed = parse_record_03_submissions(raw_03)
+    df_04_parsed = parse_all_record_04_dishes(raw_04)
     df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
     df_06 = parse_record_06_submissions(get_master_df(31376, unwind=True))
     df_13 = parse_record_13_submissions(get_master_df(31382, unwind=True))
     df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
 
-    # Evaluate Record 03 Unit Counter directly from parsed output
-    day_03 = df_03_parsed[df_03_parsed["Date_Str"] == selected_day_str] if (df_03_parsed is not None and not df_03_parsed.empty and "Date_Str" in df_03_parsed.columns) else pd.DataFrame()
-    
+    # Evaluate Record 03 Unit Counter directly from parsed output matching individual page
+    day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
     op_units = 0
     cl_units = 0
     if not day_03.empty and "Shift" in day_03.columns:
         op_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]
         cl_df = day_03[day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]
-        
-        # Pull exact unit counts matching the individual record page logic
         op_units = len(op_df)
         cl_units = len(cl_df)
 
