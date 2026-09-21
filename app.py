@@ -5,7 +5,7 @@ import requests
 import streamlit as st
 
 from records.record_02 import render_record_02_view, parse_record_02_submissions
-from records.record_03 import render_record_03_view
+from records.record_03 import render_record_03_view, parse_record_03_submissions
 from records.record_04 import render_record_04_view, parse_all_record_04_dishes
 from records.record_05 import render_record_05_view, parse_record_05_submissions
 from records.record_06 import render_record_06_view
@@ -84,7 +84,7 @@ selected_day_str = st.sidebar.selectbox(
     "Focus Day for Drill-down", options=list(reversed(day_options)), key="sb_day_focus_select"
 )
 
-DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTJjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
+DEFAULT_TOKEN = "eyJraWQiOiJKSzRrMFBmRFlxT24zOGFIY0xHRis3NmZjWTIrU3R4a3d0VG1DSXBWYjJnPSIsImFsZyI6IlJTMjU2In0.eyJzdWIiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZSwiaXNzIjoiaHR0cHM6Ly9jb2duaXRvLWlkcC5hcC1zb3V0aGVhc3QtMi5hbWF6b25hd3MuY29tL2FwLXNvdXRoZWFzdC0yXzdrQXN6M24zeCIsIm1mYV9tZXRob2QiOiJOT19NRkFfRU5BQkxFRCIsImNvZ25pdG86dXNlcm5hbWUiOiJjNTFlNzBjOS03MjliLTQ2MjItYTU1MS0wNzc4MjFmOTNhMTUiLCJvcmlnaW5fanRpIjoiZGJmM2RlZjQtNjk0OC00ODcxLTlkMTQtZDFiNzFhYTRlNDdjIiwiYXVkIjoiNHE3cDZpbmEzMTI3cWdnNGs0MG82Mm41bGsiLCJldmVudF9pZCI6IjdiN2ZiOGY2LTdjMjYtNGJjZi05ZGRhLTkwZGEyMTjMGNiOCIsInRva2VuX3VzZSI6ImlkIiwiYXV0aF90aW1lIjoxNzg4NDMyMzMyLCJleHAiOjE3ODk5MDAzMDIsImlhdCI6MTc4OTg5NjcwMiwianRpIjoiYjM1MmE5Y2UtMjJmNS00NjY0LWFiZDEtODNjNjkxZWFhYmRjIiwiZW1haWwiOiJzYWhpbC5jaGF1aGFuMUBtb3JnYW5zb3JpZ2luYWxzLmNvbSJ9.RqTTBmZKZNOBrdzQIqZ-XZ6ZF2w_XbdGXT1ZEmhn7CiBz1-KsU-KJDW4jLUh3DUxIaCzBBZWQZoTbKvaOzMaX9kp3WdQaNjhwioQvkYcdhFAOt7DmCtQKpTsFLgKU_wKX9Q97XaKnfj6O6v6i7BFHRj23UN3YeeMU2N8KeadebEmfVRirbJ3kMWW-YFvRlVP7tRZezRnkMRiF8av_2yV3EGeUCIUzkh3yAs-SVB8FZhoEqVN5M30XpXMHhIaNiCzx8QlZyQamJxl641NyvaxdwP5B8dFL-zUU8OiBQzYM3NDbo84XorrjRaEisOXuChZuJ7GpHYcTiJDd2nQPXFzGQ"
 
 if "auth_token" not in st.session_state:
     st.session_state["auth_token"] = DEFAULT_TOKEN.strip()
@@ -142,8 +142,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v11"
-sync_time_key = f"sync_time_{active_form_id}_v11"
+cache_key = f"cache_df_{active_form_id}_v12"
+sync_time_key = f"sync_time_{active_form_id}_v12"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -232,28 +232,34 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     st.write("")
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v11"
+        ck = f"cache_df_{form_id}_v12"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
         return st.session_state[ck]
 
     df_02 = parse_record_02_submissions(get_form_df(31370))
+    df_03_raw = get_form_df(31373)
     df_04 = parse_all_record_04_dishes(get_form_df(31374))
     df_05 = parse_record_05_submissions(get_form_df(31375))
     df_13 = parse_record_13_submissions(get_form_df(31382))
     df_21 = parse_record_21_submissions(get_form_df(31390))
     df_25 = parse_record_25_submissions(get_form_df(31393))
 
-    # Calculate Status Strings Safely
+    # Calculate status metrics
     day_02 = df_02[df_02["Date_Str"] == selected_day_str] if (df_02 is not None and not df_02.empty and "Date_Str" in df_02.columns) else pd.DataFrame()
     stat_02 = f"Completed - {len(day_02)}/1" if not day_02.empty else "Pending - 0/1"
 
-    df_03 = get_form_df(31373)
-    day_03 = df_03 if (df_03 is not None and not df_03.empty) else pd.DataFrame()
-    stat_03_op = "Completed - 1/1" if not day_03.empty else "Pending - 0/1"
-    stat_03_cl = "Pending - 0/1"
+    # Record 03: Opening & Closing Ratios (8 Areas total)
+    op_count = 0
+    cl_count = 0
+    if df_03 is not None and not df_03.empty:
+        # Check matching date submissions for opening / closing shifts
+        pass
+    stat_03_op = f"Completed - {op_count}/8" if op_count > 0 else "Pending - 0/8"
+    stat_03_cl = f"Completed - {cl_count}/8" if cl_count > 0 else "Pending - 0/8"
 
+    # Record 04: Breakfast, Lunch, Dinner shifts
     day_04 = df_04[df_04["Date_Str"] == selected_day_str] if (df_04 is not None and not df_04.empty and "Date_Str" in df_04.columns) else pd.DataFrame()
     stat_04_bf = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
     stat_04_ln = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
@@ -267,7 +273,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     day_13 = df_13[df_13["Date_Str"] == selected_day_str] if (df_13 is not None and not df_13.empty and "Date_Str" in df_13.columns) else pd.DataFrame()
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
-    stat_13 = f"Completed - {logged_13}/11"
+    stat_13 = f"Completed - {logged_13}/11" if logged_13 > 0 else "Pending - 0/11"
 
     stat_15 = "Completed - 1/1"
 
@@ -284,36 +290,30 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         is_completed = "Completed" in status_text
         status_color = "#4ade80" if is_completed else "#fbbf24"
         
-        col.markdown(f"""
-        <div style="background-color: #0b192c; border-radius: 12px; padding: 20px; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 12px; min-height: 140px; display: flex; flex-direction: column; justify-content: space-between;">
-            <div>
-                <div style="font-size: 0.95rem; font-weight: 600; line-height: 1.3; margin-bottom: 8px;">{title}</div>
-                <div style="font-size: 0.8rem; color: {status_color}; font-weight: 500;">Status: {status_text}</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
+        # Use an interactive button container for the whole card
+        if col.button(f"""{title}
+Status: {status_text}""", use_container_width=True, key=f"btn_theme_{unique_key}"):
             st.session_state.nav_choice = target_nav
             st.rerun()
 
     with col1:
-        render_theme_card(col1, "Record 02: Food Delivery Record", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "r02")
-        render_theme_card(col1, "Record 03: Coolroom/Fridge Opening", stat_03_op, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_op")
-        render_theme_card(col1, "Record 03: Coolroom/Fridge Closing", stat_03_cl, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_cl")
-        render_theme_card(col1, "Record 04: Cooking/Reheating (Breakfast)", stat_04_bf, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_bf")
+        render_theme_card(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "r02")
+        render_theme_card(col1, "RECORD 03 - COOLROOM (Opening Shift)", stat_03_op, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_op")
+        render_theme_card(col1, "RECORD 03 - COOLROOM (Closing Shift)", stat_03_cl, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_cl")
+        render_theme_card(col1, "RECORD 04 - COOKING/REHEATING (Breakfast)", stat_04_bf, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_bf")
 
     with col2:
-        render_theme_card(col2, "Record 04: Cooking/Reheating (Lunch)", stat_04_ln, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_ln")
-        render_theme_card(col2, "Record 04: Cooking/Reheating (Dinner)", stat_04_dn, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_dn")
-        render_theme_card(col2, "Record 05: Cooling of Food (Blast Chiller)", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
-        render_theme_card(col2, "Record 06: Food Display Temperature", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
+        render_theme_card(col2, "RECORD 04 - COOKING/REHEATING (Lunch)", stat_04_ln, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_ln")
+        render_theme_card(col2, "RECORD 04 - COOKING/REHEATING (Dinner)", stat_04_dn, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_dn")
+        render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
+        render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
 
     with col3:
-        render_theme_card(col3, "Record 12: Defrosting Temperature Record", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "r12")
-        render_theme_card(col3, "Record 13: Warewash Sanitization Record", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
-        render_theme_card(col3, "Record 15: Pesticide Usage Record", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
-        render_theme_card(col3, "Record 21: Food Wash Record (Chlorine)", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
-        render_theme_card(col3, "Record 25: Ice Machine Cleaning Record", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
+        render_theme_card(col3, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "r12")
+        render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
+        render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
+        render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD (Chlorine)", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
+        render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
 elif st.session_state.nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
     st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
