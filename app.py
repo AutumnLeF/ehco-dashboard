@@ -142,8 +142,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v8"
-sync_time_key = f"sync_time_{active_form_id}_v8"
+cache_key = f"cache_df_{active_form_id}_v9"
+sync_time_key = f"sync_time_{active_form_id}_v9"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -232,7 +232,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     st.write("")
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v8"
+        ck = f"cache_df_{form_id}_v9"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -265,7 +265,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_06 = "Completed - 1/1"
     stat_12 = "Completed - 1/1"
 
-    day_13 = df_13[df_13["Date_Str"] == selected_day_str] if not day_13.empty else pd.DataFrame()
+    day_13 = df_13[df_13["Date_Str"] == selected_day_str] if not df_13.empty else pd.DataFrame()
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if not day_13.empty else 0
     stat_13 = f"Completed - {logged_13}/11"
 
@@ -274,7 +274,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     day_21 = df_21[df_21["Date_Str"] == selected_day_str] if not df_21.empty else pd.DataFrame()
     stat_21 = f"Completed - {len(day_21)} batches" if not day_21.empty else "Pending - 0 batches"
 
-    day_25 = df_25[df_25["Date_Str"] == selected_day_str] if not df_25.empty else pd.DataFrame()
+    day_25 = df_25[df_25["Date_Str"] == selected_day_str] if not day_25.empty else pd.DataFrame()
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if not day_25.empty else 0
     stat_25 = f"Completed - {logged_25}/1" if logged_25 > 0 else "Pending - 0/1"
 
