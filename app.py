@@ -281,7 +281,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             st.session_state.dashboard_view_mode = view_choice
             st.rerun()
 
-    # Master Data parsing (unwind=True for Record 3 to match parser successfully)
+    # Master Data parsing
     raw_03 = get_master_df(31373, unwind=True)
     raw_04 = get_master_df(31374, unwind=True)
     df_03_parsed = parse_record_03_submissions(raw_03)
@@ -405,6 +405,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             """, unsafe_allow_html=True)
             if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
                 st.session_state.nav_choice = target_nav
+                st.session_state["nav_selectbox"] = target_nav
                 st.rerun()
 
         with col1:
