@@ -20,18 +20,6 @@ KITCHEN_MEAL_RULES = {
 }
 
 
-def first_valid(*values):
-  for value in values:
-    if pd.notna(value) and str(value).strip().lower() not in {
-        "",
-        "nan",
-        "none",
-        "null",
-    }:
-      return value
-  return None
-
-
 def parse_all_record_04_dishes(raw_df):
   if raw_df.empty:
     return pd.DataFrame()
@@ -138,40 +126,39 @@ def parse_all_record_04_dishes(raw_df):
       else:
         food_name = "Food Item"
 
-      # Using the robust first_valid helper to prevent NaN bypass issues
-      temp_raw = first_valid(
-          entry.get("Temperature_Cooking"),
-          entry.get("Food Temperature °C (Cooking)"),
-          entry.get("Temperature_Reheating"),
-          entry.get("Food Temperature °C (Reheating)"),
-          entry.get("Temperature"),
-          entry.get("Temp"),
-      )
+      # Universal Temperature Scanner: Checks all entry keys for numeric temperature values
+      temp_val = None
+      for k, v in entry.items():
+        if (
+            any(
+                sub in k.lower()
+                for sub in [
+                    "temp",
+                    "temperature",
+                    "cooking",
+                    "reheat",
+                    "deg",
+                    "°c",
+                ]
+            )
+            and v is not None
+            and str(v).strip() not in ["", "nan", "None", "null"]
+        ):
+          cleaned = (
+              str(v).replace("°C", "").replace("°", "").replace("C", "").strip()
+          )
+          try:
+            val = float(cleaned)
+            if 0 <= val <= 150:
+              temp_val = val
+              break
+          except ValueError:
+            continue
 
-      if pd.isna(temp_raw) or str(temp_raw).strip() in ["", "nan", "None", "null"]:
-        for k, v in entry.items():
-          if (
-              any(sub in k.lower() for sub in ["temp", "temperature"])
-              and pd.notna(v)
-              and str(v).strip() not in ["", "nan", "None", "null"]
-          ):
-            temp_raw = v
-            break
-
-      heat_treatment = entry.get("Type_of_Heat_Treatment") or entry.get(
-          "Heat_Treatment"
-      )
-      if not heat_treatment or str(heat_treatment).strip() in ["", "nan"]:
-        heat_treatment = (
-            "Reheating"
-            if "reheat" in str(entry).lower()
-            or pd.notna(entry.get("Temperature_Reheating"))
-            else "Cooking"
-        )
-
-      temp_val = pd.to_numeric(
-          str(temp_raw).replace("°C", "").replace("°", "").strip(),
-          errors="coerce",
+      heat_treatment = (
+          entry.get("Type_of_Heat_Treatment")
+          or entry.get("Heat_Treatment")
+          or "Cooking"
       )
       corrective = (
           entry.get("Corrective_Actions_cooking")
@@ -333,7 +320,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         unsafe_allow_html=True,
     )
 
-    # Compact kitchen cards: 3 kitchens per row
+    # Compact kitchen cards: exactly 3 kitchens per row
     loc_cols = st.columns(3, gap="small")
 
     for idx, k_info in enumerate(kitchen_status_list):
@@ -348,16 +335,13 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
       for m in m_list:
         is_done = m["Status"] == "Completed"
-
         status_color = "#16a34a" if is_done else "#d97706"
         status_text = "✓ Done" if is_done else "⏳ Pending"
-
         dishes_html = ""
 
         if is_done:
           for dish in m["Dishes"]:
             temp = dish["Temp"]
-
             if pd.notna(temp):
               temp_text = f"{temp}°C"
               temp_color = "#dc2626" if temp < TEMP_THRESHOLD else "#0f172a"
