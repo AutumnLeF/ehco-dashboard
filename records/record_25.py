@@ -168,13 +168,8 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
     selected_dt = pd.to_datetime(selected_day_str, format="%d/%m/%Y", errors="coerce")
     selected_dt_obj = selected_dt.date() if pd.notna(selected_dt) else datetime.now().date()
 
-    # Define current week window (Monday to Sunday) for weekly compliance tracking
     week_start = selected_dt_obj - timedelta(days=selected_dt_obj.weekday())
     week_end = week_start + timedelta(days=6)
-
-    weekly_df = df_items[
-        (df_items["Date_Obj"] >= week_start) & (df_items["Date_Obj"] <= week_end)
-    ] if not df_items.empty and "Date_Obj" in df_items.columns else pd.DataFrame()
 
     with tab_day:
         day_df = (
@@ -182,8 +177,6 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
             if not range_df.empty
             else pd.DataFrame()
         )
-
-        cleaned_count = len(day_df)
 
         st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🧊 Ice Machine Cleaning Log ({selected_day_str})</h4>", unsafe_allow_html=True)
         st.caption("Showing ice machine cleaning logs submitted for the selected day.")
@@ -267,8 +260,9 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
                 d_str = d.strftime("%d/%m/%Y")
                 matches = pd.DataFrame()
                 if not u_df.empty:
+                    # d is already a date object here
                     if "Date_Obj" in u_df.columns:
-                        matches = u_df[u_df["Date_Obj"] == d.date()]
+                        matches = u_df[u_df["Date_Obj"] == d]
                     if matches.empty and "Date_Str" in u_df.columns:
                         matches = u_df[u_df["Date_Str"] == d_str]
 
