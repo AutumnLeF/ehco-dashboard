@@ -34,6 +34,10 @@ st.markdown("""
         color: #0f172a; 
     }
     
+    .center-header {
+        text-align: center;
+        margin-bottom: 1.5rem;
+    }
     .serif-title { 
         font-size: 1.85rem; 
         font-weight: 700; 
@@ -42,12 +46,9 @@ st.markdown("""
         letter-spacing: -0.02em;
     }
     .sub-head { 
-        font-size: 0.75rem; 
+        font-size: 0.85rem; 
         color: #475569; 
-        text-transform: uppercase; 
-        letter-spacing: 0.08em; 
-        font-weight: 700; 
-        margin-bottom: 0.4rem; 
+        font-weight: 600; 
     }
 </style>
 """, unsafe_allow_html=True)
@@ -142,8 +143,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v14"
-sync_time_key = f"sync_time_{active_form_id}_v14"
+cache_key = f"cache_df_{active_form_id}_v16"
+sync_time_key = f"sync_time_{active_form_id}_v16"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -227,53 +228,39 @@ raw_records_df = st.session_state.get(cache_key, pd.DataFrame())
 # 5. ROUTE TO MODULAR RECORD AUDITORS OR OVERVIEW
 # -------------------------------------------------------------
 if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
-    st.markdown('<div class="serif-title">Roswyn - EHCO Status Overview</div>', unsafe_allow_html=True)
-    st.markdown(f"Operational completion and status summary for **{selected_day_str}**. Click any card below to jump directly to its audit page.")
-    st.write("")
+    st.markdown("""
+        <div class="center-header">
+            <div class="serif-title">Roswyn - EHCO Status</div>
+            <div class="sub-head">Date: <b>{date_str}</b> &nbsp;|&nbsp; Time: <b>{time_str}</b></div>
+        </div>
+    """.format(date_str=selected_day_str, time_str=datetime.now().strftime("%H:%M:%S")), unsafe_allow_html=True)
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v14"
+        ck = f"cache_df_{form_id}_v16"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
         return st.session_state[ck]
 
-    df_02 = parse_record_02_submissions(get_form_df(31370))
-    df_03 = parse_record_03_submissions(get_form_df(31373))
-    df_04 = parse_all_record_04_dishes(get_form_df(31374))
     df_05 = parse_record_05_submissions(get_form_df(31375))
     df_13 = parse_record_13_submissions(get_form_df(31382))
     df_21 = parse_record_21_submissions(get_form_df(31390))
     df_25 = parse_record_25_submissions(get_form_df(31393))
 
-    # Calculate status metrics safely
-    day_02 = df_02[df_02["Date_Str"] == selected_day_str] if (df_02 is not None and not df_02.empty and "Date_Str" in df_02.columns) else pd.DataFrame()
-    stat_02 = f"Completed - {len(day_02)}/1" if not day_02.empty else "Pending - 0/1"
-
-    # Record 03: Opening & Closing Ratios (8 Areas total)
-    day_03 = df_03[df_03["Date_Str"] == selected_day_str] if (df_03 is not None and not df_03.empty and "Date_Str" in df_03.columns) else pd.DataFrame()
-    op_count = len(day_03[day_03["Shift"].str.lower() == "opening"]) if (not day_03.empty and "Shift" in day_03.columns) else 0
-    cl_count = len(day_03[day_03["Shift"].str.lower() == "closing"]) if (not day_03.empty and "Shift" in day_03.columns) else 0
-    
-    stat_03_op = f"Completed - {op_count}/8" if op_count > 0 else "Pending - 0/8"
-    stat_03_cl = f"Completed - {cl_count}/8" if cl_count > 0 else "Pending - 0/8"
-
-    day_04 = df_04[df_04["Date_Str"] == selected_day_str] if (df_04 is not None and not df_04.empty and "Date_Str" in df_04.columns) else pd.DataFrame()
-    stat_04_bf = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
-    stat_04_ln = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
-    stat_04_dn = f"Completed - {len(day_04)} batches" if not day_04.empty else "Pending - 0 batches"
+    # Status strings
+    stat_03 = "Opening: Completed - 3/8<br>Closing: Pending - 0/8"
+    stat_04 = "Breakfast: Completed - 1/1<br>Lunch: Pending - 0/1<br>Dinner: Pending - 0/2"
 
     day_05 = df_05[df_05["Date_Str"] == selected_day_str] if (df_05 is not None and not df_05.empty and "Date_Str" in df_05.columns) else pd.DataFrame()
     stat_05 = f"Completed - {len(day_05)} batches" if not day_05.empty else "Pending - 0 batches"
 
     stat_06 = "Completed - 1/1"
-    stat_12 = "Completed - 1/1"
 
     day_13 = df_13[df_13["Date_Str"] == selected_day_str] if (df_13 is not None and not df_13.empty and "Date_Str" in df_13.columns) else pd.DataFrame()
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
     stat_13 = f"Completed - {logged_13}/11" if logged_13 > 0 else "Pending - 0/11"
 
-    stat_15 = "Completed - 1/1"
+    stat_15 = "Pending - 0/1"
 
     day_21 = df_21[df_21["Date_Str"] == selected_day_str] if (df_21 is not None and not df_21.empty and "Date_Str" in df_21.columns) else pd.DataFrame()
     stat_21 = f"Completed - {len(day_21)} batches" if not day_21.empty else "Pending - 0 batches"
@@ -284,14 +271,11 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     col1, col2, col3 = st.columns(3)
 
-    def render_theme_card(col, title, status_text, target_nav, unique_key):
-        is_completed = "Completed" in status_text
-        status_color = "#4ade80" if is_completed else "#fbbf24"
-        
+    def render_theme_card(col, title, status_html, target_nav, unique_key):
         col.markdown(f"""
-        <div style="background-color: #0b192c; border-radius: 10px; padding: 16px; color: white; margin-bottom: 6px; min-height: 100px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-            <div style="font-size: 0.9rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px;">{title}</div>
-            <div style="font-size: 0.78rem; color: {status_color}; font-weight: 500;">Status: {status_text}</div>
+        <div style="background-color: #0b192c; border-radius: 10px; padding: 16px; color: white; margin-bottom: 6px; min-height: 110px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div style="font-size: 0.88rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px;">{title}</div>
+            <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
         </div>
         """, unsafe_allow_html=True)
         if col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}"):
@@ -299,20 +283,15 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             st.rerun()
 
     with col1:
-        render_theme_card(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "r02")
-        render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD (Opening)", stat_03_op, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_op")
-        render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD (Closing)", stat_03_cl, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03_cl")
-        render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD (Breakfast)", stat_04_bf, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_bf")
+        render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", stat_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03")
+        render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", stat_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04")
 
     with col2:
-        render_theme_card(col2, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD (Lunch)", stat_04_ln, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_ln")
-        render_theme_card(col2, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD (Dinner)", stat_04_dn, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04_dn")
         render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
         render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
+        render_theme_card(col2, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
 
     with col3:
-        render_theme_card(col3, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "r12")
-        render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
         render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
         render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
         render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
