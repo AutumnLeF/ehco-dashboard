@@ -427,12 +427,25 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     # VIEW MODE 2: DEPARTMENT-WISE CARD DASHBOARD
     # =========================================================
     else:
-        st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location / Department Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
-        st.caption("Detailed columnar card breakdown per department showing Record 03 and Record 04 status.")
+        st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location & Department Compliance Breakdown ({selected_day_str})</h3>", unsafe_allow_html=True)
+        st.caption("Comprehensive department-wise tracking across Records 03, 04, 05, 06, 13, 15, 21, and 25.")
         st.write("")
 
-        for loc_name, units in UNIT_CATALOG.items():
-            loc_units_total = len(units)
+        # Collect distinct locations and department-specific records
+        dept_mapping = {
+            "Filia Kitchen": {"Role": "Kitchen Staff / Chefs", "Recs": ["Rec 03 (Fridge/Coolroom)", "Rec 04 (Cooking)", "Rec 05 (Cooling)", "Rec 06 (Display)", "Rec 21 (Wash)"]},
+            "Filia Kitchen - Bakery": {"Role": "Bakery Chefs", "Recs": ["Rec 03 (Fridge)", "Rec 04 (Cooking)", "Rec 05 (Cooling)", "Rec 06 (Display)"]},
+            "Filia Show Kitchen": {"Role": "Show Kitchen Chefs", "Recs": ["Rec 03 (Fridge)", "Rec 04 (Cooking)", "Rec 06 (Display)", "Rec 21 (Wash)"]},
+            "Filia Bar": {"Role": "Bar Staff", "Recs": ["Rec 03 (Bar Fridges)", "Rec 06 (Display)"]},
+            "Black Lacquer Kitchen": {"Role": "Kitchen Staff / Chefs", "Recs": ["Rec 03 (Fridge/Coolroom)", "Rec 04 (Cooking)", "Rec 05 (Cooling)", "Rec 06 (Display)"]},
+            "Black Lacquer Bar": {"Role": "Bar Staff", "Recs": ["Rec 03 (Bar Fridges)"]},
+            "Third Room Kitchen": {"Role": "Kitchen Staff / Chefs", "Recs": ["Rec 03 (Fridge)", "Rec 04 (Cooking)", "Rec 05 (Cooling)"]},
+            "Third Room": {"Role": "F&B Service / Stewarding", "Recs": ["Rec 03 (Fridges)", "Rec 13 (Glasswasher)", "Rec 25 (Ice Machine - Stewarding)"]},
+            "General / Facility": {"Role": "Housekeeping & Pest Control", "Recs": ["Rec 15 (Pesticide Usage - Housekeeping)"]}
+        }
+
+        for loc_name, info in dept_mapping.items():
+            loc_units_total = len(UNIT_CATALOG.get(loc_name, []))
             
             loc_day_03 = day_03[day_03["Location"] == loc_name] if not day_03.empty and "Location" in day_03.columns else pd.DataFrame()
             loc_op_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]) if not loc_day_03.empty and "Shift" in loc_day_03.columns else 0
@@ -441,25 +454,21 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             loc_day_04 = day_04[day_04["Kitchen"] == loc_name] if not day_04.empty and "Kitchen" in day_04.columns else pd.DataFrame()
             loc_r04_status = "✅ Logged" if not loc_day_04.empty else "⏳ Pending"
 
+            recs_list_html = "".join([f"<span style='background:#f1f5f9; color:#334155; padding:2px 8px; border-radius:4px; font-size:0.75rem; margin-right:4px; display:inline-block; margin-top:3px;'>{r}</span>" for r in info["Recs"]])
+
             st.markdown(f"""
-            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:14px 18px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:10px; padding:16px 20px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:8px; margin-bottom:10px;">
-                    <span style="font-weight:700; font-size:1.05rem; color:#0f172a;">📍 {loc_name}</span>
-                    <span style="font-size:0.78rem; background:#e2e8f0; padding:3px 10px; border-radius:12px; font-weight:600; color:#475569;">{loc_units_total} Assigned Units</span>
+                    <span style="font-weight:700; font-size:1.1rem; color:#0f172a;">📍 {loc_name} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">({info["Role"]})</span></span>
+                    <span style="font-size:0.78rem; background:#e2e8f0; padding:3px 10px; border-radius:12px; font-weight:600; color:#475569;">{loc_units_total if loc_units_total > 0 else "Facility"} Units</span>
+                </div>
+                <div style="display:flex; gap:20px; font-size:0.85rem; align-items:center;">
+                    <div><b>Applicable Records:</b><br>{recs_list_html}</div>
+                    <div style="border-left:1px solid #e2e8f0; padding-left:15px;"><b>Temperature Audit (Rec 3):</b><br>🌅 Open: `{loc_op_units}/{loc_units_total if loc_units_total>0 else 1}` &nbsp;|&nbsp; 🌙 Close: `{loc_cl_units}/{loc_units_total if loc_units_total>0 else 1}`</div>
+                    <div style="border-left:1px solid #e2e8f0; padding-left:15px;"><b>Cooking Status (Rec 4):</b><br>`{loc_r04_status}`</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
-
-            d_col1, d_col2, d_col3, d_col4 = st.columns(4)
-            with d_col1:
-                st.markdown(f"**Department:**<br>`{loc_name}`", unsafe_allow_html=True)
-            with d_col2:
-                st.markdown(f"**Record 03 (Coolroom/Fridge):**<br>🌅 Open: `{loc_op_units}/{loc_units_total}`<br>🌙 Close: `{loc_cl_units}/{loc_units_total}`", unsafe_allow_html=True)
-            with d_col3:
-                st.markdown(f"**Record 04 (Cooking/Reheat):**<br>Status: `{loc_r04_status}`", unsafe_allow_html=True)
-            with d_col4:
-                st.markdown(f"**General Compliance:**<br>🟢 Active & Monitored", unsafe_allow_html=True)
-            st.write("")
 
 else:
     if st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn"):
