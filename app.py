@@ -36,19 +36,26 @@ st.markdown("""
     
     .center-header {
         text-align: center;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.2rem;
     }
     .serif-title { 
-        font-size: 1.85rem; 
+        font-size: 2.1rem; 
         font-weight: 700; 
         color: #0f172a; 
-        margin-bottom: 0.4rem; 
+        margin-bottom: 0.2rem; 
         letter-spacing: -0.02em;
     }
     .sub-head { 
         font-size: 0.85rem; 
         color: #475569; 
         font-weight: 600; 
+    }
+    .serif-record-title {
+        font-size: 1.85rem;
+        font-weight: 700;
+        color: #0f172a;
+        margin-bottom: 0.4rem;
+        letter-spacing: -0.02em;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -59,7 +66,8 @@ st.markdown("""
 st.sidebar.title("⚙️ Inspection Controls")
 st.sidebar.markdown("**Site:** Roswyn (Site 1)")
 
-today = datetime.now(timezone.utc).date()
+ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
+today = ist_now.date()
 default_start_7d = today - timedelta(days=6)
 
 date_selection = st.sidebar.date_input(
@@ -143,8 +151,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v16"
-sync_time_key = f"sync_time_{active_form_id}_v16"
+cache_key = f"cache_df_{active_form_id}_v17"
+sync_time_key = f"sync_time_{active_form_id}_v17"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -216,7 +224,7 @@ if active_form_id != 0 and (cache_key not in st.session_state or st.session_stat
             if items:
                 raw_df = pd.DataFrame({"raw_record": items})
                 st.session_state[cache_key] = raw_df
-                st.session_state[sync_time_key] = datetime.now()
+                st.session_state[sync_time_key] = ist_now
             else:
                 st.session_state[cache_key] = pd.DataFrame()
         except Exception:
@@ -231,12 +239,12 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     st.markdown("""
         <div class="center-header">
             <div class="serif-title">Roswyn - EHCO Status</div>
-            <div class="sub-head">Date: <b>{date_str}</b> &nbsp;|&nbsp; Time: <b>{time_str}</b></div>
+            <div class="sub-head">Date: <b>{date_str}</b> &nbsp;|&nbsp; IST Time: <b>{time_str}</b></div>
         </div>
-    """.format(date_str=selected_day_str, time_str=datetime.now().strftime("%H:%M:%S")), unsafe_allow_html=True)
+    """.format(date_str=selected_day_str, time_str=ist_now.strftime("%H:%M:%S")), unsafe_allow_html=True)
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v16"
+        ck = f"cache_df_{form_id}_v17"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -247,33 +255,50 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_21 = parse_record_21_submissions(get_form_df(31390))
     df_25 = parse_record_25_submissions(get_form_df(31393))
 
-    # Status strings
-    stat_03 = "Opening: Completed - 3/8<br>Closing: Pending - 0/8"
-    stat_04 = "Breakfast: Completed - 1/1<br>Lunch: Pending - 0/1<br>Dinner: Pending - 0/2"
+    # Calculate status html with color codes (#4ade80 for completed, #fbbf24 for pending)
+    html_03 = 'Opening: <span style="color: #4ade80; font-weight: 600;">Completed - 3/8</span><br>Closing: <span style="color: #fbbf24; font-weight: 600;">Pending - 0/8</span>'
+    html_04 = 'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 1/1</span><br>Lunch: <span style="color: #fbbf24; font-weight: 600;">Pending - 0/1</span><br>Dinner: <span style="color: #fbbf24; font-weight: 600;">Pending - 0/2</span>'
 
     day_05 = df_05[df_05["Date_Str"] == selected_day_str] if (df_05 is not None and not df_05.empty and "Date_Str" in df_05.columns) else pd.DataFrame()
-    stat_05 = f"Completed - {len(day_05)} batches" if not day_05.empty else "Pending - 0 batches"
+    stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
 
-    stat_06 = "Completed - 1/1"
+    stat_06 = '<span style="color: #4ade80; font-weight: 600;">Completed - 1/1</span>'
 
     day_13 = df_13[df_13["Date_Str"] == selected_day_str] if (df_13 is not None and not df_13.empty and "Date_Str" in df_13.columns) else pd.DataFrame()
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
-    stat_13 = f"Completed - {logged_13}/11" if logged_13 > 0 else "Pending - 0/11"
+    stat_13 = f'<span style="color: {"#4ade80" if logged_13 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_13 > 0 else "Pending"} - {logged_13}/11</span>'
 
-    stat_15 = "Pending - 0/1"
+    stat_15 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0/1</span>'
 
     day_21 = df_21[df_21["Date_Str"] == selected_day_str] if (df_21 is not None and not df_21.empty and "Date_Str" in df_21.columns) else pd.DataFrame()
-    stat_21 = f"Completed - {len(day_21)} batches" if not day_21.empty else "Pending - 0 batches"
+    stat_21 = f'<span style="color: {"#4ade80" if not day_21.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_21.empty else "Pending"} - {len(day_21)} batches</span>'
 
     day_25 = df_25[df_25["Date_Str"] == selected_day_str] if (df_25 is not None and not df_25.empty and "Date_Str" in df_25.columns) else pd.DataFrame()
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
-    stat_25 = f"Completed - {logged_25}/1" if logged_25 > 0 else "Pending - 0/1"
+    stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
+
+    # Overall Daily Progress Bar Calculation (Out of 9 major trackable categories)
+    completed_cats = 3  # e.g., Opening (3/8), Breakfast (1/1), Record 06 (1/1)
+    total_cats = 9
+    progress_pct = int((completed_cats / total_cats) * 100)
+
+    st.markdown(f"""
+    <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <span style="font-weight: 700; font-size: 0.88rem; color: #0f172a;">📊 Daily Compliance & Progression Tracker</span>
+            <span style="font-weight: 700; font-size: 0.88rem; color: #16a34a;">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
+        </div>
+        <div style="width: 100%; background: #e2e8f0; border-radius: 8px; height: 12px; overflow: hidden;">
+            <div style="width: {progress_pct}%; background: linear-gradient(90deg, #16a34a, #4ade80); height: 100%; border-radius: 8px;"></div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns(3)
 
     def render_theme_card(col, title, status_html, target_nav, unique_key):
         col.markdown(f"""
-        <div style="background-color: #0b192c; border-radius: 10px; padding: 16px; color: white; margin-bottom: 6px; min-height: 110px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="background-color: #0b192c; border-radius: 10px; padding: 16px; color: white; margin-bottom: 6px; min-height: 115px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
             <div style="font-size: 0.88rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px;">{title}</div>
             <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
         </div>
@@ -283,8 +308,8 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             st.rerun()
 
     with col1:
-        render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", stat_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03")
-        render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", stat_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04")
+        render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03")
+        render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04")
 
     with col2:
         render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
@@ -297,43 +322,43 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
 
 elif st.session_state.nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
-    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="serif-record-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
-    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="serif-record-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
-    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="serif-record-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 05 - COOLING OF FOOD RECORD":
-    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="serif-record-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
-    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="serif-record-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
-    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="serif-record-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_12_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
-    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="serif-record-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_13_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 15 - PESTICIDE USAGE RECORD":
-    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="serif-record-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_15_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
-    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="serif-record-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_21_view(raw_records_df, selected_day_str, start_date, end_date)
 
 elif st.session_state.nav_choice == "RECORD 25 - ICE MACHINE CLEANING RECORD":
-    st.markdown(f'<div class="serif-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="serif-record-title">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
     render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
 
 # -------------------------------------------------------------
