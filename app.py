@@ -290,6 +290,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     df_13 = parse_record_13_submissions(get_master_df(31382, unwind=True))
     df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
+    df_15 = parse_record_15_submissions(get_master_df(31384, unwind=True))
 
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
@@ -355,13 +356,8 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
 
-    day_15_raw = get_master_df(31384, unwind=True)
-    logged_15 = 0
-    if not day_15_raw.empty:
-        for _, row in day_15_raw.iterrows():
-            r_str = str(row.get("raw_record", {})).lower()
-            if any(v in r_str for v in selected_day_variants):
-                logged_15 += 1
+    day_15 = filter_by_focus_date(df_15, selected_day_variants)
+    logged_15 = len(day_15) if not day_15.empty else 0
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
 
     day_21 = filter_by_focus_date(df_21, selected_day_variants)
@@ -431,28 +427,65 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         st.caption("Comprehensive department-wise tracking across Records 03, 04, 05, 06, 13, 15, 21, and 25.")
         st.write("")
 
-        # Collect distinct locations and department-specific records
         dept_mapping = {
-            "Filia Kitchen": {"Role": "Kitchen Staff / Chefs", "Recs": ["Rec 03 (Fridge/Coolroom)", "Rec 04 (Cooking)", "Rec 05 (Cooling)", "Rec 06 (Display)", "Rec 21 (Wash)"]},
-            "Filia Kitchen - Bakery": {"Role": "Bakery Chefs", "Recs": ["Rec 03 (Fridge)", "Rec 04 (Cooking)", "Rec 05 (Cooling)", "Rec 06 (Display)"]},
-            "Filia Show Kitchen": {"Role": "Show Kitchen Chefs", "Recs": ["Rec 03 (Fridge)", "Rec 04 (Cooking)", "Rec 06 (Display)", "Rec 21 (Wash)"]},
-            "Filia Bar": {"Role": "Bar Staff", "Recs": ["Rec 03 (Bar Fridges)", "Rec 06 (Display)"]},
-            "Black Lacquer Kitchen": {"Role": "Kitchen Staff / Chefs", "Recs": ["Rec 03 (Fridge/Coolroom)", "Rec 04 (Cooking)", "Rec 05 (Cooling)", "Rec 06 (Display)"]},
-            "Black Lacquer Bar": {"Role": "Bar Staff", "Recs": ["Rec 03 (Bar Fridges)"]},
-            "Third Room Kitchen": {"Role": "Kitchen Staff / Chefs", "Recs": ["Rec 03 (Fridge)", "Rec 04 (Cooking)", "Rec 05 (Cooling)"]},
-            "Third Room": {"Role": "F&B Service / Stewarding", "Recs": ["Rec 03 (Fridges)", "Rec 13 (Glasswasher)", "Rec 25 (Ice Machine - Stewarding)"]},
-            "General / Facility": {"Role": "Housekeeping & Pest Control", "Recs": ["Rec 15 (Pesticide Usage - Housekeeping)"]}
+            "Filia Kitchen": {
+                "Role": "Kitchen Staff / Chefs", 
+                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 04 (Cooking/Reheat)", "Record 05 (Cooling)", "Record 06 (Display)", "Record 21 (Food Wash)"]
+            },
+            "Filia Kitchen - Bakery": {
+                "Role": "Bakery Chefs", 
+                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 04 (Cooking/Reheat)", "Record 05 (Cooling)", "Record 06 (Display)"]
+            },
+            "Filia Show Kitchen": {
+                "Role": "Show Kitchen Chefs", 
+                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 04 (Cooking/Reheat)", "Record 06 (Display)", "Record 21 (Food Wash)"]
+            },
+            "Filia Bar": {
+                "Role": "Bar Staff", 
+                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 06 (Display)"]
+            },
+            "Black Lacquer Kitchen": {
+                "Role": "Kitchen Staff / Chefs", 
+                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 04 (Cooking/Reheat)", "Record 05 (Cooling)", "Record 06 (Display)"]
+            },
+            "Black Lacquer Bar": {
+                "Role": "Bar Staff", 
+                "Recs": ["Record 03 (Coolroom/Fridge)"]
+            },
+            "Third Room Kitchen": {
+                "Role": "Kitchen Staff / Chefs", 
+                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 04 (Cooking/Reheat)", "Record 05 (Cooling)"]
+            },
+            "Third Room": {
+                "Role": "F&B Service / Stewarding", 
+                "Recs": ["Record 03 (Coolroom/Fridge)", "Record 13 (Dishwasher/Glasswasher)", "Record 25 (Ice Machine - Stewarding)"]
+            },
+            "General / Housekeeping": {
+                "Role": "Housekeeping & Pest Control", 
+                "Recs": ["Record 13 (Dishwasher)", "Record 15 (Pesticide Usage - Housekeeping)"]
+            }
         }
 
         for loc_name, info in dept_mapping.items():
             loc_units_total = len(UNIT_CATALOG.get(loc_name, []))
             
+            # Record 03 calculation per location
             loc_day_03 = day_03[day_03["Location"] == loc_name] if not day_03.empty and "Location" in day_03.columns else pd.DataFrame()
             loc_op_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("open", na=False)]) if not loc_day_03.empty and "Shift" in loc_day_03.columns else 0
             loc_cl_units = len(loc_day_03[loc_day_03["Shift"].astype(str).str.lower().str.contains("clos", na=False)]) if not loc_day_03.empty and "Shift" in loc_day_03.columns else 0
+            r03_display = f"🌅 Open: {loc_op_units}/{loc_units_total if loc_units_total>0 else 1} &nbsp;|&nbsp; 🌙 Close: {loc_cl_units}/{loc_units_total if loc_units_total>0 else 1}" if loc_units_total > 0 else "N/A"
 
+            # Record 04 calculation per location
             loc_day_04 = day_04[day_04["Kitchen"] == loc_name] if not day_04.empty and "Kitchen" in day_04.columns else pd.DataFrame()
-            loc_r04_status = "✅ Logged" if not loc_day_04.empty else "⏳ Pending"
+            r04_display = "✅ Logged" if not loc_day_04.empty else "⏳ Pending" if "Record 04 (Cooking/Reheat)" in "".join(info["Recs"]) else "N/A"
+
+            # Record 05 calculation per location
+            loc_day_05 = df_05[df_05.apply(lambda r: loc_name.lower() in str(r.to_dict()).lower(), axis=1)] if not df_05.empty else pd.DataFrame()
+            r05_display = f"✅ {len(loc_day_05)} Batches" if not loc_day_05.empty else "⏳ Pending" if any("Record 05" in r for r in info["Recs"]) else "N/A"
+
+            # Record 25 / 15 / 13 status checks
+            r25_status = "✅ Cleaned" if not day_25.empty and loc_name == "Third Room" else "⏳ Pending" if loc_name == "Third Room" else "N/A"
+            r15_status = "✅ Logged" if not day_15.empty and loc_name == "General / Housekeeping" else "⏳ Pending" if loc_name == "General / Housekeeping" else "N/A"
 
             recs_list_html = "".join([f"<span style='background:#f1f5f9; color:#334155; padding:2px 8px; border-radius:4px; font-size:0.75rem; margin-right:4px; display:inline-block; margin-top:3px;'>{r}</span>" for r in info["Recs"]])
 
@@ -462,10 +495,11 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                     <span style="font-weight:700; font-size:1.1rem; color:#0f172a;">📍 {loc_name} <span style="font-size:0.8rem; color:#64748b; font-weight:normal;">({info["Role"]})</span></span>
                     <span style="font-size:0.78rem; background:#e2e8f0; padding:3px 10px; border-radius:12px; font-weight:600; color:#475569;">{loc_units_total if loc_units_total > 0 else "Facility"} Units</span>
                 </div>
-                <div style="display:flex; gap:20px; font-size:0.85rem; align-items:center;">
-                    <div><b>Applicable Records:</b><br>{recs_list_html}</div>
-                    <div style="border-left:1px solid #e2e8f0; padding-left:15px;"><b>Temperature Audit (Rec 3):</b><br>🌅 Open: `{loc_op_units}/{loc_units_total if loc_units_total>0 else 1}` &nbsp;|&nbsp; 🌙 Close: `{loc_cl_units}/{loc_units_total if loc_units_total>0 else 1}`</div>
-                    <div style="border-left:1px solid #e2e8f0; padding-left:15px;"><b>Cooking Status (Rec 4):</b><br>`{loc_r04_status}`</div>
+                <div style="display:flex; gap:25px; font-size:0.85rem; align-items:flex-start;">
+                    <div style="flex: 1.2;"><b>Applicable Records:</b><br>{recs_list_html}</div>
+                    <div style="border-left:1px solid #e2e8f0; padding-left:15px; flex: 1;"><b>Temperature Audit (Rec 3):</b><br>{r03_display}</div>
+                    <div style="border-left:1px solid #e2e8f0; padding-left:15px; flex: 0.8;"><b>Cooking (Rec 4):</b><br>{r04_display}</div>
+                    <div style="border-left:1px solid #e2e8f0; padding-left:15px; flex: 0.8;"><b>Cooling / Special (Rec 5/25/15):</b><br>Rec 5: `{r05_display}`<br>Rec 25/15: `{r25_status if r25_status!='N/A' else r15_status}`</div>
                 </div>
             </div>
             """, unsafe_allow_html=True)
