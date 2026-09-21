@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 import json
 import pandas as pd
 import requests
@@ -63,6 +63,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+# Correct Fairmont Mumbai Form Mapping IDs
 FORM_MAPPING = {
     "🏠 Fairmont Mumbai - EHCO Status Overview": 0,
     "RECORD 02 - FOOD DELIVERY RECORD": 23703,
@@ -317,16 +318,16 @@ if (
       st.session_state.fairmont_dashboard_view_mode = view_choice
       st.rerun()
 
-  raw_03 = get_master_df(31373, unwind=True)
-  raw_04 = get_master_df(31374, unwind=True)
+  raw_03 = get_master_df(23705, unwind=True)
+  raw_04 = get_master_df(23706, unwind=True)
   df_03_parsed = parse_record_03_submissions(raw_03)
   df_04_parsed = parse_all_record_04_dishes(raw_04)
-  df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
-  df_06 = parse_record_06_submissions(get_master_df(31376, unwind=True))
-  df_13 = parse_record_13_submissions(get_master_df(31382, unwind=True))
-  df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
-  df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
-  df_15 = parse_record_15_submissions(get_master_df(31384, unwind=True))
+  df_05 = parse_record_05_submissions(get_master_df(23707, unwind=True))
+  df_06 = parse_record_06_submissions(get_master_df(23708, unwind=True))
+  df_13 = parse_record_13_submissions(get_master_df(23715, unwind=True))
+  df_21 = parse_record_21_submissions(get_master_df(23723, unwind=True))
+  df_25 = parse_record_25_submissions(get_master_df(23727, unwind=True))
+  df_15 = parse_record_15_submissions(get_master_df(23717, unwind=True))
 
   target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
   next_date_obj = target_date_obj + timedelta(days=1)
