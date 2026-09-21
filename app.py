@@ -22,7 +22,7 @@ st.set_page_config(
 )
 
 # -------------------------------------------------------------
-# 1. EDITORIAL STYLING
+# 1. EDITORIAL STYLING & POLISHED CARDS
 # -------------------------------------------------------------
 st.markdown("""
 <style>
@@ -142,8 +142,8 @@ active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 # -------------------------------------------------------------
 # 4. INGESTION ENGINE WITH CACHING
 # -------------------------------------------------------------
-cache_key = f"cache_df_{active_form_id}_v7"
-sync_time_key = f"sync_time_{active_form_id}_v7"
+cache_key = f"cache_df_{active_form_id}_v8"
+sync_time_key = f"sync_time_{active_form_id}_v8"
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 
@@ -232,7 +232,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     st.write("")
 
     def get_form_df(form_id):
-        ck = f"cache_df_{form_id}_v7"
+        ck = f"cache_df_{form_id}_v8"
         if ck not in st.session_state or st.session_state[ck].empty:
             items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date)
             st.session_state[ck] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
@@ -271,10 +271,9 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     stat_15 = "Completed - 1/1"
 
-    day_21 = df_21[df_21["Date_Str"] == selected_day_str] if not day_21.empty else pd.DataFrame()
+    day_21 = df_21[df_21["Date_Str"] == selected_day_str] if not df_21.empty else pd.DataFrame()
     stat_21 = f"Completed - {len(day_21)} batches" if not day_21.empty else "Pending - 0 batches"
 
-    # Ice Machine: Pending if no cleaning log submitted for today's scheduled unit
     day_25 = df_25[df_25["Date_Str"] == selected_day_str] if not df_25.empty else pd.DataFrame()
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if not day_25.empty else 0
     stat_25 = f"Completed - {logged_25}/1" if logged_25 > 0 else "Pending - 0/1"
@@ -282,13 +281,17 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     col1, col2 = st.columns(2)
 
     def render_card(col, title, status_text, target_nav, unique_key):
+        is_completed = "Completed" in status_text
+        badge_color = "#16a34a" if is_completed else "#d97706"
+        border_left_color = "#16a34a" if is_completed else "#d97706"
+
         col.markdown(f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:8px; padding:14px; margin-bottom:6px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid {border_left_color}; border-radius:8px; padding:14px; margin-bottom:6px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
             <div style="font-weight:700; font-size:1rem; color:#0f172a;">{title}</div>
-            <div style="font-size:0.82rem; color:#16a34a; font-weight:600; margin-top:3px;">Status: <b>{status_text}</b></div>
+            <div style="font-size:0.82rem; color:{badge_color}; font-weight:600; margin-top:3px;">Status: <b>{status_text}</b></div>
         </div>
         """, unsafe_allow_html=True)
-        if col.button(f"Open {title.split(':')[0]} ➔", use_container_width=True, key=f"btn_card_{unique_key}"):
+        if col.button("Open ➔", use_container_width=True, key=f"btn_card_{unique_key}"):
             st.session_state.nav_choice = target_nav
             st.rerun()
 
