@@ -7,7 +7,7 @@ RECORD_05_FORM_ID = 23707
 CRITICAL_LIMIT_2HR = 5.0  # Limit: <= 5.0°C after 2 hours
 
 RECORD_05_KITCHENS = [
-    "Bakery/Pastry",
+    "Bakery",
     "Banquet Kitchen",
     "Hedonist Kitchen",
     "Indian Sweet / Halwai Kitchen",
