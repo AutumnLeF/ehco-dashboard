@@ -9,7 +9,6 @@ CRITICAL_LIMIT_2HR = 5.0  # Limit: <= 5.0°C after 2 hours
 RECORD_05_KITCHENS = [
     "Bakery/Pastry",
     "Banquet Kitchen",
-    "Garde Manger",
     "Hedonist Kitchen",
     "Indian Sweet / Halwai Kitchen",
     "IRD Kitchen",
