@@ -263,7 +263,7 @@ else:
     )
     raw_05 = get_master_df(23707, unwind=True)
     render_record_05_view(raw_05, selected_day_str, start_date, end_date)
-      elif (
+  elif (
       st.session_state.fairmont_nav_choice
       == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD"
   ):
