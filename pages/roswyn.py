@@ -28,6 +28,29 @@ st.markdown("""
     .serif-title { font-size: 2.1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.2rem; letter-spacing: -0.02em; }
     .sub-head { font-size: 0.85rem; color: #475569; font-weight: 600; }
     .record-header-box { background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 1.6rem; font-weight: 700; }
+    .kpi-card {
+        background-color: #0b192c;
+        border-radius: 10px;
+        padding: 18px;
+        color: white;
+        margin-bottom: 12px;
+        min-height: 125px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border-left: 4px solid #38bdf8;
+    }
+    .dept-card {
+        background-color: #0b192c;
+        border-radius: 10px;
+        padding: 20px;
+        color: white;
+        margin-bottom: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        border-top: 4px solid #38bdf8;
+        min-height: 220px;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -344,7 +367,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         col1, col2, col3 = st.columns(3)
         def render_theme_card(col, title, status_html, target_nav, unique_key):
             col.markdown(f"""
-            <div style="background-color: #0b192c; border-radius: 10px; padding: 16px; color: white; margin-bottom: 6px; min-height: 115px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div class="kpi-card">
                 <div style="font-size: 0.88rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px;">{title}</div>
                 <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
             </div>
@@ -379,7 +402,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                 </div>
                 """
             col.markdown(f"""
-            <div style="background-color: #0b192c; border-radius: 10px; padding: 18px; color: white; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+            <div class="dept-card">
                 <div style="font-size: 1.1rem; font-weight: 700; color: #38bdf8; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 8px;">🏢 {dept_name}</div>
                 {items_html}
             </div>
