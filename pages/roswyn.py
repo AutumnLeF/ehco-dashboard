@@ -74,19 +74,7 @@ def go_to_overview():
     st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
     st.session_state.nav_selectbox = "🏠 Roswyn - EHCO Status Overview"
 
-# --- CLEANED SIDEBAR: PORTAL SWITCHER AT TOP ---
-st.sidebar.title("🏢 Portal Switcher")
-site_col1, site_col2 = st.sidebar.columns(2)
-
-with site_col1:
-    if st.button("🏨 Roswyn", use_container_width=True, type="primary"):
-        pass
-
-with site_col2:
-    if st.button("🏰 Fairmont", use_container_width=True):
-        st.switch_page("pages/fairmont.py")
-
-st.sidebar.divider()
+# --- CLEANED SIDEBAR: INSPECTION CONTROLS ONLY ---
 st.sidebar.title("⚙️ Inspection Controls")
 
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
@@ -243,15 +231,22 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     if "dashboard_view_mode" not in st.session_state:
         st.session_state.dashboard_view_mode = "📊 Overview Cards"
 
-    hdr_cols = st.columns([2.5, 4, 3])
+    # --- TOP HEADER: SITE DROPDOWN (LEFT), TITLE (MID), CLOCK (RIGHT) ---
+    hdr_cols = st.columns([3, 4, 3])
     with hdr_cols[0]:
-        st.markdown(f"""
-            <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.88rem; color: #0f172a; display: inline-block; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                📅 Focus Date: <span style="color:#0284c7;">{selected_day_str}</span>
-            </div>
-        """, unsafe_allow_html=True)
+        selected_site = st.selectbox(
+            "Select Site Portal",
+            options=["🏨 Roswyn (Site 1)", "🏰 Fairmont Mumbai (Site 2)"],
+            index=0,
+            label_visibility="collapsed",
+            key="global_site_switcher_select"
+        )
+        if selected_site.startswith("🏰"):
+            st.switch_page("pages/fairmont.py")
+
     with hdr_cols[1]:
         st.markdown('<div class="serif-title">Roswyn - EHCO Status</div>', unsafe_allow_html=True)
+
     with hdr_cols[2]:
         st.markdown(f"""
             <div style="background: #0b192c; color: white; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
@@ -261,6 +256,12 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     st.write("")
     mode_cols = st.columns([6, 3])
+    with mode_cols[0]:
+        st.markdown(f"""
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.88rem; color: #0f172a; display: inline-block; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                📅 Focus Date: <span style="color:#0284c7;">{selected_day_str}</span>
+            </div>
+        """, unsafe_allow_html=True)
     with mode_cols[1]:
         view_choice = st.radio(
             "Dashboard Display Mode", 
@@ -417,29 +418,46 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         with dept_cols[2]:
             render_dept_card(dept_cols[2], "Housekeeping", [("RECORD 13 - DISHWASHER", stat_13), ("RECORD 15 - PESTICIDE USAGE", stat_15)])
 else:
+    # --- DRILL-DOWN VIEWS HEADER ---
+    hdr_cols = st.columns([3, 4, 3])
+    with hdr_cols[0]:
+        selected_site_sub = st.selectbox(
+            "Select Site Portal",
+            options=["🏨 Roswyn (Site 1)", "🏰 Fairmont Mumbai (Site 2)"],
+            index=0,
+            label_visibility="collapsed",
+            key="global_site_switcher_select_sub"
+        )
+        if selected_site_sub.startswith("🏰"):
+            st.switch_page("pages/fairmont.py")
+
+    with hdr_cols[1]:
+        st.markdown(f'<div class="serif-title" style="font-size:1.4rem;">{st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+
+    with hdr_cols[2]:
+        st.markdown(f"""
+            <div style="background: #0b192c; color: white; padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
+                <span>🕒 IST:</span> <span style="color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</span>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.write("")
     st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn", on_click=go_to_overview)
     st.write("")
+
     if st.session_state.nav_choice == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
-        st.markdown(f'<div class="record-header-box">❄️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
-        st.markdown(f'<div class="record-header-box">🔥 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.nav_choice == "RECORD 05 - COOLING OF FOOD RECORD":
-        st.markdown(f'<div class="record-header-box">❄️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.nav_choice == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
-        st.markdown(f'<div class="record-header-box">🥗 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.nav_choice == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
-        st.markdown(f'<div class="record-header-box">🍽️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_13_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.nav_choice == "RECORD 15 - PESTICIDE USAGE RECORD":
-        st.markdown(f'<div class="record-header-box">🐛 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_15_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.nav_choice == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
-        st.markdown(f'<div class="record-header-box">🥗 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_21_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.nav_choice == "RECORD 25 - ICE MACHINE CLEANING RECORD":
-        st.markdown(f'<div class="record-header-box">❄️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
