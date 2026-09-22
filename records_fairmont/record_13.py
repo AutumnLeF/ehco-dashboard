@@ -23,7 +23,7 @@ LOCATION_CATALOG = {
         {"Unit_ID": "FM/TM/GW/07", "Type": "Glasswasher"},
     ],
     "Main Kitchen": [
-        {"Unit_ID": "MK/PW/02", "Type": "Dishwasher"},
+        {"Unit_ID": "MKT/PW/02", "Type": "Dishwasher"},
     ],
     "Gold Lounge Pantry": [
         {"Unit_ID": "GLP/DW/07", "Type": "Dishwasher"},
