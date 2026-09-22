@@ -415,6 +415,55 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
       st.markdown(f'<div class="kpi-container" style="border-top-color: #0f172a;"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Count</div></div>', unsafe_allow_html=True)
 
     st.write("")
+    st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>📋 Shift Status Across Locations ({selected_day_str})</h4>", unsafe_allow_html=True)
+
+    shift_col1, shift_col2 = st.columns(2)
+
+    with shift_col1:
+      op_items_html = ""
+      for item in loc_summary_data:
+        l_name = item["loc_name"]
+        c_op = item["op_count"]
+        t_u = item["total_u"]
+        if c_op == t_u:
+          badge = f"<span style='color:#16a34a; font-weight:700; float:right;'>✓ Completed ({c_op}/{t_u})</span>"
+        else:
+          badge = f"<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending ({c_op}/{t_u})</span>"
+        op_items_html += f"<div style='padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:0.85rem;'><b>{l_name}</b> {badge}</div>"
+
+      st.markdown(f"""
+      <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #16a34a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <div style="font-weight:700; font-size:0.95rem; color:#15803d; margin-bottom:8px; display:flex; justify-content:space-between;">
+              <span>🌅 Opening Shift</span>
+              <span>{global_opening_logged}/{global_total_units} Units</span>
+          </div>
+          {op_items_html}
+      </div>
+      """, unsafe_allow_html=True)
+
+    with shift_col2:
+      cl_items_html = ""
+      for item in loc_summary_data:
+        l_name = item["loc_name"]
+        c_cl = item["cl_count"]
+        t_u = item["total_u"]
+        if c_cl == t_u:
+          badge = f"<span style='color:#16a34a; font-weight:700; float:right;'>✓ Completed ({c_cl}/{t_u})</span>"
+        else:
+          badge = f"<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending ({c_cl}/{t_u})</span>"
+        cl_items_html += f"<div style='padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:0.85rem;'><b>{l_name}</b> {badge}</div>"
+
+      st.markdown(f"""
+      <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0284c7; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
+          <div style="font-weight:700; font-size:0.95rem; color:#0369a1; margin-bottom:8px; display:flex; justify-content:space-between;">
+              <span>🌙 Closing Shift</span>
+              <span>{global_closing_logged}/{global_total_units} Units</span>
+          </div>
+          {cl_items_html}
+      </div>
+      """, unsafe_allow_html=True)
+
+    st.write("")
     st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Location Summary Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
     st.caption("Each location summary block tracks Opening & Closing logs and displays pending units.")
 
