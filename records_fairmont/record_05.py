@@ -105,7 +105,7 @@ def parse_record_05_submissions(raw_df):
         or []
     )
 
-    # Prevent boolean/non-iterable crashes
+    # Prevent boolean/non-iterable crashes safely
     if isinstance(entries, bool) or not isinstance(entries, (list, dict)):
       entries = [sub] if isinstance(sub, dict) else []
     elif isinstance(entries, dict):
@@ -483,6 +483,6 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
                 "End_Temp",
                 "Sign",
             ]
-            if c in range_df.range_df if c in range_df.columns
+            if c in range_df.columns
         ]
         st.dataframe(range_df[show_cols], use_container_width=True, hide_index=True)
