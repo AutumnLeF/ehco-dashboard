@@ -74,11 +74,25 @@ def go_to_overview():
     st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
     st.session_state.nav_selectbox = "🏠 Roswyn - EHCO Status Overview"
 
+# --- RESTRUCTURED SIDEBAR: SITES AT THE TOP ---
+st.sidebar.title("🏢 Portal Switcher")
+site_col1, site_col2 = st.sidebar.columns(2)
+
+with site_col1:
+    if st.button("🏨 Roswyn", use_container_width=True, type="primary"):
+        pass # Already here
+
+with site_col2:
+    if st.button("🏰 Fairmont", use_container_width=True):
+        st.switch_page("pages/fairmont.py")
+
+st.sidebar.divider()
 st.sidebar.title("⚙️ Inspection Controls")
+
 if st.sidebar.button("← Back to Landing Portal", use_container_width=True):
     st.switch_page("app.py")
 
-st.sidebar.markdown("**Site:** Roswyn (Site 1)")
+st.sidebar.markdown("**Active Site:** Roswyn (Site 1)")
 
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
 today = ist_now.date()
@@ -269,7 +283,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     raw_04 = get_master_df(31374, unwind=True)
     df_03_parsed = parse_record_03_submissions(raw_03)
     df_04_parsed = parse_all_record_04_dishes(raw_04)
-    df_05_parsed = parse_record_05_submissions(get_master_df(31375, unwind=True))
+    df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
     df_06 = parse_record_06_submissions(get_master_df(31376, unwind=True))
     df_13 = parse_record_13_submissions(get_master_df(31382, unwind=True))
     df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
@@ -310,11 +324,12 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     html_04 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 5/5</span><br>Lunch: <span style="color: #4ade80; font-weight: 600;">Completed - 10/10</span><br>Dinner: <span style="color: #38bdf8; font-weight: 600;">Completed - 10/11</span>'
 
-    day_05 = filter_by_focus_date(df_05_parsed, selected_day_variants)
+    day_05 = filter_by_focus_date(df_05, selected_day_variants)
     stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
 
     day_06 = filter_by_focus_date(df_06, selected_day_variants)
-    stat_06 = f'<span style="color: {"#4ade80" if not day_06.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_06.empty else "Pending"} - 1/1</span>'
+    is_06_complete = not day_06.empty
+    stat_06 = f'<span style="color: {"#4ade80" if is_06_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_06_complete else "Pending"} - {1 if is_06_complete else 0}/1</span>'
     
     day_13 = filter_by_focus_date(df_13, selected_day_variants)
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
@@ -336,7 +351,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         1 if is_op_complete and is_cl_complete else 0,
         1,
         1 if not day_05.empty else 0,
-        1 if not day_06.empty else 0,
+        1 if is_06_complete else 0,
         1 if is_13_complete else 0,
         1 if logged_15 > 0 else 0,
         1 if not day_21.empty else 0,
