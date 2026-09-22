@@ -4,25 +4,35 @@ import streamlit as st
 
 RECORD_25_FORM_ID = 23727  # Record 25 Form ID
 
-# Master catalog of F&B Ice Machines (Excluding Housekeeping areas)
+# Master catalog of Ice Machines grouped and clubbed by exact location
 ICE_MACHINE_CATALOG = {
     "Banquet Show Kitchen": [
-        {"Unit_ID": "Ice Cube-FM/ICM/BSK 02-580kg", "Name": "Ice Cube 02", "Day_Idx": 0},
-        {"Unit_ID": "Ice Cube-FM/ICM/BSK 05-240kg", "Name": "Ice Cube 05", "Day_Idx": 1},
+        {"Unit_ID": "Ice Cube-FM/ICM/BSK 05-240kg", "Name": "Ice Cube 05", "Day_Idx": 0},
     ],
     "Banquet Support Kitchen": [
+        {"Unit_ID": "Ice Cube-FM/ICM/BSK 02-580kg", "Name": "Ice Cube 02", "Day_Idx": 1},
         {"Unit_ID": "Ice Flake-FM/ICM/BSK 04-290kg", "Name": "Ice Flake 04", "Day_Idx": 2},
     ],
     "IRD": [
         {"Unit_ID": "Ice cube-FM/ICM/IRD24", "Name": "IRD Ice Cube 24", "Day_Idx": 3},
-        {"Ice cube-FM/ICM/IRD25": "Ice cube-FM/ICM/IRD25", "Unit_ID": "Ice cube-FM/ICM/IRD25", "Name": "IRD Ice Cube 25", "Day_Idx": 4},
+        {"Unit_ID": "Ice cube-FM/ICM/IRD25", "Name": "IRD Ice Cube 25", "Day_Idx": 4},
+    ],
+    "The Hedonist Pantry": [
+        {"Unit_ID": "Undercounter ice cube-FM/ICM/THP 10-28kg", "Name": "THP 10-28kg", "Day_Idx": 5},
+        {"Unit_ID": "Ice cube-FM/ICM/THP 08-100kg", "Name": "THP 08-100kg", "Day_Idx": 6},
+        {"Unit_ID": "Ice flake-FM/ICM/THP 09-53kg", "Name": "THP 09-53kg", "Day_Idx": 0},
     ],
     "The Merchants": [
-        {"Unit_ID": "Ice Cube-FM/ICM/MDP 06-100kg", "Name": "Merchants Ice Cube 06", "Day_Idx": 5},
+        {"Unit_ID": "Ice Cube-FM/ICM/MDP 06-100kg", "Name": "Merchants Cube 06", "Day_Idx": 1},
+        {"Unit_ID": "Ice cube-FM/ICM/TM 12-580kg", "Name": "TM 12-580kg", "Day_Idx": 2},
+        {"Unit_ID": "Ice flake-FM/ICM/TM 13-290kg", "Name": "TM 13-290kg", "Day_Idx": 3},
+    ],
+    "Madeleine De Proust Pantry": [
+        {"Unit_ID": "Ice Cube-FM/ICM/MDP 06-100kg", "Name": "MDP Cube 06", "Day_Idx": 4},
     ],
     "Vantge": [
-        {"Unit_ID": "Ice Cube machine - FM/ICM/VANT1", "Name": "Vantge Cube 1", "Day_Idx": 6},
-        {"Unit_ID": "Ice Flake machine - FM/ICM/VANT2", "Name": "Vantge Flake 2", "Day_Idx": 0},
+        {"Unit_ID": "Ice Cube machine - FM/ICM/VANT1", "Name": "Vantge Cube 1", "Day_Idx": 5},
+        {"Unit_ID": "Ice Flake machine - FM/ICM/VANT2", "Name": "Vantge Flake 2", "Day_Idx": 6},
     ],
 }
 
