@@ -231,8 +231,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
     )
 
     excursions = []
-    total_meals_required = 0
-    total_meals_completed = 0
+    shift_counts = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
     kitchen_status_list = []
 
     for kitchen, meals in KITCHEN_MEAL_RULES.items():
@@ -244,14 +243,17 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
       meal_statuses = []
       for meal in meals:
-        total_meals_required += 1
+        if meal in shift_counts:
+          shift_counts[meal]["req"] += 1
+
         m_df = (
             k_df[k_df["Meal_Service"].str.strip().str.lower() == meal.lower()]
             if not k_df.empty
             else pd.DataFrame()
         )
         if not m_df.empty:
-          total_meals_completed += 1
+          if meal in shift_counts:
+            shift_counts[meal]["done"] += 1
           meal_statuses.append({
               "Meal": meal,
               "Status": "Completed",
@@ -266,8 +268,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
               "Sign": "",
           })
 
-      # Sort meals so pending items appear at the top of each kitchen card
-      meal_statuses.sort(key=lambda x: 0 if x["Status"] == "Pending" else 1)
       kitchen_status_list.append({"Kitchen": kitchen, "Meals": meal_statuses})
 
     if not day_df.empty:
@@ -281,7 +281,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             "Sign": r["Sign"],
         })
 
-    # Enhanced KPI Dashboard (4 Columns)
+    # Updated 4-Column KPI Dashboard
     k1, k2, k3, k4 = st.columns(4)
     with k1:
       st.markdown(
@@ -291,109 +291,179 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
           unsafe_allow_html=True,
       )
     with k2:
+      b_done, b_req = shift_counts["Breakfast"]["done"], shift_counts["Breakfast"]["req"]
       st.markdown(
           f'<div class="kpi-box"><div class="kpi-num"'
-          f' style="color:#16a34a;">{total_meals_completed}</div><div'
-          ' class="kpi-lbl">Kitchen Counters Completed</div></div>',
+          f' style="color:#16a34a;">{b_done}/{b_req}</div><div'
+          ' class="kpi-lbl">Breakfast Shift Completed</div></div>',
           unsafe_allow_html=True,
       )
     with k3:
+      l_done, l_req = shift_counts["Lunch"]["done"], shift_counts["Lunch"]["req"]
       st.markdown(
           f'<div class="kpi-box"><div class="kpi-num"'
-          f' style="color:#d97706;">{total_meals_required - total_meals_completed}</div><div'
-          ' class="kpi-lbl">Kitchen Counters Pending</div></div>',
+          f' style="color:#d97706;">{l_done}/{l_req}</div><div'
+          ' class="kpi-lbl">Lunch Shift Completed</div></div>',
           unsafe_allow_html=True,
       )
     with k4:
-      completion_pct = (
-          int((total_meals_completed / total_meals_required) * 100)
-          if total_meals_required > 0
-          else 0
-      )
+      d_done, d_req = shift_counts["Dinner"]["done"], shift_counts["Dinner"]["req"]
+      pct = int((d_done / d_req) * 100) if d_req > 0 else 0
       st.markdown(
           f'<div class="kpi-box"><div class="kpi-num"'
-          f' style="color:#0f172a;">{len(day_df)} <span'
-          f' style="font-size:0.9rem; color:#16a34a;">({completion_pct}%'
-          f' Done)</span></div><div class="kpi-lbl">Total Items Logged</div></div>',
+          f' style="color:#0f172a;">{d_done}/{d_req} <span'
+          f' style="font-size:0.85rem; color:#2563eb;">({pct}%)</span></div><div'
+          ' class="kpi-lbl">Dinner Shift Completed</div></div>',
           unsafe_allow_html=True,
       )
 
     st.write("")
-    st.markdown(
-        f"<h4 style='color:#0f172a; margin-top:1.5rem; margin-bottom:1rem;'>🏢"
-        f" Kitchen Audit Cards ({selected_day_str})</h4>",
-        unsafe_allow_html=True,
-    )
 
-    # 3 Kitchen Cards per row unified grid
-    loc_cols = st.columns(3, gap="small")
-    for idx, k_info in enumerate(kitchen_status_list):
-      col_target = loc_cols[idx % 3]
+    # Separate kitchen cards into Pending shifts (Top) and Completed shifts (Bottom)
+    pending_cards = []
+    completed_cards = []
+
+    for k_info in kitchen_status_list:
       k_name = k_info["Kitchen"]
       m_list = k_info["Meals"]
 
-      completed = sum(m["Status"] == "Completed" for m in m_list)
-      pending = len(m_list) - completed
-      meals_html = ""
+      pending_meals = [m for m in m_list if m["Status"] == "Pending"]
+      completed_meals = [m for m in m_list if m["Status"] == "Completed"]
 
-      for m in m_list:
-        is_done = m["Status"] == "Completed"
-        status_color = "#16a34a" if is_done else "#d97706"
-        status_text = "✓ Done" if is_done else "⏳ Pending"
-        dishes_html = ""
+      if pending_meals:
+        pending_cards.append({"Kitchen": k_name, "Meals": pending_meals, "Total": m_list})
+      if completed_meals:
+        completed_cards.append({"Kitchen": k_name, "Meals": completed_meals, "Total": m_list})
 
-        if is_done:
-          for dish in m["Dishes"]:
-            temp = dish["Temp"]
-            if pd.notna(temp):
-              temp_text = f"{temp}°C"
-              temp_color = "#dc2626" if temp < TEMP_THRESHOLD else "#0f172a"
-            else:
-              temp_text = "—"
-              temp_color = "#64748b"
+    # --- SECTION 1: PENDING SHIFT CARDS (TOP) ---
+    st.markdown(
+        "<h4 style='color:#b45309; margin-top:1.5rem; margin-bottom:1rem;'>⏳"
+        f" Pending / Incomplete Shift Cards ({selected_day_str})</h4>",
+        unsafe_allow_html=True,
+    )
 
-            dishes_html += (
-                '<div style="display:flex; justify-content:space-between;'
-                ' gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid'
-                f' #e2e8f0;"><span style="color:#334155;'
-                f' overflow-wrap:anywhere;">• {dish["Food"]}</span><b'
-                f' style="color:{temp_color};'
-                f' white-space:nowrap;">{temp_text}</b></div>'
-            )
-          details_html = (
-              f'<div style="margin-top:5px;">{dishes_html}</div><div'
-              ' style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed:'
-              f' {m["Sign"]}</div>'
-          )
-        else:
-          details_html = (
-              '<div style="font-size:0.72rem; color:#b45309;'
-              ' margin-top:5px;">No records submitted</div>'
-          )
+    if not pending_cards:
+      st.success("🎉 No pending shifts remaining for today!")
+    else:
+      p_cols = st.columns(3, gap="small")
+      for idx, k_info in enumerate(pending_cards):
+        col_target = p_cols[idx % 3]
+        k_name = k_info["Kitchen"]
+        m_list = k_info["Meals"]
+        total_m = k_info["Total"]
 
-        meals_html += (
-            '<div style="background:#f8fafc; border-left:3px solid'
-            f" {status_color}; border-radius:4px; padding:7px 9px;"
-            f' margin-top:7px;"><div style="display:flex;'
-            ' justify-content:space-between; align-items:center; gap:5px;'
-            f' font-size:0.78rem; font-weight:700; color:#0f172a;"><span>🍽️'
-            f' {m["Meal"]}</span><span style="color:{status_color};'
-            f' white-space:nowrap;">{status_text}</span></div>{details_html}</div>'
-        )
+        completed_cnt = sum(m["Status"] == "Completed" for m in total_m)
+        pending_cnt = len(total_m) - completed_cnt
+        meals_html = ""
 
-      card_html = (
-          '<div style="background:#ffffff; border:1px solid #cbd5e1;'
-          ' border-top:3px solid #0f172a; border-radius:6px; padding:10px;'
-          f' margin-bottom:12px;"><div style="font-size:0.88rem;'
-          f' font-weight:700; color:#0f172a; padding-bottom:7px;'
-          f' border-bottom:1px solid #e2e8f0;">📍 {k_name}</div><div'
-          ' style="font-size:0.7rem; margin-top:6px; color:#475569;"><span'
-          f' style="color:#16a34a;font-weight:700;">{completed}'
-          " completed</span> &nbsp;|&nbsp; <span"
-          f' style="color:#d97706;font-weight:700;">{pending}'
-          f" pending</span></div>{meals_html}</div>"
-      )
-      col_target.markdown(card_html, unsafe_allow_html=True)
+        for m in m_list:
+          is_done = m["Status"] == "Completed"
+          status_color = "#16a34a" if is_done else "#d97706"
+          status_text = "✓ Done" if is_done else "⏳ Pending"
+          dishes_html = ""
+
+          if is_done:
+            for dish in m["Dishes"]:
+              temp = dish["Temp"]
+              temp_text = f"{temp}°C" if pd.notna(temp) else "—"
+              temp_color = "#dc2626" if pd.notna(temp) and temp < TEMP_THRESHOLD else "#0f172a"
+              dishes_html += f"""
+                    <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid #e2e8f0;">
+                        <span style="color:#334155; overflow-wrap:anywhere;">• {dish["Food"]}</span>
+                        <b style="color:{temp_color}; white-space:nowrap;">{temp_text}</b>
+                    </div>
+                    """
+            details_html = f'<div style="margin-top:5px;">{dishes_html}</div><div style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed: {m["Sign"]}</div>'
+          else:
+            details_html = '<div style="font-size:0.72rem; color:#b45309; margin-top:5px;">No records submitted</div>'
+
+          meals_html += f"""
+            <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.78rem; font-weight:700; color:#0f172a;">
+                    <span>🍽️ {m["Meal"]}</span>
+                    <span style="color:{status_color}; white-space:nowrap;">{status_text}</span>
+                </div>
+                {details_html}
+            </div>
+            """
+
+        card_html = f"""
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #d97706; border-radius:6px; padding:10px; margin-bottom:12px;">
+            <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">📍 {k_name}</div>
+            <div style="font-size:0.7rem; margin-top:6px; color:#475569;">
+                <span style="color:#16a34a;font-weight:700;">{completed_cnt} completed</span> &nbsp;|&nbsp;
+                <span style="color:#d97706;font-weight:700;">{pending_cnt} pending</span>
+            </div>
+            {meals_html}
+        </div>
+        """
+        col_target.markdown(card_html, unsafe_allow_html=True)
+
+    st.write("")
+
+    # --- SECTION 2: COMPLETELY SEPARATE COMPLETED SHIFT CARDS (BOTTOM) ---
+    st.markdown(
+        "<h4 style='color:#16a34a; margin-top:2rem; margin-bottom:1rem;'>✅"
+        f" Completely Completed Shift Cards ({selected_day_str})</h4>",
+        unsafe_allow_html=True,
+    )
+
+    if not completed_cards:
+      st.info("No completed shift cards available yet.")
+    else:
+      c_cols = st.columns(3, gap="small")
+      for idx, k_info in enumerate(completed_cards):
+        col_target = c_cols[idx % 3]
+        k_name = k_info["Kitchen"]
+        m_list = k_info["Meals"]
+        total_m = k_info["Total"]
+
+        completed_cnt = sum(m["Status"] == "Completed" for m in total_m)
+        pending_cnt = len(total_m) - completed_cnt
+        meals_html = ""
+
+        for m in m_list:
+          is_done = m["Status"] == "Completed"
+          status_color = "#16a34a" if is_done else "#d97706"
+          status_text = "✓ Done" if is_done else "⏳ Pending"
+          dishes_html = ""
+
+          if is_done:
+            for dish in m["Dishes"]:
+              temp = dish["Temp"]
+              temp_text = f"{temp}°C" if pd.notna(temp) else "—"
+              temp_color = "#dc2626" if pd.notna(temp) and temp < TEMP_THRESHOLD else "#0f172a"
+              dishes_html += f"""
+                    <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid #e2e8f0;">
+                        <span style="color:#334155; overflow-wrap:anywhere;">• {dish["Food"]}</span>
+                        <b style="color:{temp_color}; white-space:nowrap;">{temp_text}</b>
+                    </div>
+                    """
+            details_html = f'<div style="margin-top:5px;">{dishes_html}</div><div style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed: {m["Sign"]}</div>'
+          else:
+            details_html = '<div style="font-size:0.72rem; color:#b45309; margin-top:5px;">No records submitted</div>'
+
+          meals_html += f"""
+            <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.78rem; font-weight:700; color:#0f172a;">
+                    <span>🍽️ {m["Meal"]}</span>
+                    <span style="color:{status_color}; white-space:nowrap;">{status_text}</span>
+                </div>
+                {details_html}
+            </div>
+            """
+
+        card_html = f"""
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:10px; margin-bottom:12px;">
+            <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">📍 {k_name}</div>
+            <div style="font-size:0.7rem; margin-top:6px; color:#475569;">
+                <span style="color:#16a34a;font-weight:700;">{completed_cnt} completed</span> &nbsp;|&nbsp;
+                <span style="color:#d97706;font-weight:700;">{pending_cnt} pending</span>
+            </div>
+            {meals_html}
+        </div>
+        """
+        col_target.markdown(card_html, unsafe_allow_html=True)
 
     if excursions:
       st.markdown(
