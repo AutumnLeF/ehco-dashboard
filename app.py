@@ -98,9 +98,9 @@ st.markdown("""
 </style>
 
 <div class="portal-container">
-    <div class="portal-badge">🛡️ Enterprise Food Safety & Hygiene</div>
+    <div class="portal-badge">🛡️Food Safety & Hygiene</div>
     <div class="portal-title">EHCO Compliance Dashboard</div>
-    <div class="portal-subtitle">Select an operational site below to launch the audit control portal</div>
+    <div class="portal-subtitle">Select an operational site below to launch the portal</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -115,7 +115,7 @@ with col_roswyn:
     </div>
     """, unsafe_allow_html=True)
     if st.button("Launch Roswyn Portal ➔", use_container_width=True, key="btn_roswyn"):
-        st.switch_page("pages/ros_overview.py")
+        st.switch_page("pages/roswyn.py")
 
 with col_fairmont:
     st.markdown("""
