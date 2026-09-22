@@ -157,7 +157,7 @@ def parse_record_02_submissions(raw_df):
 
 
 def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
-  """Renders Record 02 Daily Audit and Weekly Card Matrix with Supplier grouping & individual item temperatures."""
+  """Renders Record 02 Daily Audit and Weekly Card Matrix with distinct Item & Supplier separation."""
 
   df_items = parse_record_02_submissions(raw_df)
 
@@ -274,13 +274,15 @@ def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
           batch_count = len(matches)
           has_day_breach = any(matches["Has_Breach"])
 
-          # Group items by Supplier and render clubbed cards
+          # Group items by Supplier and render individual item temperatures
           grouped_suppliers = matches.groupby("Supplier")
           suppliers_html = ""
           for sup_name, group_df in grouped_suppliers:
-            items_str = ", ".join(group_df["Food_Type"].tolist())
-            t_sample = group_df["Temp_Disp"].iloc[0]
-            suppliers_html += f'<div style="background:#f8fafc; border-left:3px solid #0f172a; border-radius:4px; padding:5px 6px; margin-top:4px; text-align:left;"><div style="font-size:0.72rem; font-weight:700; color:#0f172a;">🏢 {sup_name}</div><div style="font-size:0.68rem; color:#334155; margin-top:1px;">📦 {items_str}</div><div style="font-size:0.65rem; color:#16a34a; font-weight:600; margin-top:1px;">Temp: {t_sample}</div></div>'
+            items_lines = ""
+            for _, row_item in group_df.iterrows():
+              items_lines += f'<div style="font-size:0.68rem; color:#334155; margin-top:1px;">• {row_item["Food_Type"]} (<b style="color:#16a34a;">{row_item["Temp_Disp"]}</b>)</div>'
+            
+            suppliers_html += f'<div style="background:#f8fafc; border-left:3px solid #0f172a; border-radius:4px; padding:5px 6px; margin-top:4px; text-align:left;"><div style="font-size:0.72rem; font-weight:700; color:#0f172a;">🏢 {sup_name}</div>{items_lines}</div>'
 
           signs = ", ".join(list(dict.fromkeys(matches["Sign"].dropna().tolist())))
           badge = f'<span style="color:#dc2626; font-weight:800; font-size:0.85rem;">🔴 {batch_count} Items</span>' if has_day_breach else f'<span style="color:#16a34a; font-weight:800; font-size:0.85rem;">✓ {batch_count} Items</span>'
