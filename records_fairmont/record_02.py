@@ -7,7 +7,7 @@ RECORD_02_FORM_ID = 23703
 
 
 def parse_record_02_submissions(raw_df):
-  """Parses Record 02 Food Delivery submissions, fully flattening repeatable set arrays for individual items."""
+  """Parses Record 02 Food Delivery submissions handling nested repeatable sets and proper supplier extraction."""
   if raw_df is None or raw_df.empty:
     return pd.DataFrame()
 
@@ -60,17 +60,18 @@ def parse_record_02_submissions(raw_df):
         or "Receiving Area"
     ).strip()
 
+    # Robust supplier extraction handling "Other" and top-level Supplier key
     sup_main = str(sub.get("Name_of_Supplier") or sub.get("Name of Supplier") or "").strip()
     sup_other = str(sub.get("Supplier") or sub.get("Name of Supplier (Other)") or sub.get("Name_of_Supplier_Other") or "").strip()
 
-    if sup_main.lower() == "other" and sup_other:
+    if sup_main.lower().strip() == "other" and sup_other:
       supplier = sup_other
-    elif sup_main and sup_main.lower() not in ["other", "none", "nan", ""]:
+    elif sup_main and sup_main.lower().strip() not in ["other", "none", "nan", ""]:
       supplier = sup_main
     elif sup_other:
       supplier = sup_other
     else:
-      supplier = "Local Supplier"
+      supplier = sup_main if sup_main else "Local Supplier"
 
     sign = str(
         sub.get("Sign")
@@ -79,21 +80,21 @@ def parse_record_02_submissions(raw_df):
         or "Staff"
     ).strip()
 
-    # Collect all items from potential repeatable sets or lists
+    # Extract repeatable set items or flat entries
     entries = []
-    for k in ["set", "Entry", "items", "rows", "submission"]:
+    for k in ["set", "Entry", "items", "rows"]:
       val = sub.get(k) or rec.get(k)
       if isinstance(val, list):
         entries.extend(val)
       elif isinstance(val, dict):
         entries.append(val)
 
-    if not entries and isinstance(sub, dict):
+    if not entries:
       entries = [sub]
 
     for e in entries:
       if not isinstance(e, dict):
-        continue
+        e = sub
 
       delivery_type = str(
           e.get("Delivery_Type")
@@ -159,7 +160,7 @@ def parse_record_02_submissions(raw_df):
 
 
 def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
-  """Renders Record 02 Daily Audit and Weekly Card Matrix with fully flattened items and individual temperatures."""
+  """Renders Record 02 Daily Audit and Weekly Card Matrix with complete supplier extraction and item temperatures."""
 
   df_items = parse_record_02_submissions(raw_df)
 
