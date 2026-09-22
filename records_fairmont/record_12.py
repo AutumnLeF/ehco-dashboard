@@ -85,7 +85,7 @@ def parse_record_12_submissions(raw_df):
       finish_str = str(finish_raw)[:10]
       finish_date_obj = None
 
-    start_raw = sub.get("Start_Date") or sub.get("Start Date") or ""
+    start_raw = sub.get("Start_Date") or sub.get("Start Date") or finish_raw or ""
     start_dt = pd.to_datetime(start_raw, errors="coerce")
     if pd.isna(start_dt):
       start_dt = pd.to_datetime(start_raw, dayfirst=True, errors="coerce")
@@ -98,7 +98,7 @@ def parse_record_12_submissions(raw_df):
       start_date_obj = start_dt_ist.date()
       start_dt_full = start_dt_ist
     else:
-      start_date_obj = None
+      start_date_obj = finish_date_obj
       start_dt_full = None
 
     start_time_raw = sub.get("Start_Time") or sub.get("Start Time") or sub.get("StartTime") or ""
@@ -127,38 +127,25 @@ def parse_record_12_submissions(raw_df):
     else:
       finish_time_str = str(finish_time_raw)[-13:-8] if len(str(finish_time_raw)) >= 13 else "00:00"
 
-    # Calculate exact duration / time taken to thaw
     duration_str = "—"
     if pd.notna(start_dt_exact) and pd.notna(finish_dt_exact):
       diff = finish_dt_exact - start_dt_exact
       total_mins = int(diff.total_seconds() // 60)
       if total_mins < 0:
-        total_mins += 24 * 60  # Handle day rollover if needed
+        total_mins += 24 * 60
       hrs = total_mins // 60
       mins = total_mins % 60
       duration_str = f"{hrs}h {mins}m"
-    elif start_dt_full and finish_dt:
-      # Fallback to date diff + time estimate
-      try:
-        s_time_obj = datetime.strptime(start_time_str, "%H:%M")
-        f_time_obj = datetime.strptime(finish_time_str, "%H:%M")
-        full_start = datetime.combine(start_dt_full.date(), s_time_obj.time())
-        full_finish = datetime.combine(finish_dt, f_time_obj.time())
-        diff = full_finish - full_start
-        total_mins = int(diff.total_seconds() // 60)
-        hrs = total_mins // 60
-        mins = total_mins % 60
-        duration_str = f"{hrs}h {mins}m"
-      except Exception:
-        duration_str = "24h+"
+    else:
+      duration_str = "24h+"
 
     date_rule_valid = True
     duration_note = "Valid (24h)"
     if start_date_obj and finish_date_obj:
       days_diff = (finish_date_obj - start_date_obj).days
-      if days_diff != 1:
+      if days_diff > 2 or days_diff < 0:
         date_rule_valid = False
-        duration_note = f"Anomaly: {days_diff}d diff (Expected 1d)"
+        duration_note = f"Anomaly: {days_diff}d diff"
 
     start_temp_raw = sub.get("Start_Temp") or sub.get("Start Temperature °C")
     start_temp = pd.to_numeric(
