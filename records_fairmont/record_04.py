@@ -266,7 +266,8 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         "Lunch": {"req": 0, "done": 0},
         "Dinner": {"req": 0, "done": 0},
     }
-    kitchen_status_list = []
+    pending_cards = []
+    completed_cards = []
 
     for kitchen, meals in KITCHEN_MEAL_RULES.items():
       k_df = (
@@ -275,7 +276,9 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
           else pd.DataFrame()
       )
 
-      meal_statuses = []
+      pending_meals_list = []
+      completed_meals_list = []
+
       for meal in meals:
         if meal in shift_counts:
           shift_counts[meal]["req"] += 1
@@ -288,21 +291,30 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         if not m_df.empty:
           if meal in shift_counts:
             shift_counts[meal]["done"] += 1
-          meal_statuses.append({
+          completed_meals_list.append({
               "Meal": meal,
               "Status": "Completed",
               "Dishes": m_df.to_dict("records"),
               "Sign": m_df["Sign"].iloc[0],
           })
         else:
-          meal_statuses.append({
+          pending_meals_list.append({
               "Meal": meal,
               "Status": "Pending",
               "Dishes": [],
               "Sign": "",
           })
 
-      kitchen_status_list.append({"Kitchen": kitchen, "Meals": meal_statuses})
+      # Create separate card entry for pending shifts if any exist for this kitchen
+      if pending_meals_list:
+        pending_cards.append({"Kitchen": kitchen, "Meals": pending_meals_list})
+
+      # Create separate card entry for completed shifts if any exist for this kitchen
+      if completed_meals_list:
+        completed_cards.append({
+            "Kitchen": kitchen,
+            "Meals": completed_meals_list,
+        })
 
     if not day_df.empty:
       violating = day_df[day_df["Temp"] < TEMP_THRESHOLD]
@@ -373,19 +385,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
     st.write("")
 
-    pending_cards = []
-    completed_cards = []
-
-    for k_info in kitchen_status_list:
-      k_name = k_info["Kitchen"]
-      m_list = k_info["Meals"]
-      pending_meals = [m for m in m_list if m["Status"] == "Pending"]
-
-      if pending_meals:
-        pending_cards.append({"Kitchen": k_name, "Meals": m_list})
-      else:
-        completed_cards.append({"Kitchen": k_name, "Meals": m_list})
-
     # --- SECTION 1: PENDING / INCOMPLETE SHIFT CARDS (TOP) ---
     st.markdown(
         "<h4 style='color:#b45309; margin-top:1.5rem; margin-bottom:1rem;'>⏳"
@@ -401,9 +400,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         col_target = p_cols[idx % 3]
         k_name = k_info["Kitchen"]
         m_list = k_info["Meals"]
-
-        completed_cnt = sum(m["Status"] == "Completed" for m in m_list)
-        pending_cnt = len(m_list) - completed_cnt
         meals_html = ""
 
         for m in m_list:
@@ -421,15 +417,24 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                   if pd.notna(temp) and temp < TEMP_THRESHOLD
                   else "#0f172a"
               )
-              dishes_html += f"""
-                    <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid #e2e8f0;">
-                        <span style="color:#334155; overflow-wrap:anywhere;">• {dish["Food"]}</span>
-                        <b style="color:{temp_color}; white-space:nowrap;">{temp_text}</b>
-                    </div>
-                    """
-            details_html = f'<div style="margin-top:5px;">{dishes_html}</div><div style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed: {m["Sign"]}</div>'
+              dishes_html += (
+                  '<div style="display:flex; justify-content:space-between;'
+                  ' gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid'
+                  f' #e2e8f0;"><span style="color:#334155;'
+                  f' overflow-wrap:anywhere;">• {dish["Food"]}</span><b'
+                  f' style="color:{temp_color};'
+                  f' white-space:nowrap;">{temp_text}</b></div>'
+              )
+            details_html = (
+                f'<div style="margin-top:5px;">{dishes_html}</div><div'
+                ' style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed:'
+                f' {m["Sign"]}</div>'
+            )
           else:
-            details_html = '<div style="font-size:0.72rem; color:#b45309; margin-top:5px;">No records submitted</div>'
+            details_html = (
+                '<div style="font-size:0.72rem; color:#b45309;'
+                ' margin-top:5px;">No records submitted</div>'
+            )
 
           meals_html += textwrap.dedent(f"""
                 <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
@@ -444,12 +449,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         card_html = textwrap.dedent(f"""
             <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #d97706; border-radius:6px; padding:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
                 <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">
-                    📍 {k_name}
-                </div>
-                <div style="font-size:0.7rem; margin-top:6px; color:#475569;">
-                    <span style="color:#16a34a;font-weight:700;">{completed_cnt} completed</span>
-                    &nbsp;|&nbsp;
-                    <span style="color:#d97706;font-weight:700;">{pending_cnt} pending</span>
+                    📍 {k_name} (Pending Shift)
                 </div>
                 {meals_html}
             </div>
@@ -474,9 +474,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         col_target = c_cols[idx % 3]
         k_name = k_info["Kitchen"]
         m_list = k_info["Meals"]
-
-        completed_cnt = sum(m["Status"] == "Completed" for m in m_list)
-        pending_cnt = len(m_list) - completed_cnt
         meals_html = ""
 
         for m in m_list:
@@ -494,15 +491,24 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                   if pd.notna(temp) and temp < TEMP_THRESHOLD
                   else "#0f172a"
               )
-              dishes_html += f"""
-                    <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid #e2e8f0;">
-                        <span style="color:#334155; overflow-wrap:anywhere;">• {dish["Food"]}</span>
-                        <b style="color:{temp_color}; white-space:nowrap;">{temp_text}</b>
-                    </div>
-                    """
-            details_html = f'<div style="margin-top:5px;">{dishes_html}</div><div style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed: {m["Sign"]}</div>'
+              dishes_html += (
+                  '<div style="display:flex; justify-content:space-between;'
+                  ' gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid'
+                  f' #e2e8f0;"><span style="color:#334155;'
+                  f' overflow-wrap:anywhere;">• {dish["Food"]}</span><b'
+                  f' style="color:{temp_color};'
+                  f' white-space:nowrap;">{temp_text}</b></div>'
+              )
+            details_html = (
+                f'<div style="margin-top:5px;">{dishes_html}</div><div'
+                ' style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed:'
+                f' {m["Sign"]}</div>'
+            )
           else:
-            details_html = '<div style="font-size:0.72rem; color:#b45309; margin-top:5px;">No records submitted</div>'
+            details_html = (
+                '<div style="font-size:0.72rem; color:#b45309;'
+                ' margin-top:5px;">No records submitted</div>'
+            )
 
           meals_html += textwrap.dedent(f"""
                 <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
@@ -517,12 +523,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         card_html = textwrap.dedent(f"""
             <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
                 <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">
-                    📍 {k_name}
-                </div>
-                <div style="font-size:0.7rem; margin-top:6px; color:#475569;">
-                    <span style="color:#16a34a;font-weight:700;">{completed_cnt} completed</span>
-                    &nbsp;|&nbsp;
-                    <span style="color:#d97706;font-weight:700;">{pending_cnt} pending</span>
+                    📍 {k_name} (Completed Shifts)
                 </div>
                 {meals_html}
             </div>
