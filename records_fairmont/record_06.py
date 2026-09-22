@@ -11,6 +11,8 @@ RECORD_06_MEAL_RULES = {
     "Gold Lounge": ["Breakfast", "Dinner"],
     "The Bombay Café": ["Breakfast", "Lunch", "Dinner"],
     "The Merchants": ["Breakfast", "Lunch", "Dinner"],
+    "Banquets": ["Breakfast", "Lunch", "Dinner"],
+    "Other": ["Breakfast", "Lunch", "Dinner"],
 }
 
 
@@ -53,6 +55,8 @@ def parse_record_06_submissions(raw_df):
       location = str(
           sub.get("Location_other_copy") or sub.get("Location (Other)")
       ).strip()
+    elif str(loc_raw).strip().lower() == "other":
+      location = "Other"
     else:
       location = str(loc_raw).strip()
 
@@ -141,11 +145,13 @@ def parse_record_06_submissions(raw_df):
           and str(food_hot).strip()
       ):
         food_name = str(food_hot).strip()
+        treatment = "Hot"
       elif (
           str(food_cold).strip().lower() not in ["", "none", "nan", "other"]
           and str(food_cold).strip()
       ):
         food_name = str(food_cold).strip()
+        treatment = "Cold"
       elif str(food_other).strip():
         food_name = str(food_other).strip()
       else:
@@ -266,7 +272,16 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
     }
     kitchen_status_list = []
 
-    for kitchen, meals in RECORD_06_MEAL_RULES.items():
+    # Include any dynamically discovered locations in day_df as well
+    active_kitchens = list(RECORD_06_MEAL_RULES.keys())
+    if not day_df.empty:
+      extra_locs = day_df["Location"].unique()
+      for loc in extra_locs:
+        if loc not in active_kitchens:
+          active_kitchens.append(loc)
+
+    for kitchen in active_kitchens:
+      meals = RECORD_06_MEAL_RULES.get(kitchen, ["Breakfast", "Lunch", "Dinner"])
       k_df = (
           day_df[day_df["Location"].str.strip().str.lower() == kitchen.lower()]
           if not day_df.empty
@@ -275,7 +290,7 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
 
       meal_statuses = []
       for meal in meals:
-        if meal in shift_counts:
+        if meal in shift_counts and kitchen in ["Gold Lounge", "The Bombay Café", "The Merchants"]:
           shift_counts[meal]["req"] += 1
 
         m_df = (
@@ -284,7 +299,7 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
             else pd.DataFrame()
         )
         if not m_df.empty:
-          if meal in shift_counts:
+          if meal in shift_counts and kitchen in ["Gold Lounge", "The Bombay Café", "The Merchants"]:
             shift_counts[meal]["done"] += 1
           for _, r in m_df.iterrows():
             if r["Has_Breach"]:
@@ -296,14 +311,17 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
               "Sign": m_df["Sign"].iloc[0],
           })
         else:
-          meal_statuses.append({
-              "Meal": meal,
-              "Status": "Pending",
-              "Dishes": [],
-              "Sign": "",
-          })
+          # Only add pending if it's required for standard outlets
+          if kitchen in RECORD_06_MEAL_RULES:
+            meal_statuses.append({
+                "Meal": meal,
+                "Status": "Pending",
+                "Dishes": [],
+                "Sign": "",
+            })
 
-      kitchen_status_list.append({"Kitchen": kitchen, "Meals": meal_statuses})
+      if meal_statuses:
+        kitchen_status_list.append({"Kitchen": kitchen, "Meals": meal_statuses})
 
     # Record 04 style KPI Dashboard
     k1, k2, k3, k4 = st.columns(4)
@@ -402,17 +420,33 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
           dishes_html = ""
 
           if is_done:
-            for dish in m["Dishes"]:
-              temp = dish["Temp"]
-              temp_text = f"{temp}°C" if pd.notna(temp) else "—"
-              dishes_html += textwrap.dedent(f"""
-                    <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid #e2e8f0;">
-                        <span style="color:#334155; overflow-wrap:anywhere;">• {dish["Food"]} ({dish["Treatment"]})</span>
-                        <b style="color:#0f172a; white-space:nowrap;">{temp_text}</b>
-                    </div>
-                """).strip()
+            hot_dishes = [
+                d
+                for d in m["Dishes"]
+                if str(d["Treatment"]).strip().lower() == "hot"
+            ]
+            cold_dishes = [
+                d
+                for d in m["Dishes"]
+                if str(d["Treatment"]).strip().lower() == "cold"
+            ]
+
+            if hot_dishes:
+              hot_html = "".join([
+                  f'<div style="display:flex; justify-content:space-between; gap:6px; font-size:0.74rem; padding:3px 0;"><span style="color:#334155;">• {d["Food"]}</span><b style="color:#0f172a; white-space:nowrap;">{d["Temp"]}°C</b></div>'
+                  for d in hot_dishes
+              ])
+              dishes_html += f'<div style="font-size:0.72rem; font-weight:700; color:#dc2626; margin-top:4px;">🔥 Hot Items</div>{hot_html}'
+
+            if cold_dishes:
+              cold_html = "".join([
+                  f'<div style="display:flex; justify-content:space-between; gap:6px; font-size:0.74rem; padding:3px 0;"><span style="color:#334155;">• {d["Food"]}</span><b style="color:#0f172a; white-space:nowrap;">{d["Temp"]}°C</b></div>'
+                  for d in cold_dishes
+              ])
+              dishes_html += f'<div style="font-size:0.72rem; font-weight:700; color:#0284c7; margin-top:6px;">❄️ Cold Items</div>{cold_html}'
+
             details_html = textwrap.dedent(f"""
-                <div style="margin-top:5px;">{dishes_html}</div>
+                <div style="margin-top:5px; border-top:1px solid #e2e8f0; padding-top:4px;">{dishes_html}</div>
                 <div style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed: {m["Sign"]}</div>
             """).strip()
           else:
@@ -471,17 +505,33 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
           dishes_html = ""
 
           if is_done:
-            for dish in m["Dishes"]:
-              temp = dish["Temp"]
-              temp_text = f"{temp}°C" if pd.notna(temp) else "—"
-              dishes_html += textwrap.dedent(f"""
-                    <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid #e2e8f0;">
-                        <span style="color:#334155; overflow-wrap:anywhere;">• {dish["Food"]} ({dish["Treatment"]})</span>
-                        <b style="color:#0f172a; white-space:nowrap;">{temp_text}</b>
-                    </div>
-                """).strip()
+            hot_dishes = [
+                d
+                for d in m["Dishes"]
+                if str(d["Treatment"]).strip().lower() == "hot"
+            ]
+            cold_dishes = [
+                d
+                for d in m["Dishes"]
+                if str(d["Treatment"]).strip().lower() == "cold"
+            ]
+
+            if hot_dishes:
+              hot_html = "".join([
+                  f'<div style="display:flex; justify-content:space-between; gap:6px; font-size:0.74rem; padding:3px 0;"><span style="color:#334155;">• {d["Food"]}</span><b style="color:#0f172a; white-space:nowrap;">{d["Temp"]}°C</b></div>'
+                  for d in hot_dishes
+              ])
+              dishes_html += f'<div style="font-size:0.72rem; font-weight:700; color:#dc2626; margin-top:4px;">🔥 Hot Items</div>{hot_html}'
+
+            if cold_dishes:
+              cold_html = "".join([
+                  f'<div style="display:flex; justify-content:space-between; gap:6px; font-size:0.74rem; padding:3px 0;"><span style="color:#334155;">• {d["Food"]}</span><b style="color:#0f172a; white-space:nowrap;">{d["Temp"]}°C</b></div>'
+                  for d in cold_dishes
+              ])
+              dishes_html += f'<div style="font-size:0.72rem; font-weight:700; color:#0284c7; margin-top:6px;">❄️ Cold Items</div>{cold_html}'
+
             details_html = textwrap.dedent(f"""
-                <div style="margin-top:5px;">{dishes_html}</div>
+                <div style="margin-top:5px; border-top:1px solid #e2e8f0; padding-top:4px;">{dishes_html}</div>
                 <div style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed: {m["Sign"]}</div>
             """).strip()
           else:
@@ -534,7 +584,14 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
       ]
       today_date_obj = datetime.now().date()
 
-      for kitchen, meals in RECORD_06_MEAL_RULES.items():
+      active_matrix_outlets = list(RECORD_06_MEAL_RULES.keys())
+      if not range_df.empty:
+        for loc in range_df["Location"].unique():
+          if loc not in active_matrix_outlets:
+            active_matrix_outlets.append(loc)
+
+      for kitchen in active_matrix_outlets:
+        meals = RECORD_06_MEAL_RULES.get(kitchen, ["Breakfast", "Lunch", "Dinner"])
         st.markdown(
             textwrap.dedent(f"""
                 <div style="background:#0f172a; color:#ffffff; padding:8px 12px; border-radius:6px; margin-top:1.2rem; margin-bottom:0.5rem; font-weight:700; font-size:0.95rem;">
@@ -604,16 +661,21 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
               has_exc = any(match_entry["Has_Breach"])
               border_c = "#dc2626" if has_exc else "#16a34a"
 
+              hot_items = match_entry[match_entry["Treatment"].str.lower() == "hot"]
+              cold_items = match_entry[match_entry["Treatment"].str.lower() == "cold"]
+
               items_preview = ""
-              for _, dish in match_entry.iterrows():
-                t_val = (
-                    f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
-                )
-                items_preview += textwrap.dedent(f"""
-                    <div style='font-size:0.65rem; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>
-                        • {dish['Food']}: <b>{t_val}</b>
-                    </div>
-                """).strip()
+              if not hot_items.empty:
+                items_preview += "<div style='font-size:0.62rem; font-weight:700; color:#dc2626;'>🔥 Hot:</div>"
+                for _, dish in hot_items.iterrows():
+                  t_val = f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
+                  items_preview += f"<div style='font-size:0.62rem; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>• {dish['Food']}: <b>{t_val}</b></div>"
+
+              if not cold_items.empty:
+                items_preview += "<div style='font-size:0.62rem; font-weight:700; color:#0284c7; margin-top:2px;'>❄️ Cold:</div>"
+                for _, dish in cold_items.iterrows():
+                  t_val = f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
+                  items_preview += f"<div style='font-size:0.62rem; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>• {dish['Food']}: <b>{t_val}</b></div>"
 
               cell_html = textwrap.dedent(f"""
                 <div style="background:#ffffff; border:1.5px solid {border_c}; border-radius:4px; padding:4px; min-height:60px; display:flex; flex-direction:column; justify-content:flex-start;">
