@@ -55,7 +55,7 @@ UNIT_CATALOG = {
         {"Unit_ID": "CR/VR/FRZ/01", "Type": "Freezer"},
     ],
     "Banquet - Service": [
-        {"Unit_ID": "BQT SER- Cold room - CR26.1", "Type": "Coolroom"},
+        {"Unit_ID": "BQT SER- Cold room - CR261", "Type": "Coolroom"},
         {"Unit_ID": "BQS/VR/FRZ/01", "Type": "Freezer"},
     ],
     "Merchant Chiller": [
