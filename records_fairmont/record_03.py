@@ -6,7 +6,7 @@ MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer <= -18.0°C
 RECORD_03_FORM_ID = 23705
 
-# Comprehensive CoolRooms, Freezers & Fridges Catalog mapped from site data
+# Comprehensive Catalog mapped from site data (CoolRooms, Freezers & Fridges)
 UNIT_CATALOG = {
     # --- COOLROOMS ---
     "Garbage Room Walk-In (Chiller)": [
@@ -84,6 +84,7 @@ UNIT_CATALOG = {
     "The Merchants - Chocolate Atelier": [
         {"Unit_ID": "MBP/UC/FRZ/01", "Type": "Freezer"},
         {"Unit_ID": "MBP/DIS/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MBP/UC/FRZ/03", "Type": "Freezer"},  # Changed from REF/03
         {"Unit_ID": "MCA/UC/FRZ/01", "Type": "Freezer"},
     ],
     "The Merchants - Western Hot": [
@@ -135,11 +136,10 @@ UNIT_CATALOG = {
         {"Unit_ID": "SB/UC/FRZ/01", "Type": "Freezer"},
     ],
 
-    # --- FRIDGES (NEW CATALOG ADDITIONS) ---
+    # --- FRIDGES ---
     "The Merchants - Chocolate Atelier (Fridge)": [
         {"Unit_ID": "MBP/UC/REF/01", "Type": "Fridge"},
         {"Unit_ID": "MBP/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MBP/UC/REF/03", "Type": "Fridge"},
         {"Unit_ID": "MBP/UC/REF/04", "Type": "Fridge"},
         {"Unit_ID": "MCA/UC/REF/01", "Type": "Fridge"},
         {"Unit_ID": "MCA/UC/REF/02", "Type": "Fridge"},
@@ -205,6 +205,121 @@ UNIT_CATALOG = {
         {"Unit_ID": "OK/UC/REF/03", "Type": "Fridge"},
         {"Unit_ID": "OK/UC/REF/04", "Type": "Fridge"},
         {"Unit_ID": "OK/VR/REF/01", "Type": "Fridge"},
+    ],
+    "Beyond Oryn Bar (Fridge)": [
+        {"Unit_ID": "BO/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "BO/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "BO/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "BO/UC/REF/04", "Type": "Fridge"},
+    ],
+    "Gold Lounge Kitchen (Fridge)": [
+        {"Unit_ID": "GK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "GK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "GK/VR/REF/01", "Type": "Fridge"},
+    ],
+    "Gold Lounge Service (Fridge)": [
+        {"Unit_ID": "GS/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "GS/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "GS/DIS/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "GS/DIS/REF/02", "Type": "Fridge"},
+    ],
+    "Hedonist Kitchen (Fridge)": [
+        {"Unit_ID": "HK/UC/REF/01", "Type": "Fridge"},
+    ],
+    "Hedonist Bar (Fridge)": [
+        {"Unit_ID": "HB/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "HB/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "HB/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "HB/VR/REF/01", "Type": "Fridge"},
+    ],
+    "MDP Kitchen (Fridge)": [
+        {"Unit_ID": "MDPK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MDPK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MDPK/VR/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MDPK/VR/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MDPK/VR/REF/03", "Type": "Fridge"},
+    ],
+    "MDP Service (Fridge)": [
+        {"Unit_ID": "MDPS/VR/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MDPS/VR/REF/02", "Type": "Fridge"},
+    ],
+    "MDP Tea Lounge (Fridge)": [
+        {"Unit_ID": "MDPS/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MDPS/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MDPS/DIS/REF/01", "Type": "Fridge"},
+    ],
+    "The Bombay Café (Fridge)": [
+        {"Unit_ID": "TBC/UC/REF/01", "Type": "Fridge"},
+    ],
+    "Banquet Kitchen (Fridge)": [
+        {"Unit_ID": "MKI/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MKT/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MKA/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MKC/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "BQC/VR/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "BQC/VR/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "BQC/VR/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "BQK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "BQK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "BQK/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "BQK/UC/REF/04", "Type": "Fridge"},
+    ],
+    "Garde Manger (Fridge)": [
+        {"Unit_ID": "GM/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "GM/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "GM/UC/REF/03", "Type": "Fridge"},
+    ],
+    "Halwai Kitchen (Fridge)": [
+        {"Unit_ID": "HLK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "HLK/UC/REF/02", "Type": "Fridge"},
+    ],
+    "Bakery & Pastry (Fridge)": [
+        {"Unit_ID": "PS/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "PS/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "PS/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "CR/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "CR/VR/REF/01", "Type": "Fridge"},
+    ],
+    "Banquets - Grand Terminus (Fridge)": [
+        {"Unit_ID": "GT/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "GT/UC/REF/02", "Type": "Fridge"},
+    ],
+    "Banquet - Service (Fridge)": [
+        {"Unit_ID": "BQS/VR/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "BQS/VR/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "BQS/VR/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "BQS/VR/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "BQB/UC/REF/01", "Type": "Fridge"},
+    ],
+    "Samaa Kitchen (Fridge)": [
+        {"Unit_ID": "SK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "SK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "SK/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "SK/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "SK/VR/REF/01", "Type": "Fridge"},
+    ],
+    "Hygiene Office (Fridge)": [
+        {"Unit_ID": "HO/VR/REF/01", "Type": "Fridge"},
+    ],
+    "Samaa Bar (Fridge)": [
+        {"Unit_ID": "SB/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "SB/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "SB/UC/REF/03", "Type": "Fridge"},
+    ],
+    "SPA (Fridge)": [
+        {"Unit_ID": "SPA/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "SPA/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "SPA/DIS/REF/01", "Type": "Fridge"},
+    ],
+    "IRD Kitchen (Fridge)": [
+        {"Unit_ID": "IRDK/VR/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "IRDK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "IRDK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "IRDK/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "IRDK/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "IRDK/UC/REF/05", "Type": "Fridge"},
+        {"Unit_ID": "IRDK/UC/REF/06", "Type": "Fridge"},
+        {"Unit_ID": "IRDK/UC/REF/07", "Type": "Fridge"},
     ],
 }
 
