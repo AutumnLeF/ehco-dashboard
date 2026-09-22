@@ -194,6 +194,36 @@ def parse_all_record_04_dishes(raw_df):
 
 
 def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
+  # Custom CSS injection for beautiful KPI styling
+  st.markdown(
+      """
+    <style>
+    .kpi-container {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #0f172a;
+        border-radius: 8px;
+        padding: 14px 18px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        margin-bottom: 10px;
+    }
+    .kpi-num {
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+    .kpi-lbl {
+        font-size: 0.78rem;
+        color: #64748b;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-top: 2px;
+    }
+    </style>
+    """,
+      unsafe_allow_html=True,
+  )
+
   all_dishes_df = parse_all_record_04_dishes(raw_df)
 
   with st.expander("🔍 Record 04 Diagnostic (Inspect loaded data)"):
@@ -231,7 +261,11 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
     )
 
     excursions = []
-    shift_counts = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
+    shift_counts = {
+        "Breakfast": {"req": 0, "done": 0},
+        "Lunch": {"req": 0, "done": 0},
+        "Dinner": {"req": 0, "done": 0},
+    }
     kitchen_status_list = []
 
     for kitchen, meals in KITCHEN_MEAL_RULES.items():
@@ -281,45 +315,65 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             "Sign": r["Sign"],
         })
 
-    # Updated 4-Column KPI Dashboard
+    # --- ENHANCED VISUAL KPI DASHBOARD ---
     k1, k2, k3, k4 = st.columns(4)
     with k1:
       st.markdown(
-          f'<div class="kpi-box"><div class="kpi-num"'
-          f' style="color:#dc2626;">{len(excursions)}</div><div'
-          ' class="kpi-lbl">Core Temp Breaches (&lt; 75°C)</div></div>',
+          f"""
+            <div class="kpi-container" style="border-top-color: #dc2626;">
+                <div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div>
+                <div class="kpi-lbl">Core Temp Breaches (&lt; 75°C)</div>
+            </div>
+            """,
           unsafe_allow_html=True,
       )
     with k2:
-      b_done, b_req = shift_counts["Breakfast"]["done"], shift_counts["Breakfast"]["req"]
+      b_done, b_req = (
+          shift_counts["Breakfast"]["done"],
+          shift_counts["Breakfast"]["req"],
+      )
       st.markdown(
-          f'<div class="kpi-box"><div class="kpi-num"'
-          f' style="color:#16a34a;">{b_done}/{b_req}</div><div'
-          ' class="kpi-lbl">Breakfast Shift Completed</div></div>',
+          f"""
+            <div class="kpi-container" style="border-top-color: #16a34a;">
+                <div class="kpi-num" style="color:#16a34a;">{b_done}/{b_req}</div>
+                <div class="kpi-lbl">Breakfast Shift Completed</div>
+            </div>
+            """,
           unsafe_allow_html=True,
       )
     with k3:
-      l_done, l_req = shift_counts["Lunch"]["done"], shift_counts["Lunch"]["req"]
+      l_done, l_req = (
+          shift_counts["Lunch"]["done"],
+          shift_counts["Lunch"]["req"],
+      )
       st.markdown(
-          f'<div class="kpi-box"><div class="kpi-num"'
-          f' style="color:#d97706;">{l_done}/{l_req}</div><div'
-          ' class="kpi-lbl">Lunch Shift Completed</div></div>',
+          f"""
+            <div class="kpi-container" style="border-top-color: #d97706;">
+                <div class="kpi-num" style="color:#d97706;">{l_done}/{l_req}</div>
+                <div class="kpi-lbl">Lunch Shift Completed</div>
+            </div>
+            """,
           unsafe_allow_html=True,
       )
     with k4:
-      d_done, d_req = shift_counts["Dinner"]["done"], shift_counts["Dinner"]["req"]
+      d_done, d_req = (
+          shift_counts["Dinner"]["done"],
+          shift_counts["Dinner"]["req"],
+      )
       pct = int((d_done / d_req) * 100) if d_req > 0 else 0
       st.markdown(
-          f'<div class="kpi-box"><div class="kpi-num"'
-          f' style="color:#0f172a;">{d_done}/{d_req} <span'
-          f' style="font-size:0.85rem; color:#2563eb;">({pct}%)</span></div><div'
-          ' class="kpi-lbl">Dinner Shift Completed</div></div>',
+          f"""
+            <div class="kpi-container" style="border-top-color: #2563eb;">
+                <div class="kpi-num" style="color:#2563eb;">{d_done}/{d_req} <span style="font-size:0.9rem; color:#64748b; font-weight:600;">({pct}%)</span></div>
+                <div class="kpi-lbl">Dinner Shift Completed</div>
+            </div>
+            """,
           unsafe_allow_html=True,
       )
 
     st.write("")
 
-    # Separate kitchen cards into Pending shifts (Top) and Completed shifts (Bottom)
+    # Separate cards into Pending Cards (Top) and Completed Cards (Bottom)
     pending_cards = []
     completed_cards = []
 
@@ -331,11 +385,19 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
       completed_meals = [m for m in m_list if m["Status"] == "Completed"]
 
       if pending_meals:
-        pending_cards.append({"Kitchen": k_name, "Meals": pending_meals, "Total": m_list})
-      if completed_meals:
-        completed_cards.append({"Kitchen": k_name, "Meals": completed_meals, "Total": m_list})
+        pending_cards.append({
+            "Kitchen": k_name,
+            "Meals": m_list,
+            "HasPending": True,
+        })
+      else:
+        completed_cards.append({
+            "Kitchen": k_name,
+            "Meals": m_list,
+            "HasPending": False,
+        })
 
-    # --- SECTION 1: PENDING SHIFT CARDS (TOP) ---
+    # --- SECTION 1: PENDING / INCOMPLETE SHIFT CARDS (TOP) ---
     st.markdown(
         "<h4 style='color:#b45309; margin-top:1.5rem; margin-bottom:1rem;'>⏳"
         f" Pending / Incomplete Shift Cards ({selected_day_str})</h4>",
@@ -350,10 +412,9 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         col_target = p_cols[idx % 3]
         k_name = k_info["Kitchen"]
         m_list = k_info["Meals"]
-        total_m = k_info["Total"]
 
-        completed_cnt = sum(m["Status"] == "Completed" for m in total_m)
-        pending_cnt = len(total_m) - completed_cnt
+        completed_cnt = sum(m["Status"] == "Completed" for m in m_list)
+        pending_cnt = len(m_list) - completed_cnt
         meals_html = ""
 
         for m in m_list:
@@ -366,7 +427,11 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             for dish in m["Dishes"]:
               temp = dish["Temp"]
               temp_text = f"{temp}°C" if pd.notna(temp) else "—"
-              temp_color = "#dc2626" if pd.notna(temp) and temp < TEMP_THRESHOLD else "#0f172a"
+              temp_color = (
+                  "#dc2626"
+                  if pd.notna(temp) and temp < TEMP_THRESHOLD
+                  else "#0f172a"
+              )
               dishes_html += f"""
                     <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid #e2e8f0;">
                         <span style="color:#334155; overflow-wrap:anywhere;">• {dish["Food"]}</span>
@@ -388,7 +453,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             """
 
         card_html = f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #d97706; border-radius:6px; padding:10px; margin-bottom:12px;">
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #d97706; border-radius:6px; padding:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
             <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">📍 {k_name}</div>
             <div style="font-size:0.7rem; margin-top:6px; color:#475569;">
                 <span style="color:#16a34a;font-weight:700;">{completed_cnt} completed</span> &nbsp;|&nbsp;
@@ -401,7 +466,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
     st.write("")
 
-    # --- SECTION 2: COMPLETELY SEPARATE COMPLETED SHIFT CARDS (BOTTOM) ---
+    # --- SECTION 2: COMPLETELY COMPLETED SHIFT CARDS (BOTTOM) ---
     st.markdown(
         "<h4 style='color:#16a34a; margin-top:2rem; margin-bottom:1rem;'>✅"
         f" Completely Completed Shift Cards ({selected_day_str})</h4>",
@@ -409,17 +474,16 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
     )
 
     if not completed_cards:
-      st.info("No completed shift cards available yet.")
+      st.info("No completely completed shift cards available yet.")
     else:
       c_cols = st.columns(3, gap="small")
       for idx, k_info in enumerate(completed_cards):
         col_target = c_cols[idx % 3]
         k_name = k_info["Kitchen"]
         m_list = k_info["Meals"]
-        total_m = k_info["Total"]
 
-        completed_cnt = sum(m["Status"] == "Completed" for m in total_m)
-        pending_cnt = len(total_m) - completed_cnt
+        completed_cnt = sum(m["Status"] == "Completed" for m in m_list)
+        pending_cnt = len(m_list) - completed_cnt
         meals_html = ""
 
         for m in m_list:
@@ -432,7 +496,11 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             for dish in m["Dishes"]:
               temp = dish["Temp"]
               temp_text = f"{temp}°C" if pd.notna(temp) else "—"
-              temp_color = "#dc2626" if pd.notna(temp) and temp < TEMP_THRESHOLD else "#0f172a"
+              temp_color = (
+                  "#dc2626"
+                  if pd.notna(temp) and temp < TEMP_THRESHOLD
+                  else "#0f172a"
+              )
               dishes_html += f"""
                     <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid #e2e8f0;">
                         <span style="color:#334155; overflow-wrap:anywhere;">• {dish["Food"]}</span>
@@ -454,7 +522,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             """
 
         card_html = f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:10px; margin-bottom:12px;">
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
             <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">📍 {k_name}</div>
             <div style="font-size:0.7rem; margin-top:6px; color:#475569;">
                 <span style="color:#16a34a;font-weight:700;">{completed_cnt} completed</span> &nbsp;|&nbsp;
