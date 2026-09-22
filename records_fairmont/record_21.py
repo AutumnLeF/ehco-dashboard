@@ -29,7 +29,7 @@ def parse_record_21_submissions(raw_df):
 
   rows = []
   for _, record in df.iterrows():
-    rec = record.get("raw_record") if "raw_record" in df.columns else record.to_dict()
+    rec = record.get("raw_record") if "raw_record" in raw_df.columns else record.to_dict()
     if not isinstance(rec, dict):
       rec = record.to_dict()
 
@@ -94,7 +94,6 @@ def parse_record_21_submissions(raw_df):
 
       raw_type = cl.get("Type") or cl.get("Food") or cl.get("Type_of_food") or ["Salad Item"]
       
-      # Ensure it's a list so we can extract every single food item
       if isinstance(raw_type, str):
         if "[" in raw_type:
           try:
@@ -108,12 +107,10 @@ def parse_record_21_submissions(raw_df):
       if not isinstance(raw_type, list):
         raw_type = [str(raw_type)]
 
-      # Also extract 'other' if specified
       other_val = str(cl.get("Type_of_food_Other") or cl.get("Type of food (Other)") or "").replace("•", "").strip()
       if other_val and other_val.lower() not in ["none", "nan", ""]:
         raw_type.append(other_val)
 
-      # Create an entry for EACH food item washed
       for food_item in raw_type:
         f_name = str(food_item).strip()
         if f_name and f_name.lower() not in ["none", "nan", "other", ""]:
@@ -347,7 +344,7 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
                     {batches_html}
                 </div>
                 <div style="font-size:0.68rem; color:#64748b; margin-top:8px; border-top:1px solid #f1f5f9; padding-top:4px;">
-                    Signed by: {sign}
+                    <b>Filled By:</b> {sign}
                 </div>
             </div>
         """).strip()
@@ -462,25 +459,19 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
           badge_color = "#dc2626" if has_breach else "#16a34a"
           
           foods_list = list(dict.fromkeys(matches["Food"].dropna().tolist()))
-          foods_html = ""
-          
-          # Show top 5 foods so card doesn't stretch forever, + X more
-          display_foods = foods_list[:5]
-          for f in display_foods:
-             f_name = f[:14] + "..." if len(str(f)) > 14 else f
-             foods_html += f"<div style='font-size:0.65rem; color:#334155; margin-top:2px; text-align:left; border-top:1px solid #f1f5f9; padding-top:2px;'>• <b>{f_name}</b></div>"
-             
-          if len(foods_list) > 5:
-              foods_html += f"<div style='font-size:0.62rem; color:#64748b; font-style:italic; margin-top:2px; text-align:left;'>+ {len(foods_list)-5} more items</div>"
+          sign_list = [s for s in dict.fromkeys(matches["Sign"].dropna().tolist()) if s and s != "Staff"]
+          sign_str = f"By: {', '.join(sign_list)}" if sign_list else "By: Staff"
 
-          row_cols[i + 1].markdown(
-              f'<div style="background:#ffffff; border:1.5px solid {badge_color};'
-              ' border-radius:8px; padding:6px 6px; min-height:130px;'
-              ' box-shadow:0 1px 3px rgba(0,0,0,0.08);"><div'
-              f' style="font-size:1.1rem; font-weight:800; color:{badge_color};'
-              f' text-align:center; line-height:1;">{count}</div><div style="font-size:0.65rem; text-align:center; color:#64748b; margin-top:2px;">100 PPM • 5m</div>{foods_html}</div>',
-              unsafe_allow_html=True,
-          )
+          with row_cols[i + 1]:
+            with st.container(border=True):
+              st.markdown(f"<div style='font-size:1.0rem; font-weight:800; color:{badge_color}; text-align:center;'>{count} Items</div>", unsafe_allow_html=True)
+              st.markdown("<div style='font-size:0.62rem; text-align:center; color:#64748b;'>100 PPM • 5m</div>", unsafe_allow_html=True)
+              
+              with st.expander("View Items"):
+                for f in foods_list:
+                  st.markdown(f"<div style='font-size:0.7rem; color:#334155;'>• {f}</div>", unsafe_allow_html=True)
+                  
+              st.markdown(f"<div style='font-size:0.63rem; color:#475569; text-align:center; margin-top:2px; font-weight:600;'>{sign_str}</div>", unsafe_allow_html=True)
 
       st.write("")
 
