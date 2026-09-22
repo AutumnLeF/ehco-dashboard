@@ -290,8 +290,8 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
     html_04 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 5/5</span><br>Lunch: <span style="color: #4ade80; font-weight: 600;">Completed - 10/10</span><br>Dinner: <span style="color: #38bdf8; font-weight: 600;">Completed - 10/11</span>'
 
-    day_05 = filter_by_focus_date(df_05, selected_day_variants)
-    stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - 6/10 kitchens</span>'
+    # Record 05: Show Pending - 6/10 kitchens if not fully 10/10
+    stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending - 6/10 kitchens</span>'
 
     stat_06 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 3/3</span><br>Lunch: <span style="color: #fbbf24; font-weight: 600;">Pending - 1/3</span><br>Dinner: <span style="color: #38bdf8; font-weight: 600;">Completed - 3/4</span>'
 
@@ -319,7 +319,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         1 if not day_02.empty else 0,
         1 if is_op_complete and is_cl_complete else 0,
         1,
-        1,
+        0, # Record 05 is pending (6/10)
         1,
         1 if not day_12.empty else 0,
         1 if is_13_complete else 0,
