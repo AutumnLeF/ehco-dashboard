@@ -5,7 +5,7 @@ import streamlit as st
 
 RECORD_12_FORM_ID = 23714
 CRITICAL_LIMIT_DEFROST = 5.0  # Max final temp: <= 5.0°C
-RECORD_12_AREAS = ["Butchery", "Main Kitchen"]
+RECORD_12_AREAS = ["Butchery"]
 
 
 def parse_record_12_submissions(raw_df):
