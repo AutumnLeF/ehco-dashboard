@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import textwrap
 import pandas as pd
 import streamlit as st
 
@@ -105,7 +106,6 @@ def parse_record_05_submissions(raw_df):
         or []
     )
 
-    # Prevent boolean/non-iterable crashes safely
     if isinstance(entries, bool) or not isinstance(entries, (list, dict)):
       entries = [sub] if isinstance(sub, dict) else []
     elif isinstance(entries, dict):
@@ -194,6 +194,35 @@ def parse_record_05_submissions(raw_df):
 
 
 def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
+  st.markdown(
+      """
+    <style>
+    .kpi-container {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #0f172a;
+        border-radius: 8px;
+        padding: 14px 18px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        margin-bottom: 10px;
+    }
+    .kpi-num {
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+    .kpi-lbl {
+        font-size: 0.78rem;
+        color: #64748b;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-top: 2px;
+    }
+    </style>
+    """,
+      unsafe_allow_html=True,
+  )
+
   df_items = parse_record_05_submissions(raw_df)
 
   with st.expander("🔍 Record 05 Diagnostic (Inspect loaded data)"):
@@ -210,7 +239,7 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
     range_df = df_items.copy()
 
   tab_day, tab_matrix = st.tabs([
-      f"📅 Daily Pull-Down ({selected_day_str})",
+      f"📅 Daily Pull-Down Audit ({selected_day_str})",
       "📈 7-Day Matrix (1-Month Browser)",
   ])
 
@@ -221,112 +250,149 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
         else pd.DataFrame()
     )
 
-    excursions = []
-    compliant_logs = []
+    excursions = 0
+    compliant_count = 0
 
-    if not day_df.empty:
-      for _, r in day_df.iterrows():
-        if pd.notna(r["End_Temp"]) and r["End_Temp"] > CRITICAL_LIMIT_2HR:
-          excursions.append(r.to_dict())
-        else:
-          compliant_logs.append(r.to_dict())
+    kitchen_status_list = []
+    for kitchen in RECORD_05_KITCHENS:
+      k_df = (
+          day_df[day_df["Location"].str.strip().str.lower() == kitchen.lower()]
+          if not day_df.empty
+          else pd.DataFrame()
+      )
 
+      is_completed = not k_df.empty
+      batches = []
+      sign = ""
+      if is_completed:
+        sign = k_df["Sign"].iloc[0]
+        for _, r in k_df.iterrows():
+          is_exc = pd.notna(r["End_Temp"]) and r["End_Temp"] > CRITICAL_LIMIT_2HR
+          if is_exc:
+            excursions += 1
+          else:
+            compliant_count += 1
+          batches.append({
+              "Food": r["Food"],
+              "Start": r["Start_Temp"],
+              "End": r["End_Temp"],
+              "Excursion": is_exc,
+          })
+
+      kitchen_status_list.append({
+          "Kitchen": kitchen,
+          "Status": "Completed" if is_completed else "Pending",
+          "Batches": batches,
+          "Sign": sign,
+      })
+
+    # KPI Dashboard
     k1, k2, k3 = st.columns(3)
     with k1:
       st.markdown(
-          f'<div class="kpi-box"><div class="kpi-num"'
-          f' style="color:#dc2626;">{len(excursions)}</div><div'
-          ' class="kpi-lbl">Excursions (&gt; 5.0°C)</div></div>',
+          f"""
+            <div class="kpi-container" style="border-top-color: #dc2626;">
+                <div class="kpi-num" style="color:#dc2626;">{excursions}</div>
+                <div class="kpi-lbl">Excursions (&gt; 5.0°C)</div>
+            </div>
+            """,
           unsafe_allow_html=True,
       )
     with k2:
       st.markdown(
-          f'<div class="kpi-box"><div class="kpi-num"'
-          f' style="color:#16a34a;">{len(compliant_logs)}</div><div'
-          ' class="kpi-lbl">Verified Pulled-Down (≤ 5.0°C)</div></div>',
+          f"""
+            <div class="kpi-container" style="border-top-color: #16a34a;">
+                <div class="kpi-num" style="color:#16a34a;">{compliant_count}</div>
+                <div class="kpi-lbl">Verified Pulled-Down (≤ 5.0°C)</div>
+            </div>
+            """,
           unsafe_allow_html=True,
       )
     with k3:
+      total_batches = len(day_df)
       st.markdown(
-          f'<div class="kpi-box"><div class="kpi-num"'
-          f' style="color:#0f172a;">{len(day_df)}</div><div'
-          ' class="kpi-lbl">Batches Chilled</div></div>',
+          f"""
+            <div class="kpi-container" style="border-top-color: #0f172a;">
+                <div class="kpi-num" style="color:#0f172a;">{total_batches}</div>
+                <div class="kpi-lbl">Total Batches Chilled</div>
+            </div>
+            """,
           unsafe_allow_html=True,
       )
 
-    st.write("")
+    pending_cards = [k for k in kitchen_status_list if k["Status"] == "Pending"]
+    completed_cards = [
+        k for k in kitchen_status_list if k["Status"] == "Completed"
+    ]
+
+    # --- SECTION 1: PENDING KITCHENS (TOP) ---
     st.markdown(
-        f"<h4 style='color:#0f172a; margin-top:1rem;'>❄️ Blast Chiller Audit"
-        f" Cards ({selected_day_str})</h4>",
+        "<h4 style='color:#b45309; margin-top:1.5rem; margin-bottom:1rem;'>⏳"
+        f" Pending / Incomplete Kitchen Areas ({selected_day_str})</h4>",
         unsafe_allow_html=True,
     )
+    if not pending_cards:
+      st.success("🎉 All kitchen areas have submitted blast chiller logs!")
+    else:
+      p_cols = st.columns(3, gap="small")
+      for idx, k_info in enumerate(pending_cards):
+        col_target = p_cols[idx % 3]
+        card_html = textwrap.dedent(f"""
+                <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #d97706; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                    <div style="font-size:0.9rem; font-weight:700; color:#0f172a; padding-bottom:6px; border-bottom:1px solid #e2e8f0;">
+                        📍 {k_info["Kitchen"]}
+                    </div>
+                    <div style="font-size:0.75rem; color:#b45309; margin-top:8px; font-style:italic;">
+                        ⏳ No cooling records submitted yet.
+                    </div>
+                </div>
+            """).strip()
+        col_target.markdown(card_html, unsafe_allow_html=True)
 
-    c1, c2 = st.columns(2)
-    with c1:
-      st.markdown(
-          '<div style="font-weight:700; color:#dc2626; margin-bottom:8px;">🔴'
-          " Temperature Breaches (> 5.0°C)</div>",
-          unsafe_allow_html=True,
-      )
-      if excursions:
-        for exc in excursions:
-          end_str = (
-              f"{exc['End_Temp']}°C"
-              if pd.notna(exc["End_Temp"])
-              else "—"
-          )
-          st.markdown(
-              f'<div style="background:#ffffff; border:1px solid #fca5a5;'
-              ' border-left:4px solid #dc2626; padding:12px; border-radius:6px;'
-              ' margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);"><div'
-              ' style="font-weight:700; font-size:0.95rem; color:#0f172a;">🍲'
-              f' {exc["Food"]} • {exc["Location"]}</div><div'
-              ' style="font-size:0.85rem; color:#dc2626; font-weight:700;'
-              f' margin-top:4px;">Start: {exc["Start_Temp"]}°C ➔ {end_str}'
-              ' (Limit ≤ 5.0°C)</div><div style="font-size:0.75rem;'
-              f' color:#64748b; margin-top:4px;">Time: {exc["Time"]} | Signed:'
-              f' {exc["Sign"]}</div></div>',
-              unsafe_allow_html=True,
-          )
-      else:
-        st.markdown(
-            '<div style="background:#ffffff; border:1px solid #cbd5e1;'
-            ' border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem;'
-            ' text-align:center;">No cooling excursions on this day.</div>',
-            unsafe_allow_html=True,
-        )
+    st.write("")
 
-    with c2:
-      st.markdown(
-          '<div style="font-weight:700; color:#16a34a; margin-bottom:8px;">🟢'
-          " Verified Compliant (≤ 5.0°C)</div>",
-          unsafe_allow_html=True,
-      )
-      if compliant_logs:
-        for ok in compliant_logs:
-          end_str = (
-              f"{ok['End_Temp']}°C" if pd.notna(ok["End_Temp"]) else "—"
-          )
-          st.markdown(
-              f'<div style="background:#ffffff; border:1px solid #cbd5e1;'
-              ' border-left:4px solid #16a34a; padding:12px; border-radius:6px;'
-              ' margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);"><div'
-              ' style="font-weight:700; font-size:0.95rem; color:#0f172a;">🍲'
-              f' {ok["Food"]}</div><div style="font-size:0.85rem;'
-              ' color:#334155; margin-top:4px;">Start:'
-              f' <b>{ok["Start_Temp"]}°C</b> ➔ <b'
-              f' style="color:#16a34a;">{end_str}</b></div><div'
-              ' style="font-size:0.75rem; color:#64748b; margin-top:4px;">Method:'
-              f' {ok["Method"]} | Signed: {ok["Sign"]}</div></div>',
-              unsafe_allow_html=True,
-          )
-      else:
-        st.markdown(
-            '<div style="background:#ffffff; border:1px solid #cbd5e1;'
-            ' border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem;'
-            ' text-align:center;">No blast chiller records for this day.</div>',
-            unsafe_allow_html=True,
-        )
+    # --- SECTION 2: COMPLETED KITCHENS (BOTTOM) ---
+    st.markdown(
+        "<h4 style='color:#16a34a; margin-top:2rem; margin-bottom:1rem;'>✅"
+        f" Completed Kitchen Audit Entries ({selected_day_str})</h4>",
+        unsafe_allow_html=True,
+    )
+    if not completed_cards:
+      st.info("No completed kitchen entries for this date.")
+    else:
+      c_cols = st.columns(3, gap="small")
+      for idx, k_info in enumerate(completed_cards):
+        col_target = c_cols[idx % 3]
+        k_name = k_info["Kitchen"]
+        batches = k_info["Batches"]
+        sign = k_info["Sign"]
+
+        batches_html = ""
+        for b in batches:
+          end_str = f"{b['End']}°C" if pd.notna(b["End"]) else "—"
+          temp_color = "#dc2626" if b["Excursion"] else "#16a34a"
+          batches_html += textwrap.dedent(f"""
+                <div style="background:#f8fafc; border-left:3px solid {temp_color}; border-radius:4px; padding:6px 8px; margin-top:6px; font-size:0.76rem;">
+                    <div style="font-weight:700; color:#0f172a;">🍲 {b["Food"]}</div>
+                    <div style="color:#475569; margin-top:2px;">Start: {b["Start"]}°C ➔ <b style="color:{temp_color};">{end_str}</b></div>
+                </div>
+            """).strip()
+
+        card_html = textwrap.dedent(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+                    <span style="font-size:0.9rem; font-weight:700; color:#0f172a;">📍 {k_name}</span>
+                    <span style="color:#16a34a; font-weight:700; font-size:0.75rem;">✓ Done ({len(batches)})</span>
+                </div>
+                <div style="margin-top:6px;">
+                    {batches_html}
+                </div>
+                <div style="font-size:0.68rem; color:#64748b; margin-top:8px; border-top:1px solid #f1f5f9; padding-top:4px;">
+                    Signed by: {sign}
+                </div>
+            </div>
+        """).strip()
+        col_target.markdown(card_html, unsafe_allow_html=True)
 
   with tab_matrix:
     st.subheader("7-Day Kitchen Completion Matrix")
