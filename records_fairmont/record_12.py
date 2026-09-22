@@ -5,7 +5,7 @@ import streamlit as st
 
 RECORD_12_FORM_ID = 23714
 CRITICAL_LIMIT_DEFROST = 5.0  # Max final temp: <= 5.0°C
-RECORD_12_AREAS = ["Butchery"]
+RECORD_12_AREAS = ["Butchery", "Main Kitchen"]
 
 
 def parse_record_12_submissions(raw_df):
@@ -52,9 +52,9 @@ def parse_record_12_submissions(raw_df):
 
     food_main = (
         sub.get("Name of food (Other)")
-        or sub.get("Name of Food")
         or sub.get("Food")
-        or entry_parent.get("Name of Food")
+        or sub.get("Name of Food")
+        or entry_parent.get("Food")
         or "Defrosted Item"
     )
     if str(food_main).strip().lower() in ["other", ""] and sub.get(
@@ -63,7 +63,8 @@ def parse_record_12_submissions(raw_df):
       food_main = str(sub.get("Name of food (Other)")).strip()
 
     finish_raw = (
-        sub.get("Finish Date")
+        sub.get("End_Date")
+        or sub.get("Finish Date")
         or sub.get("EndDate")
         or sub.get("Date")
         or rec.get("createdAt")
@@ -85,7 +86,7 @@ def parse_record_12_submissions(raw_df):
       finish_str = str(finish_raw)[:10]
       finish_date_obj = None
 
-    start_raw = sub.get("Start Date") or sub.get("StartDate") or ""
+    start_raw = sub.get("Start_Date") or sub.get("Start Date") or sub.get("StartDate") or ""
     start_dt = pd.to_datetime(start_raw, errors="coerce")
     if pd.isna(start_dt):
       start_dt = pd.to_datetime(start_raw, dayfirst=True, errors="coerce")
@@ -109,23 +110,32 @@ def parse_record_12_submissions(raw_df):
         date_rule_valid = False
         duration_note = f"Anomaly: {days_diff}d diff (Expected 1d)"
 
-    start_time = str(sub.get("Start Time") or sub.get("StartTime") or "")[:8]
-    finish_time = str(
-        sub.get("Finish Time")
-        or sub.get("FinishTime")
-        or sub.get("Time")
-        or ""
-    )[:8]
+    start_time_raw = str(sub.get("Start_Time") or sub.get("Start Time") or sub.get("StartTime") or "")
+    if "T" in start_time_raw:
+      try:
+        start_time_str = start_time_raw.split("T")[1][:5]
+      except Exception:
+        start_time_str = start_time_raw[:8]
+    else:
+      start_time_str = start_time_raw[:8]
 
-    start_temp_raw = sub.get("Start Temperature °C") or sub.get(
-        "Start_Temperature"
-    )
+    finish_time_raw = str(sub.get("End_Time") or sub.get("Finish Time") or sub.get("FinishTime") or sub.get("Time") or "")
+    if "T" in finish_time_raw:
+      try:
+        finish_time_str = finish_time_raw.split("T")[1][:5]
+      except Exception:
+        finish_time_str = finish_time_raw[:8]
+    else:
+      finish_time_str = finish_time_raw[:8]
+
+    start_temp_raw = sub.get("Start_Temp") or sub.get("Start Temperature °C") or sub.get("Start_Temperature")
     start_temp = pd.to_numeric(
         str(start_temp_raw).replace("°C", "").strip(), errors="coerce"
     )
 
     final_temp_raw = (
-        sub.get("Final Defrosting Temperature °C")
+        sub.get("Final_Temperature")
+        or sub.get("Final Defrosting Temperature °C")
         or sub.get("Final Defrosting Temperature")
         or sub.get("Final Temperature °C")
         or sub.get("Temperature")
@@ -135,8 +145,8 @@ def parse_record_12_submissions(raw_df):
     )
 
     sign = (
-        sub.get("Sign (Full Name)")
-        or sub.get("Sign")
+        sub.get("Sign")
+        or sub.get("Sign (Full Name)")
         or sub.get("sign")
         or rec.get("Sign")
         or rec.get("user.email")
@@ -150,8 +160,8 @@ def parse_record_12_submissions(raw_df):
         "Start_Date_Obj": start_date_obj,
         "Date_Rule_Valid": date_rule_valid,
         "Duration_Note": duration_note,
-        "Start_Time": start_time,
-        "Finish_Time": finish_time,
+        "Start_Time": start_time_str,
+        "Finish_Time": finish_time_str,
         "Location": str(loc_main).strip(),
         "Food": str(food_main).strip(),
         "Start_Temp": start_temp,
@@ -371,7 +381,7 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
           batches_html += textwrap.dedent(f"""
                 <div style="background:#f8fafc; border-left:3px solid {temp_color}; border-radius:4px; padding:6px 8px; margin-top:6px; font-size:0.76rem;">
                     <div style="font-weight:700; color:#0f172a;">🧊 {b["Food"]}</div>
-                    <div style="color:#475569; margin-top:2px;">Initial: <b>{start_t}</b> ({b['Start_Time']}) ➔ Final: <b style="color:{temp_color};">{final_t}</b> ({b['Finish_Time']})</div>
+                    <div style="color:#475569; margin-top:2px;">Init: <b>{start_t}</b> ({b['Start_Time']}) ➔ Fin: <b style="color:{temp_color};">{final_t}</b> ({b['Finish_Time']})</div>
                     <div style="color:#0284c7; font-size:0.68rem; margin-top:2px;">Start Date: {b['Start_Date']} | Note: {b['Duration']}</div>
                 </div>
             """).strip()
