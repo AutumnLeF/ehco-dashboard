@@ -285,8 +285,18 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
           "Sign": sign,
       })
 
-    # KPI Dashboard
-    k1, k2, k3 = st.columns(3)
+    pending_cards = [k for k in kitchen_status_list if k["Status"] == "Pending"]
+    completed_cards = [
+        k for k in kitchen_status_list if k["Status"] == "Completed"
+    ]
+
+    total_kitchens = len(RECORD_05_KITCHENS)
+    completed_count_k = len(completed_cards)
+    pending_count_k = len(pending_cards)
+    completion_pct = int((completed_count_k / total_kitchens) * 100)
+
+    # KPI Dashboard (4 Columns)
+    k1, k2, k3, k4 = st.columns(4)
     with k1:
       st.markdown(
           f"""
@@ -301,32 +311,43 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
       st.markdown(
           f"""
             <div class="kpi-container" style="border-top-color: #16a34a;">
-                <div class="kpi-num" style="color:#16a34a;">{compliant_count}</div>
-                <div class="kpi-lbl">Verified Pulled-Down (≤ 5.0°C)</div>
+                <div class="kpi-num" style="color:#16a34a;">{completed_count_k}/{total_kitchens}</div>
+                <div class="kpi-lbl">Completed Kitchens</div>
             </div>
             """,
           unsafe_allow_html=True,
       )
     with k3:
-      total_batches = len(day_df)
       st.markdown(
           f"""
-            <div class="kpi-container" style="border-top-color: #0f172a;">
-                <div class="kpi-num" style="color:#0f172a;">{total_batches}</div>
-                <div class="kpi-lbl">Total Batches Chilled</div>
+            <div class="kpi-container" style="border-top-color: #d97706;">
+                <div class="kpi-num" style="color:#d97706;">{pending_count_k}/{total_kitchens}</div>
+                <div class="kpi-lbl">Pending Kitchens</div>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
+    with k4:
+      st.markdown(
+          f"""
+            <div class="kpi-container" style="border-top-color: #2563eb;">
+                <div class="kpi-num" style="color:#2563eb;">{completion_pct}%</div>
+                <div class="kpi-lbl">Daily Compliance Progress</div>
             </div>
             """,
           unsafe_allow_html=True,
       )
 
-    pending_cards = [k for k in kitchen_status_list if k["Status"] == "Pending"]
-    completed_cards = [
-        k for k in kitchen_status_list if k["Status"] == "Completed"
-    ]
+    # Visual Progress Bar
+    st.progress(
+        completion_pct / 100.0,
+        text=f"Daily Kitchen Compliance Progress: {completed_count_k} of {total_kitchens} Kitchens Completed ({completion_pct}%)",
+    )
+    st.write("")
 
     # --- SECTION 1: PENDING KITCHENS (TOP) ---
     st.markdown(
-        "<h4 style='color:#b45309; margin-top:1.5rem; margin-bottom:1rem;'>⏳"
+        "<h4 style='color:#b45309; margin-top:1rem; margin-bottom:1rem;'>⏳"
         f" Pending / Incomplete Kitchen Areas ({selected_day_str})</h4>",
         unsafe_allow_html=True,
     )
