@@ -374,13 +374,11 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         
         def render_dept_card(col, dept_name, rec_tuples):
             items_html = ""
-            for r_title, r_status, r_nav in rec_tuples:
+            for r_title, r_status in rec_tuples:
                 items_html += f"""
-                <div style="background: rgba(255,255,255,0.06); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
-                    <div>
-                        <div style="font-weight: 600; font-size: 0.85rem; color: #f8fafc; margin-bottom: 2px;">{r_title}</div>
-                        <div style="font-size: 0.75rem; color: #cbd5e1;">{r_status}</div>
-                    </div>
+                <div style="background: rgba(255,255,255,0.06); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px;">
+                    <div style="font-weight: 600; font-size: 0.85rem; color: #f8fafc; margin-bottom: 2px;">{r_title}</div>
+                    <div style="font-size: 0.75rem; color: #cbd5e1;">{r_status}</div>
                 </div>
                 """
             col.markdown(f"""
@@ -389,17 +387,14 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
                 {items_html}
             </div>
             """, unsafe_allow_html=True)
-            for _, _, r_nav in rec_tuples:
-                if col.button(f"Open {r_nav.split(' - ')[0]} ➔", use_container_width=True, key=f"btn_dept_{dept_name}_{r_nav}"):
-                    navigate_to(r_nav)
 
         with dept_cols[0]:
             render_dept_card(
                 dept_cols[0],
                 "Purchase",
                 [
-                    ("RECORD 02 - FOOD DELIVERY", stat_02, "RECORD 02 - FOOD DELIVERY RECORD"),
-                    ("RECORD 03 - TEMPERATURE RECORD", html_03.replace("<br>", " | "), "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD")
+                    ("RECORD 02 - FOOD DELIVERY", stat_02),
+                    ("RECORD 03 - TEMPERATURE RECORD", html_03.replace("<br>", " | "))
                 ]
             )
 
@@ -408,8 +403,8 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
                 dept_cols[1],
                 "Stewarding",
                 [
-                    ("RECORD 13 - DISHWASHER", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD"),
-                    ("RECORD 25 - ICE MACHINE", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD")
+                    ("RECORD 13 - DISHWASHER", stat_13),
+                    ("RECORD 25 - ICE MACHINE", stat_25)
                 ]
             )
 
@@ -418,8 +413,8 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
                 dept_cols[2],
                 "Housekeeping",
                 [
-                    ("RECORD 13 - DISHWASHER", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD"),
-                    ("RECORD 15 - PESTICIDE USAGE", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD")
+                    ("RECORD 13 - DISHWASHER", stat_13),
+                    ("RECORD 15 - PESTICIDE USAGE", stat_15)
                 ]
             )
 else:
