@@ -7,7 +7,7 @@ RECORD_02_FORM_ID = 23703
 
 
 def parse_record_02_submissions(raw_df):
-  """Parses Record 02 Food Delivery submissions handling nested repeatable sets and proper supplier extraction."""
+  """Parses Record 02 Food Delivery submissions handling nested repeatable sets and robust supplier extraction from sub and rec."""
   if raw_df is None or raw_df.empty:
     return pd.DataFrame()
 
@@ -56,25 +56,42 @@ def parse_record_02_submissions(raw_df):
 
     location = str(
         sub.get("Location")
+        or rec.get("Location")
         or sub.get("location")
         or "Receiving Area"
     ).strip()
 
-    # Robust supplier extraction handling "Other" and top-level Supplier key
-    sup_main = str(sub.get("Name_of_Supplier") or sub.get("Name of Supplier") or "").strip()
-    sup_other = str(sub.get("Supplier") or sub.get("Name of Supplier (Other)") or sub.get("Name_of_Supplier_Other") or "").strip()
+    # Robust supplier extraction checking both sub and rec (top-level)
+    sup_main = str(
+        sub.get("Name_of_Supplier")
+        or sub.get("Name of Supplier")
+        or rec.get("Name_of_Supplier")
+        or rec.get("Name of Supplier")
+        or ""
+    ).strip()
 
-    if sup_main.lower().strip() == "other" and sup_other:
-      supplier = sup_other
-    elif sup_main and sup_main.lower().strip() not in ["other", "none", "nan", ""]:
+    sup_other = str(
+        sub.get("Supplier")
+        or rec.get("Supplier")
+        or sub.get("Name of Supplier (Other)")
+        or rec.get("Name of Supplier (Other)")
+        or sub.get("Name_of_Supplier_Other")
+        or rec.get("Name_of_Supplier_Other")
+        or ""
+    ).strip()
+
+    if sup_main.lower().strip() == "other":
+      supplier = sup_other if sup_other else "Other"
+    elif sup_main and sup_main.lower().strip() not in ["none", "nan", ""]:
       supplier = sup_main
     elif sup_other:
       supplier = sup_other
     else:
-      supplier = sup_main if sup_main else "Local Supplier"
+      supplier = "Local Supplier"
 
     sign = str(
         sub.get("Sign")
+        or rec.get("Sign")
         or sub.get("sign")
         or sub.get("Sign (Initial)")
         or "Staff"
@@ -160,7 +177,7 @@ def parse_record_02_submissions(raw_df):
 
 
 def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
-  """Renders Record 02 Daily Audit and Weekly Card Matrix with complete supplier extraction and item temperatures."""
+  """Renders Record 02 Daily Audit and Weekly Card Matrix with robust supplier mapping and item temperatures."""
 
   df_items = parse_record_02_submissions(raw_df)
 
