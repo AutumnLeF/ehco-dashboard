@@ -25,8 +25,8 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
-    .serif-title { font-size: 2.1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.2rem; letter-spacing: -0.02em; }
-    .sub-head { font-size: 0.85rem; color: #475569; font-weight: 600; }
+    .serif-title { font-size: 1.8rem; font-weight: 700; color: #0f172a; text-align: center; letter-spacing: -0.02em; margin: 0; }
+    .sub-head { font-size: 0.82rem; color: #475569; font-weight: 600; text-align: center; }
     .record-header-box { background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 1.6rem; font-weight: 700; }
 </style>
 """, unsafe_allow_html=True)
@@ -56,11 +56,8 @@ def go_to_overview():
     st.session_state.fairmont_nav_choice = "🏠 Fairmont Mumbai - EHCO Status Overview"
     st.session_state.fairmont_nav_selectbox = "🏠 Fairmont Mumbai - EHCO Status Overview"
 
+# --- CLEANED SIDEBAR: INSPECTION CONTROLS ONLY ---
 st.sidebar.title("⚙️ Inspection Controls")
-if st.sidebar.button("← Back to Landing Portal", use_container_width=True):
-    st.switch_page("app.py")
-
-st.sidebar.markdown("**Site:** Fairmont Mumbai (Site 2)")
 
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
 today = ist_now.date()
@@ -216,16 +213,38 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if "fairmont_dashboard_view_mode" not in st.session_state:
         st.session_state.fairmont_dashboard_view_mode = "📊 Overview Cards"
 
-    top_cols = st.columns([4, 4])
-    with top_cols[0]:
+    # --- TOP HEADER: SITE DROPDOWN (LEFT), TITLE (MID), CLOCK (RIGHT) ---
+    hdr_cols = st.columns([3, 4, 3])
+    with hdr_cols[0]:
+        selected_site = st.selectbox(
+            "Select Site Portal",
+            options=["🏰 Fairmont Mumbai (Site 2)", "🏨 Roswyn (Site 1)"],
+            index=0,
+            label_visibility="collapsed",
+            key="global_site_switcher_select_fairmont"
+        )
+        if selected_site.startswith("🏨"):
+            st.switch_page("pages/ros_overview.py")
+
+    with hdr_cols[1]:
+        st.markdown('<div class="serif-title">Fairmont Mumbai - EHCO Status</div>', unsafe_allow_html=True)
+
+    with hdr_cols[2]:
         st.markdown(f"""
-            <div style="margin-bottom: 0.5rem;">
-                <div class="serif-title" style="font-size:1.8rem;">Fairmont Mumbai - EHCO Status</div>
-                <div class="sub-head">Date: <b>{selected_day_str}</b> &nbsp;|&nbsp; IST Time: <b>{ist_now.strftime("%H:%M:%S")}</b></div>
+            <div style="background: #0b192c; color: white; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
+                <span>🕒 IST:</span> <span style="color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</span>
             </div>
         """, unsafe_allow_html=True)
-    with top_cols[1]:
-        st.write("")
+
+    st.write("")
+    mode_cols = st.columns([6, 3])
+    with mode_cols[0]:
+        st.markdown(f"""
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.88rem; color: #0f172a; display: inline-block; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                📅 Focus Date: <span style="color:#0284c7;">{selected_day_str}</span>
+            </div>
+        """, unsafe_allow_html=True)
+    with mode_cols[1]:
         view_choice = st.radio(
             "Dashboard Display Mode", 
             ["📊 Overview Cards", "🏢 Department-Wise Cards"], 
@@ -418,35 +437,50 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
                 ]
             )
 else:
+    # --- DRILL-DOWN VIEWS HEADER ---
+    hdr_cols = st.columns([3, 4, 3])
+    with hdr_cols[0]:
+        selected_site_sub = st.selectbox(
+            "Select Site Portal",
+            options=["🏰 Fairmont Mumbai (Site 2)", "🏨 Roswyn (Site 1)"],
+            index=0,
+            label_visibility="collapsed",
+            key="global_site_switcher_select_sub_fairmont"
+        )
+        if selected_site_sub.startswith("🏨"):
+            st.switch_page("pages/ros_overview.py")
+
+    with hdr_cols[1]:
+        st.markdown(f'<div class="serif-title" style="font-size:1.4rem;">{st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
+
+    with hdr_cols[2]:
+        st.markdown(f"""
+            <div style="background: #0b192c; color: white; padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
+                <span>🕒 IST:</span> <span style="color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</span>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.write("")
     st.button("← Back to EHCO Status Overview", key="back_to_fairmont_overview_top_btn", on_click=go_to_overview)
     st.write("")
+
     if st.session_state.fairmont_nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
-        st.markdown(f'<div class="record-header-box">🚚 {st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
         render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.fairmont_nav_choice == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
-        st.markdown(f'<div class="record-header-box">❄️ {st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
         render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.fairmont_nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
-        st.markdown(f'<div class="record-header-box">🔥 {st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
         render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.fairmont_nav_choice == "RECORD 05 - COOLING OF FOOD RECORD":
-        st.markdown(f'<div class="record-header-box">❄️ {st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
         render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.fairmont_nav_choice == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
-        st.markdown(f'<div class="record-header-box">🥗 {st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
         render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.fairmont_nav_choice == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
-        st.markdown(f'<div class="record-header-box">🧊 {st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
         render_record_12_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.fairmont_nav_choice == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
-        st.markdown(f'<div class="record-header-box">🍽️ {st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
         render_record_13_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.fairmont_nav_choice == "RECORD 15 - PESTICIDE USAGE RECORD":
-        st.markdown(f'<div class="record-header-box">🐛 {st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
         render_record_15_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.fairmont_nav_choice == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
-        st.markdown(f'<div class="record-header-box">🥗 {st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
         render_record_21_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.fairmont_nav_choice == "RECORD 25 - ICE MACHINE CLEANING RECORD":
-        st.markdown(f'<div class="record-header-box">❄️ {st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
         render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
