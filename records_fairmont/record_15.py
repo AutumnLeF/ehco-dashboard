@@ -7,7 +7,7 @@ RECORD_15_FORM_ID = 23717
 
 
 def parse_record_15_submissions(raw_df):
-  """Parses Record 15 Pesticide Usage submissions into a normalized DataFrame, un-nesting sets if present."""
+  """Parses Record 15 Pesticide Usage submissions into a normalized DataFrame, un-nesting sets."""
   if raw_df is None or raw_df.empty:
     return pd.DataFrame()
 
@@ -31,11 +31,11 @@ def parse_record_15_submissions(raw_df):
       rec = record.to_dict()
 
     sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
-    
+
     # Extract top-level submission fields
     company = sub.get("Company") or rec.get("Company") or "Rentokil PCI"
-    tech_name = sub.get("Technician") or sub.get("Technician Name") or "Technician"
-    
+    top_tech = sub.get("Technician") or sub.get("Technician Name") or ""
+
     raw_date = (
         sub.get("Date")
         or sub.get("Date of Visit")
@@ -59,7 +59,7 @@ def parse_record_15_submissions(raw_df):
       date_str = str(raw_date)[:10]
       date_obj = None
 
-    # Handle repeatable sets or entries if present
+    # Handle repeatable sets or entries
     entries = sub.get("set") or sub.get("Entry") or sub.get("items") or [sub]
     if isinstance(entries, bool) or not isinstance(entries, (list, dict)):
       entries = [sub] if isinstance(sub, dict) else []
@@ -70,44 +70,52 @@ def parse_record_15_submissions(raw_df):
       if not isinstance(entry, dict):
         entry = sub
 
+      tech_name = (
+          entry.get("Technician")
+          or entry.get("Technician Name")
+          or top_tech
+          or "Technician"
+      )
       areas_treated = (
-          entry.get("Areas Treated")
+          entry.get("Area")
+          or entry.get("Areas Treated")
           or entry.get("AreasTreated")
           or entry.get("Location")
           or sub.get("Areas Treated")
           or "General Areas"
       )
       chemical = (
-          entry.get("Chemical Used")
+          entry.get("Chemical")
+          or entry.get("Chemical Used")
           or entry.get("ChemicalUsed")
-          or entry.get("Chemical")
           or sub.get("Chemical Used")
           or "Chemical"
       )
       amount = (
-          entry.get("Amount of Chemical Used")
+          entry.get("Amount")
+          or entry.get("Amount of Chemical Used")
           or entry.get("AmountOfChemicalUsed")
-          or entry.get("Amount")
           or sub.get("Amount")
           or "—"
       )
       method = (
-          entry.get("Method of Application")
+          entry.get("Method")
+          or entry.get("Method of Application")
           or entry.get("MethodOfApplication")
-          or entry.get("Method")
           or sub.get("Method")
           or "Spray"
       )
       batch = (
-          entry.get("Batch Codes of Chemical")
+          entry.get("Batchcode")
+          or entry.get("Batch Codes of Chemical")
           or entry.get("BatchCodesOfChemical")
           or entry.get("Batch")
           or sub.get("Batch")
           or "—"
       )
       sign = (
-          entry.get("Sign (Initial)")
-          or entry.get("Sign")
+          entry.get("Sign")
+          or entry.get("Sign (Initial)")
           or sub.get("Sign")
           or tech_name
       )
@@ -342,14 +350,13 @@ def render_record_15_view(raw_df, selected_day_str, start_date, end_date):
           )
         else:
           count = len(matches)
-          
-          # Separate Chemicals and Areas clearly
           entries_html = ""
           for _, r in matches.iterrows():
             entries_html += textwrap.dedent(f"""
                 <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px; margin-top:5px; text-align:left;">
                     <div style="font-size:0.75rem; font-weight:700; color:#0f172a;">🧪 {r['Chemical']} <span style="font-weight:500; color:#64748b;">({r['Method']})</span></div>
                     <div style="font-size:0.68rem; color:#334155; margin-top:2px;">📍 {r['Areas_Treated']}</div>
+                    <div style="font-size:0.65rem; color:#64748b; margin-top:2px;">Batch: {r['Batch']}</div>
                 </div>
             """).strip()
 
