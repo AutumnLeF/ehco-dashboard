@@ -459,7 +459,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
           row_cols[0].markdown(
               f'<div style="background:#ffffff; border:1px solid #cbd5e1;'
               ' border-radius:4px; padding:6px; min-height:60px; display:flex;'
-              f' align-items:center;"><b style="font-size:0.8rem;'
+              f' align-items:center;"><b style="font-size:0.80rem;'
               f' color:#0f172a;">{meal}</b></div>',
               unsafe_allow_html=True,
           )
@@ -485,15 +485,15 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
               tag_txt = "❌ Missing" if is_past else "⏳ Pending"
               tag_color = "#dc2626" if is_past else "#d97706"
 
-              row_cols[i + 1].markdown(
+              cell_html = (
                   f'<div style="background:{card_bg}; border:1px solid'
                   f" {border_c}; border-radius:4px; padding:6px;"
                   " min-height:60px; display:flex; flex-direction:column;"
                   " justify-content:center; align-items:center;"><span"
                   f" style=\"color:{tag_color}; font-weight:800;"
-                  f' font-size:0.7rem;">{tag_txt}</span></div>',
-                  unsafe_allow_html=True,
+                  f' font-size:0.7rem;">{tag_txt}</span></div>'
               )
+              row_cols[i + 1].markdown(cell_html, unsafe_allow_html=True)
             else:
               has_exc = any(match_entry["Temp"] < TEMP_THRESHOLD)
               border_c = "#dc2626" if has_exc else "#16a34a"
@@ -510,14 +510,14 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                     f" <b>{t_val}</b></div>"
                 )
 
-              row_cols[i + 1].markdown(
+              cell_html = (
                   f'<div style="background:#ffffff; border:1.5px solid'
                   f" {border_c}; border-radius:4px; padding:4px;"
                   " min-height:60px; display:flex; flex-direction:column;"
                   f' justify-content:flex-start;"><div style="font-weight:800;'
                   f' font-size:0.68rem; color:{border_c};">✓'
-                  f" Completed</div>{items_preview}</div>",
-                  unsafe_allow_html=True,
+                  f" Completed</div>{items_preview}</div>"
               )
+              row_cols[i + 1].markdown(cell_html, unsafe_allow_html=True)
 
           st.write("")
