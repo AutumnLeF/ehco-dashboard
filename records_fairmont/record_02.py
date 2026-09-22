@@ -3,397 +3,294 @@ import pandas as pd
 import streamlit as st
 
 CHILLED_MAX_TEMP = 5.0  # Chilled food items must arrive <= 5.0°C
-
-
-def extract_field(rec, keywords):
-    """Deep search for matching keywords across flat or nested keys."""
-    if not isinstance(rec, dict):
-        return None
-    clean_targets = [k.lower().replace("_", "").replace(" ", "").replace(".", "") for k in keywords]
-    for k, v in rec.items():
-        if v is None:
-            continue
-        k_norm = k.lower().replace("_", "").replace(" ", "").replace(".", "")
-        for target in clean_targets:
-            if target in k_norm:
-                if not isinstance(v, (dict, list)):
-                    s_val = str(v).strip()
-                    if s_val and s_val.lower() not in ["none", "nan", ""]:
-                        return v
-        if isinstance(v, dict):
-            found = extract_field(v, keywords)
-            if found is not None:
-                return found
-        elif isinstance(v, list):
-            for elem in v:
-                if isinstance(elem, dict):
-                    found = extract_field(elem, keywords)
-                    if found is not None:
-                        return found
-    return None
+RECORD_02_FORM_ID = 23703
 
 
 def parse_record_02_submissions(raw_df):
-    """Parses Record 02 Food Delivery submissions handling flat and nested schemas."""
-    if raw_df is None or raw_df.empty:
-        return pd.DataFrame()
+  """Parses Record 02 Food Delivery submissions handling nested repeatable sets for items and top-level supplier info."""
+  if raw_df is None or raw_df.empty:
+    return pd.DataFrame()
 
-    rows = []
-    for _, record in raw_df.iterrows():
-        rec = record.get("raw_record") if "raw_record" in raw_df.columns else record.to_dict()
-        if not isinstance(rec, dict):
-            rec = record.to_dict()
+  df = raw_df.copy()
+  form_col = next(
+      (c for c in df.columns if c.lower() in ["formid", "submission.formid"]),
+      None,
+  )
+  if form_col:
+    df = df[
+        df[form_col].astype(str).str.contains(str(RECORD_02_FORM_ID), na=False)
+    ]
 
-        sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else {}
+  if df.empty:
+    df = raw_df.copy()
 
-        raw_date = (
-            sub.get("date")
-            or sub.get("Date")
-            or rec.get("submission.date")
-            or rec.get("submission.Date")
-            or rec.get("Date")
-            or rec.get("createdAt")
-            or rec.get("dateTimeSubmitted")
-            or extract_field(rec, ["date", "createdat"])
-            or ""
-        )
-        parsed_dt = pd.to_datetime(raw_date, errors="coerce")
-        if pd.isna(parsed_dt):
-            parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
+  rows = []
+  for _, record in df.iterrows():
+    rec = record.get("raw_record") if "raw_record" in raw_df.columns else record.to_dict()
+    if not isinstance(rec, dict):
+      rec = record.to_dict()
 
-        if pd.notna(parsed_dt):
-            if parsed_dt.tzinfo is None:
-                parsed_dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
-            else:
-                parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
-            date_str = parsed_dt_ist.strftime("%d/%m/%Y")
-            date_obj = parsed_dt_ist.date()
-        else:
-            date_str = str(raw_date)[:10]
-            date_obj = None
+    sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
 
-        location = str(
-            sub.get("Location")
-            or sub.get("location")
-            or rec.get("submission.Location")
-            or rec.get("submission.location")
-            or rec.get("Location")
-            or "Receiving Bay"
-        ).strip()
+    raw_date = (
+        sub.get("Date")
+        or sub.get("date")
+        or rec.get("createdAt")
+        or rec.get("dateTimeSubmitted")
+        or ""
+    )
+    parsed_dt = pd.to_datetime(raw_date, errors="coerce")
+    if pd.isna(parsed_dt):
+      parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
 
-        sup_main = str(
-            sub.get("Name of Supplier")
-            or sub.get("Name_of_Supplier")
-            or rec.get("submission.Name of Supplier")
-            or extract_field(rec, ["nameofsupplier", "supplier"])
-            or ""
-        ).strip()
+    if pd.notna(parsed_dt):
+      if parsed_dt.tzinfo is None:
+        parsed_dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
+      else:
+        parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
+      date_str = parsed_dt_ist.strftime("%d/%m/%Y")
+      date_obj = parsed_dt_ist.date()
+    else:
+      date_str = str(raw_date)[:10]
+      date_obj = None
 
-        sup_other = str(
-            sub.get("Name of Supplier (Other)")
-            or sub.get("Name_of_Supplier_Other")
-            or rec.get("submission.Name of Supplier (Other)")
-            or extract_field(rec, ["nameofsupplierother", "supplierother"])
-            or ""
-        ).strip()
+    location = str(
+        sub.get("Location")
+        or sub.get("location")
+        or "Receiving Area"
+    ).strip()
 
-        if sup_other and sup_other.lower() not in ["none", "nan", ""]:
-            supplier = sup_other
-        elif sup_main and sup_main.lower() not in ["other", "none", "nan", ""]:
-            supplier = sup_main
-        else:
-            supplier = "Local Supplier"
+    sup_main = str(
+        sub.get("Name_of_Supplier")
+        or sub.get("Name of Supplier")
+        or ""
+    ).strip()
 
-        delivery_type = str(
-            sub.get("Delivery Type")
-            or sub.get("Delivery_Type")
-            or rec.get("submission.Delivery Type")
-            or extract_field(rec, ["deliverytype"])
-            or "Perishable"
-        ).strip()
+    sup_other = str(
+        sub.get("Supplier")
+        or sub.get("Name of Supplier (Other)")
+        or sub.get("Name_of_Supplier_Other")
+        or ""
+    ).strip()
 
-        food_type = str(
-            sub.get("Food Type")
-            or sub.get("Food_Type")
-            or rec.get("submission.Food Type")
-            or extract_field(rec, ["foodtype", "item", "product"])
-            or "Goods Received"
-        ).replace("•", "").strip()
+    if sup_other and sup_other.lower() not in ["none", "nan", ""]:
+      supplier = sup_other
+    elif sup_main and sup_main.lower() not in ["other", "none", "nan", ""]:
+      supplier = sup_main
+    else:
+      supplier = "Local Supplier"
 
-        temp_req_raw = str(
-            sub.get("Is a Temperature Required?")
-            or sub.get("Is_a_Temperature_Required")
-            or rec.get("submission.Is a Temperature Required?")
-            or extract_field(rec, ["isatemperaturerequired", "temprequired"])
-            or "Yes"
-        ).strip().upper()
-        temp_required = "NO" not in temp_req_raw
+    sign = str(
+        sub.get("Sign")
+        or sub.get("sign")
+        or sub.get("Sign (Initial)")
+        or "Staff"
+    ).strip()
 
-        temp_val_raw = (
-            sub.get("Temperature °C")
-            or sub.get("Temperature")
-            or sub.get("temperature")
-            or rec.get("submission.Temperature °C")
-            or extract_field(rec, ["temperature", "temp"])
-        )
-        temp_num = pd.to_numeric(str(temp_val_raw).replace("°C", "").strip(), errors="coerce")
+    # Extract repeating set items
+    entries = sub.get("set") or sub.get("Entry") or sub.get("items") or [sub]
+    if isinstance(entries, dict):
+      entries = [entries]
+    elif not isinstance(entries, list):
+      entries = [sub] if isinstance(sub, dict) else []
 
-        limits_raw = str(
-            sub.get("Critical Limits: Packaging in good condition / Product in date / Product correctly labelled")
-            or rec.get("submission.Critical Limits: Packaging in good condition / Product in date / Product correctly labelled")
-            or extract_field(rec, ["criticallimits", "packaging", "condition"])
-            or "Yes"
-        ).strip().upper()
-        condition_ok = "NO" not in limits_raw
+    for e in entries:
+      if not isinstance(e, dict):
+        e = sub
 
-        sign = (
-            sub.get("Sign (Initial)")
-            or sub.get("Sign")
-            or sub.get("sign")
-            or rec.get("submission.Sign (Initial)")
-            or rec.get("submission.sign")
-            or extract_field(rec, ["signinitial", "sign", "initial"])
-            or "Staff"
-        )
+      delivery_type = str(
+          e.get("Delivery_Type")
+          or e.get("Delivery Type")
+          or "Perishable"
+      ).strip()
 
-        has_temp_breach = temp_required and pd.notna(temp_num) and (temp_num > CHILLED_MAX_TEMP)
-        has_breach = has_temp_breach or (not condition_ok)
+      food_type = str(
+          e.get("Food_Type")
+          or e.get("Food Type")
+          or "Goods Received"
+      ).replace("•", "").strip()
 
-        rows.append({
-            "Date_Str": date_str,
-            "Date_Obj": date_obj,
-            "Location": location,
-            "Supplier": supplier,
-            "Delivery_Type": delivery_type,
-            "Food_Type": food_type,
-            "Temp_Required": temp_required,
-            "Temp": temp_num,
-            "Temp_Disp": f"{temp_num}°C" if pd.notna(temp_num) else "Ambient",
-            "Condition_OK": condition_ok,
-            "Has_Breach": has_breach,
-            "Sign": str(sign).strip(),
-        })
+      temp_req_raw = str(
+          e.get("Temperaturerq")
+          or e.get("Temperature req")
+          or e.get("Is a Temperature Required?")
+          or "Yes"
+      ).strip().upper()
+      temp_required = "NO" not in temp_req_raw
 
-    df_out = pd.DataFrame(rows)
-    if not df_out.empty:
-        df_out = df_out.drop_duplicates(subset=["Date_Str", "Supplier", "Food_Type", "Temp"], keep="first")
-    return df_out
+      temp_val_raw = (
+          e.get("Perishable_Temperature")
+          or e.get("Perishable_Temperature_frozen")
+          or e.get("Temperature °C")
+          or e.get("Temperature")
+      )
+      temp_num = pd.to_numeric(str(temp_val_raw).replace("°C", "").strip(), errors="coerce")
+
+      limits_raw = str(
+          e.get("Packaging_Standards")
+          or e.get("Critical Limits")
+          or "Yes"
+      ).strip().upper()
+      condition_ok = "NO" not in limits_raw
+
+      has_temp_breach = temp_required and pd.notna(temp_num) and (temp_num > CHILLED_MAX_TEMP)
+      has_breach = has_temp_breach or (not condition_ok)
+
+      rows.append({
+          "Date_Str": date_str,
+          "Date_Obj": date_obj,
+          "Location": location,
+          "Supplier": supplier,
+          "Delivery_Type": delivery_type,
+          "Food_Type": food_type,
+          "Temp_Required": temp_required,
+          "Temp": temp_num,
+          "Temp_Disp": f"{temp_num}°C" if pd.notna(temp_num) else "Ambient",
+          "Condition_OK": condition_ok,
+          "Has_Breach": has_breach,
+          "Sign": sign,
+      })
+
+  df_out = pd.DataFrame(rows)
+  if not df_out.empty:
+    df_out = df_out.drop_duplicates(subset=["Date_Str", "Supplier", "Food_Type", "Temp"], keep="first")
+  return df_out
 
 
 def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
-    """Renders Record 02 Daily Audit and Weekly Card Matrix."""
+  """Renders Record 02 Daily Audit and Weekly Card Matrix with distinct Item & Supplier separation."""
 
-    with st.expander("🔍 Record 02 API & Ingestion Diagnostic", expanded=False):
-        st.write(f"Total Raw Rows Received from API: **{len(raw_df)}**")
-        if not raw_df.empty:
-            st.write("Columns in raw_df:", list(raw_df.columns))
-            st.dataframe(raw_df.head(5), use_container_width=True)
+  df_items = parse_record_02_submissions(raw_df)
 
-    df_items = parse_record_02_submissions(raw_df)
+  with st.expander("🔍 Record 02 API & Ingestion Diagnostic", expanded=False):
+    st.write(f"Total Parsed Delivery Rows: **{len(df_items)}**")
+    if not df_items.empty:
+      st.dataframe(df_items.head(10), use_container_width=True)
 
-    if not df_items.empty and "Date_Obj" in df_items.columns and df_items["Date_Obj"].notna().any():
-        range_df = df_items[
-            (df_items["Date_Obj"] >= start_date)
-            & (df_items["Date_Obj"] <= end_date)
-        ]
-    else:
-        range_df = df_items.copy()
+  if not df_items.empty and "Date_Obj" in df_items.columns and df_items["Date_Obj"].notna().any():
+    range_df = df_items[
+        (df_items["Date_Obj"] >= start_date)
+        & (df_items["Date_Obj"] <= end_date)
+    ]
+  else:
+    range_df = df_items.copy()
 
-    tab_day, tab_matrix = st.tabs([
-        f"Today - {selected_day_str}",
-        "Weekly"
-    ])
+  tab_day, tab_matrix = st.tabs([
+      f"Today - {selected_day_str}",
+      "Weekly"
+  ])
 
-    # -------------------------------------------------------------
-    # TAB 1: DAILY DRILLDOWN
-    # -------------------------------------------------------------
-    with tab_day:
-        day_df = (
-            range_df[range_df["Date_Str"] == selected_day_str]
-            if not range_df.empty
-            else pd.DataFrame()
-        )
+  with tab_day:
+    day_df = (
+        range_df[range_df["Date_Str"] == selected_day_str]
+        if not range_df.empty
+        else pd.DataFrame()
+    )
 
-        excursions = []
-        compliant_deliveries = []
+    excursions = []
+    compliant_deliveries = []
 
-        if not day_df.empty:
-            for _, r in day_df.iterrows():
-                if r["Has_Breach"]:
-                    excursions.append(r.to_dict())
-                else:
-                    compliant_deliveries.append(r.to_dict())
+    if not day_df.empty:
+      for _, r in day_df.iterrows():
+        if r["Has_Breach"]:
+          excursions.append(r.to_dict())
+        else:
+          compliant_deliveries.append(r.to_dict())
 
-        k1, k2, k3 = st.columns(3)
-        with k1:
-            st.markdown(
-                f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div><div class="kpi-lbl">Delivery Temp Breaches</div></div>',
-                unsafe_allow_html=True,
-            )
-        with k2:
-            st.markdown(
-                f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{len(compliant_deliveries)}</div><div class="kpi-lbl">Verified Deliveries</div></div>',
-                unsafe_allow_html=True,
-            )
-        with k3:
-            st.markdown(
-                f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Batches Received</div></div>',
-                unsafe_allow_html=True,
-            )
+    k1, k2, k3 = st.columns(3)
+    with k1:
+      st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div><div class="kpi-lbl">Delivery Temp Breaches</div></div>', unsafe_allow_html=True)
+    with k2:
+      st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{len(compliant_deliveries)}</div><div class="kpi-lbl">Verified Deliveries</div></div>', unsafe_allow_html=True)
+    with k3:
+      st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Items Received</div></div>', unsafe_allow_html=True)
 
-        st.write("")
-        st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>📦 Food Delivery Audit Cards ({selected_day_str})</h4>", unsafe_allow_html=True)
+    st.write("")
+    st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>📦 Food Delivery Audit Cards ({selected_day_str})</h4>", unsafe_allow_html=True)
 
-        c1, c2 = st.columns(2)
-        with c1:
-            st.markdown('<div style="font-weight:700; color:#dc2626; margin-bottom:8px;">🔴 Rejected / Excursions</div>', unsafe_allow_html=True)
-            if excursions:
-                for exc in excursions:
-                    err_msg = f"Temp: {exc['Temp_Disp']} (> 5°C)" if exc['Temp'] and exc['Temp'] > CHILLED_MAX_TEMP else "Packaging / Label Issue"
-                    st.markdown(
-                        f"""
-                        <div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                            <div style="font-weight:700; font-size:0.95rem; color:#0f172a;">📦 {exc['Food_Type']} • {exc['Supplier']}</div>
-                            <div style="font-size:0.85rem; color:#dc2626; font-weight:700; margin-top:4px;">{err_msg}</div>
-                            <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Received By: <b>{exc['Sign']}</b></div>
-                        </div>""",
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">All incoming goods arrived within critical temperature limits.</div>', unsafe_allow_html=True)
+    c1, c2 = st.columns(2)
+    with c1:
+      st.markdown('<div style="font-weight:700; color:#dc2626; margin-bottom:8px;">🔴 Rejected / Excursions</div>', unsafe_allow_html=True)
+      if excursions:
+        for exc in excursions:
+          err_msg = f"Temp: {exc['Temp_Disp']} (> 5°C)" if exc['Temp'] and exc['Temp'] > CHILLED_MAX_TEMP else "Packaging / Label Issue"
+          st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:12px; border-radius:6px; margin-bottom:10px;"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">📦 {exc["Food_Type"]}</div><div style="font-size:0.8rem; color:#475569;">Supplier: <b>{exc["Supplier"]}</b></div><div style="font-size:0.85rem; color:#dc2626; font-weight:700; margin-top:4px;">{err_msg}</div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Received By: {exc["Sign"]}</div></div>', unsafe_allow_html=True)
+      else:
+        st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">All incoming goods arrived within critical temperature limits.</div>', unsafe_allow_html=True)
 
-        with c2:
-            st.markdown('<div style="font-weight:700; color:#16a34a; margin-bottom:8px;">🟢 Accepted Compliant</div>', unsafe_allow_html=True)
-            if compliant_deliveries:
-                for ok in compliant_deliveries:
-                    st.markdown(
-                        f"""
-                        <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:12px; border-radius:6px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                            <div style="font-weight:700; font-size:0.95rem; color:#0f172a;">📦 {ok['Food_Type']}</div>
-                            <div style="font-size:0.85rem; color:#334155; margin-top:4px;">Supplier: <b>{ok['Supplier']}</b> | Temp: <b style="color:#16a34a;">{ok['Temp_Disp']}</b></div>
-                            <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Type: {ok['Delivery_Type']} | Received By: {ok['Sign']}</div>
-                        </div>""",
-                        unsafe_allow_html=True,
-                    )
-            else:
-                st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">No deliveries logged for this date.</div>', unsafe_allow_html=True)
+    with c2:
+      st.markdown('<div style="font-weight:700; color:#16a34a; margin-bottom:8px;">🟢 Accepted Compliant</div>', unsafe_allow_html=True)
+      if compliant_deliveries:
+        for ok in compliant_deliveries:
+          st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:12px; border-radius:6px; margin-bottom:10px;"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">📦 {ok["Food_Type"]}</div><div style="font-size:0.8rem; color:#334155; margin-top:2px;">Supplier: <b>{ok["Supplier"]}</b> | Temp: <b style="color:#16a34a;">{ok["Temp_Disp"]}</b></div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Type: {ok["Delivery_Type"]} | Received By: {ok["Sign"]}</div></div>', unsafe_allow_html=True)
+      else:
+        st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">No deliveries logged for this date.</div>', unsafe_allow_html=True)
 
-    # -------------------------------------------------------------
-    # TAB 2: WEEKLY MATRIX
-    # -------------------------------------------------------------
-    with tab_matrix:
-        total_days = (end_date - start_date).days + 1
-        all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
+  with tab_matrix:
+    total_days = (end_date - start_date).days + 1
+    all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
 
-        if "rec02_page" not in st.session_state:
-            st.session_state.rec02_page = max(0, (total_days - 1) // 7)
+    if "rec02_page" not in st.session_state:
+      st.session_state.rec02_page = max(0, (total_days - 1) // 7)
 
-        max_page = max(0, (total_days - 1) // 7)
+    max_page = max(0, (total_days - 1) // 7)
 
-        nav1, nav2, nav3 = st.columns([1, 3, 1])
-        with nav1:
-            if st.button("⬅️ Previous 7 Days", key="r02_prev", disabled=(st.session_state.rec02_page <= 0), use_container_width=True):
-                st.session_state.rec02_page -= 1
-                st.rerun()
+    nav1, nav2, nav3 = st.columns([1, 3, 1])
+    with nav1:
+      if st.button("⬅️ Previous 7 Days", key="r02_prev", disabled=(st.session_state.rec02_page <= 0), use_container_width=True):
+        st.session_state.rec02_page -= 1
+        st.rerun()
 
-        with nav3:
-            if st.button("Next 7 Days ➡️", key="r02_next", disabled=(st.session_state.rec02_page >= max_page), use_container_width=True):
-                st.session_state.rec02_page += 1
-                st.rerun()
+    with nav3:
+      if st.button("Next 7 Days ➡️", key="r02_next", disabled=(st.session_state.rec02_page >= max_page), use_container_width=True):
+        st.session_state.rec02_page += 1
+        st.rerun()
 
-        p_start_idx = st.session_state.rec02_page * 7
-        page_dates = all_dates[p_start_idx : p_start_idx + 7]
+    p_start_idx = st.session_state.rec02_page * 7
+    page_dates = all_dates[p_start_idx : p_start_idx + 7]
 
-        with nav2:
-            if page_dates:
-                st.markdown(
-                    f"<div style='text-align:center; font-weight:700; color:#0f172a; font-size:0.95rem; padding-top:6px;'>"
-                    f"Showing: <b>{page_dates[0].strftime('%d/%m/%Y')}</b> to <b>{page_dates[-1].strftime('%d/%m/%Y')}</b> (Block {st.session_state.rec02_page + 1} of {max_page + 1})"
-                    f"</div>",
-                    unsafe_allow_html=True,
-                )
+    with nav2:
+      if page_dates:
+        st.markdown(f"<div style='text-align:center; font-weight:700; color:#0f172a; font-size:0.95rem; padding-top:6px;'>Showing: <b>{page_dates[0].strftime('%d/%m/%Y')}</b> to <b>{page_dates[-1].strftime('%d/%m/%Y')}</b> (Block {st.session_state.rec02_page + 1} of {max_page + 1})</div>", unsafe_allow_html=True)
 
-        st.write("")
+    st.write("")
 
-        cols = st.columns(7)
+    cols = st.columns(7)
+    for i, d in enumerate(page_dates):
+      cols[i].markdown(f'<div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.82rem; padding:10px 2px; border-radius:6px; text-align:center; margin-bottom:8px;">{d.strftime("%d/%m (%a)")}</div>', unsafe_allow_html=True)
 
-        # Headers
-        for i, d in enumerate(page_dates):
-            cols[i].markdown(f"""
-            <div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.82rem; padding:10px 2px; border-radius:6px; text-align:center; margin-bottom:8px;">
-                {d.strftime('%d/%m (%a)')}
-            </div>
-            """, unsafe_allow_html=True)
+    for i, d in enumerate(page_dates):
+      d_str = d.strftime("%d/%m/%Y")
+      matches = pd.DataFrame()
+      if not range_df.empty:
+        if "Date_Obj" in range_df.columns:
+          matches = range_df[range_df["Date_Obj"] == d]
+        if matches.empty and "Date_Str" in range_df.columns:
+          matches = range_df[range_df["Date_Str"] == d_str]
 
-        # Daily Cards
-        for i, d in enumerate(page_dates):
-            d_str = d.strftime("%d/%m/%Y")
-            matches = pd.DataFrame()
-            if not range_df.empty:
-                if "Date_Obj" in range_df.columns:
-                    matches = range_df[range_df["Date_Obj"] == d]
-                if matches.empty and "Date_Str" in range_df.columns:
-                    matches = range_df[range_df["Date_Str"] == d_str]
+      with cols[i]:
+        if matches.empty:
+          st.markdown('<div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:12px 6px; text-align:center; min-height:160px; display:flex; align-items:center; justify-content:center;"><span style="color:#94a3b8; font-weight:600; font-size:0.82rem;">— No Deliveries</span></div>', unsafe_allow_html=True)
+        else:
+          batch_count = len(matches)
+          has_day_breach = any(matches["Has_Breach"])
 
-            with cols[i]:
-                if matches.empty:
-                    st.markdown("""
-                    <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:12px 6px; text-align:center; min-height:160px; display:flex; align-items:center; justify-content:center;">
-                        <span style="color:#94a3b8; font-weight:600; font-size:0.82rem;">— No Deliveries</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-                else:
-                    batch_count = len(matches)
-                    has_day_breach = any(matches["Has_Breach"])
+          # Distinct item list preview with supplier separation
+          items_html = ""
+          for _, r in matches.head(5).iterrows():
+            items_html += f'<div style="font-size:0.7rem; color:#0f172a; font-weight:700; text-align:left; border-top:1px solid #f1f5f9; padding-top:2px;">📦 {r["Food_Type"]}<br/><span style="color:#64748b; font-weight:500;">Sup: {r["Supplier"]}</span></div>'
 
-                    items_list = list(dict.fromkeys(matches["Food_Type"].dropna().tolist()))
-                    items_txt = ", ".join(items_list)
+          if batch_count > 5:
+            items_html += f'<div style="font-size:0.62rem; color:#64748b; font-style:italic; text-align:left;">+ {batch_count - 5} more items</div>'
 
-                    suppliers_list = list(dict.fromkeys(matches["Supplier"].dropna().tolist()))
-                    suppliers_txt = ", ".join(suppliers_list)
+          signs = ", ".join(list(dict.fromkeys(matches["Sign"].dropna().tolist())))
+          badge = f'<span style="color:#dc2626; font-weight:800; font-size:0.85rem;">🔴 {batch_count} Items</span>' if has_day_breach else f'<span style="color:#16a34a; font-weight:800; font-size:0.85rem;">✓ {batch_count} Items</span>'
+          card_border = "2px solid #dc2626" if has_day_breach else "1.5px solid #0f172a"
 
-                    temps = matches[matches["Temp"].notna()]["Temp"].tolist()
-                    if temps:
-                        max_t = max(temps)
-                        min_t = min(temps)
-                        t_summary = f"{min_t}° to {max_t}°C" if min_t != max_t else f"{max_t}°C"
-                    else:
-                        t_summary = "Ambient"
+          st.markdown(f'<div style="background:#ffffff; border:{card_border}; border-radius:8px; padding:8px 6px; text-align:center; min-height:160px; box-shadow:0 1px 3px rgba(0,0,0,0.08);"><div>{badge}</div><div style="height:1px; background:#cbd5e1; margin:6px 0;"></div>{items_html}<div style="font-size:0.65rem; color:#64748b; margin-top:6px;">By: {signs}</div></div>', unsafe_allow_html=True)
 
-                    signs = ", ".join(list(dict.fromkeys(matches["Sign"].dropna().tolist())))
-
-                    if has_day_breach:
-                        badge = '<span style="color:#dc2626; font-weight:800; font-size:0.9rem;">🔴 BREACH</span>'
-                        card_border = "2px solid #dc2626"
-                    else:
-                        badge = f'<span style="color:#16a34a; font-weight:800; font-size:0.95rem;">✓ {batch_count} Passed</span>'
-                        card_border = "1.5px solid #0f172a"
-
-                    st.markdown(f"""
-                    <div style="background:#ffffff; border:{card_border}; border-radius:8px; padding:10px 6px; text-align:center; min-height:160px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                        <div>{badge}</div>
-                        <div style="height:1px; background:#cbd5e1; margin:6px 0;"></div>
-                        <div style="font-size:0.75rem; font-weight:700; color:#0f172a; line-height:1.25; word-wrap:break-word;">
-                            {items_txt}
-                        </div>
-                        <div style="font-size:0.7rem; color:#475569; margin-top:3px;">
-                            {suppliers_txt}
-                        </div>
-                        <div style="height:1px; background:#f1f5f9; margin:5px 0;"></div>
-                        <div style="font-size:0.75rem; font-weight:600; color:#16a34a;">
-                            Temp: {t_summary}
-                        </div>
-                        <div style="font-size:0.68rem; color:#64748b; margin-top:4px;">By: {signs}</div>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-        st.divider()
-
-        with st.expander("📋 View All Individual Food Delivery Records (Table View)"):
-            if not range_df.empty:
-                show_cols = [
-                    c for c in [
-                        "Date_Str", "Supplier", "Food_Type", "Delivery_Type", "Temp_Disp", "Condition_OK", "Sign"
-                    ] if c in range_df.columns
-                ]
-                st.dataframe(range_df[show_cols], use_container_width=True, hide_index=True)
+    st.divider()
+    with st.expander("📋 View All Individual Food Delivery Records (Table View)"):
+      if not range_df.empty:
+        show_cols = [c for c in ["Date_Str", "Supplier", "Food_Type", "Delivery_Type", "Temp_Disp", "Condition_OK", "Sign"] if c in range_df.columns]
+        st.dataframe(range_df[show_cols], use_container_width=True, hide_index=True)
