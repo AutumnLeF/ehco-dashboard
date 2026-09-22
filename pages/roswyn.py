@@ -4,12 +4,10 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from records.record_02 import render_record_02_view, parse_record_02_submissions
 from records.record_03 import render_record_03_view, parse_record_03_submissions, UNIT_CATALOG, clean_unit_token
 from records.record_04 import render_record_04_view, parse_all_record_04_dishes
 from records.record_05 import render_record_05_view, parse_record_05_submissions
 from records.record_06 import render_record_06_view, parse_record_06_submissions
-from records.record_12 import render_record_12_view, parse_record_12_submissions
 from records.record_13 import render_record_13_view, parse_record_13_submissions
 from records.record_15 import render_record_15_view, parse_record_15_submissions
 from records.record_21 import render_record_21_view, parse_record_21_submissions
@@ -25,21 +23,20 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
     .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
-    .serif-title { font-size: 2.1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.2rem; letter-spacing: -0.02em; }
-    .sub-head { font-size: 0.85rem; color: #475569; font-weight: 600; }
+    .serif-title { font-size: 1.8rem; font-weight: 700; color: #0f172a; text-align: center; letter-spacing: -0.02em; margin: 0; }
+    .sub-head { font-size: 0.82rem; color: #475569; font-weight: 600; text-align: center; }
     .record-header-box { background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 1.6rem; font-weight: 700; }
     .kpi-card {
         background-color: #0b192c;
         border-radius: 10px;
-        padding: 18px;
+        padding: 16px;
         color: white;
-        margin-bottom: 12px;
-        min-height: 125px;
+        margin-bottom: 6px;
+        min-height: 115px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
         box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        border-left: 4px solid #38bdf8;
     }
     .dept-card {
         background-color: #0b192c;
@@ -56,12 +53,10 @@ st.markdown("""
 
 FORM_MAPPING = {
     "🏠 Roswyn - EHCO Status Overview": 0,
-    "RECORD 02 - FOOD DELIVERY RECORD": 31370,
     "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD": 31373,
     "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD": 31374,
     "RECORD 05 - COOLING OF FOOD RECORD": 31375,
     "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD": 31376,
-    "RECORD 12 - DEFROSTING TEMPERATURE RECORD": 31381,
     "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD": 31382,
     "RECORD 15 - PESTICIDE USAGE RECORD": 31384,
     "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH": 31390,
@@ -239,16 +234,26 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     if "dashboard_view_mode" not in st.session_state:
         st.session_state.dashboard_view_mode = "📊 Overview Cards"
 
-    top_cols = st.columns([4, 4])
-    with top_cols[0]:
+    # Customized Header: Date button on left, Heading in mid, Clock on right
+    hdr_cols = st.columns([2.5, 4, 3])
+    with hdr_cols[0]:
         st.markdown(f"""
-            <div style="margin-bottom: 0.5rem;">
-                <div class="serif-title" style="font-size:1.8rem;">Roswyn - EHCO Status</div>
-                <div class="sub-head">Date: <b>{selected_day_str}</b> &nbsp;|&nbsp; IST Time: <b>{ist_now.strftime("%H:%M:%S")}</b></div>
+            <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.88rem; color: #0f172a; display: inline-block; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                📅 Focus Date: <span style="color:#0284c7;">{selected_day_str}</span>
             </div>
         """, unsafe_allow_html=True)
-    with top_cols[1]:
-        st.write("")
+    with hdr_cols[1]:
+        st.markdown('<div class="serif-title">Roswyn - EHCO Status</div>', unsafe_allow_html=True)
+    with hdr_cols[2]:
+        st.markdown(f"""
+            <div style="background: #0b192c; color: white; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
+                <span>🕒 IST:</span> <span style="color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</span>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.write("")
+    mode_cols = st.columns([6, 3])
+    with mode_cols[1]:
         view_choice = st.radio(
             "Dashboard Display Mode", 
             ["📊 Overview Cards", "🏢 Department-Wise Cards"], 
@@ -260,17 +265,12 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             st.session_state.dashboard_view_mode = view_choice
             st.rerun()
 
-    raw_02 = get_master_df(31370, unwind=True)
     raw_03 = get_master_df(31373, unwind=True)
     raw_04 = get_master_df(31374, unwind=True)
-    raw_12 = get_master_df(31381, unwind=True)
-
-    df_02_parsed = parse_record_02_submissions(raw_02)
     df_03_parsed = parse_record_03_submissions(raw_03)
     df_04_parsed = parse_all_record_04_dishes(raw_04)
-    df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
+    df_05_parsed = parse_record_05_submissions(get_master_df(31375, unwind=True))
     df_06 = parse_record_06_submissions(get_master_df(31376, unwind=True))
-    df_12_parsed = parse_record_12_submissions(raw_12)
     df_13 = parse_record_13_submissions(get_master_df(31382, unwind=True))
     df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
@@ -278,9 +278,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
-
-    day_02 = filter_by_focus_date(df_02_parsed, selected_day_variants)
-    stat_02 = f'<span style="color: {"#4ade80" if not day_02.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_02.empty else "Pending"} - {len(day_02)} entries</span>'
 
     day_03 = df_03_parsed[
         (df_03_parsed["Date_Obj"] == target_date_obj) |
@@ -313,12 +310,12 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     html_04 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 5/5</span><br>Lunch: <span style="color: #4ade80; font-weight: 600;">Completed - 10/10</span><br>Dinner: <span style="color: #38bdf8; font-weight: 600;">Completed - 10/11</span>'
 
-    stat_05 = f'<span style="color: {"#4ade80" if not df_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not df_05.empty else "Pending"} - {len(df_05)} batches</span>'
-    stat_06 = f'<span style="color: {"#4ade80" if not df_06.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not df_06.empty else "Pending"} - 1/1</span>'
-    
-    day_12 = filter_by_focus_date(df_12_parsed, selected_day_variants)
-    stat_12 = f'<span style="color: {"#4ade80" if not day_12.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_12.empty else "Pending"} - {len(day_12)} entries</span>'
+    day_05 = filter_by_focus_date(df_05_parsed, selected_day_variants)
+    stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
 
+    day_06 = filter_by_focus_date(df_06, selected_day_variants)
+    stat_06 = f'<span style="color: {"#4ade80" if not day_06.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_06.empty else "Pending"} - 1/1</span>'
+    
     day_13 = filter_by_focus_date(df_13, selected_day_variants)
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
     is_13_complete = (logged_13 >= 11)
@@ -336,18 +333,16 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
     completed_cats = sum([
-        1 if not day_02.empty else 0,
         1 if is_op_complete and is_cl_complete else 0,
         1,
-        1 if not df_05.empty else 0,
-        1 if not df_06.empty else 0,
-        1 if not day_12.empty else 0,
+        1 if not day_05.empty else 0,
+        1 if not day_06.empty else 0,
         1 if is_13_complete else 0,
         1 if logged_15 > 0 else 0,
         1 if not day_21.empty else 0,
         1 if logged_25 > 0 else 0
     ])
-    total_cats = 10
+    total_cats = 8
     progress_pct = int((completed_cats / total_cats) * 100)
     bar_color = "#4ade80" if progress_pct > 70 else ("#3b82f6" if progress_pct > 30 else "#fbbf24")
 
@@ -368,20 +363,18 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         def render_theme_card(col, title, status_html, target_nav, unique_key):
             col.markdown(f"""
             <div class="kpi-card">
-                <div style="font-size: 0.88rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px;">{title}</div>
+                <div style="font-size: 0.85rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px;">{title}</div>
                 <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
             </div>
             """, unsafe_allow_html=True)
             col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
 
         with col1:
-            render_theme_card(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "card_r02")
             render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
             render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04")
         with col2:
             render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
             render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
-            render_theme_card(col2, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "card_r12")
         with col3:
             render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
             render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
@@ -409,7 +402,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             """, unsafe_allow_html=True)
 
         with dept_cols[0]:
-            render_dept_card(dept_cols[0], "Purchase", [("RECORD 02 - FOOD DELIVERY", stat_02), ("RECORD 03 - TEMPERATURE RECORD", html_03.replace("<br>", " | "))])
+            render_dept_card(dept_cols[0], "Purchase", [("RECORD 03 - TEMPERATURE RECORD", html_03.replace("<br>", " | "))])
         with dept_cols[1]:
             render_dept_card(dept_cols[1], "Stewarding", [("RECORD 13 - DISHWASHER", stat_13), ("RECORD 25 - ICE MACHINE", stat_25)])
         with dept_cols[2]:
@@ -417,10 +410,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 else:
     st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn", on_click=go_to_overview)
     st.write("")
-    if st.session_state.nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
-        st.markdown(f'<div class="record-header-box">🚚 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-        render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
-    elif st.session_state.nav_choice == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
+    if st.session_state.nav_choice == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
         st.markdown(f'<div class="record-header-box">❄️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
@@ -432,9 +422,6 @@ else:
     elif st.session_state.nav_choice == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
         st.markdown(f'<div class="record-header-box">🥗 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
-    elif st.session_state.nav_choice == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
-        st.markdown(f'<div class="record-header-box">🧊 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
-        render_record_12_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.nav_choice == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
         st.markdown(f'<div class="record-header-box">🍽️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_13_view(raw_records_df, selected_day_str, start_date, end_date)
