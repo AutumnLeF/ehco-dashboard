@@ -6,9 +6,8 @@ MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer <= -18.0°C
 RECORD_03_FORM_ID = 23705
 
-# Comprehensive Catalog mapped from site data (CoolRooms, Freezers & Fridges)
+# Unified Catalog combining Coolrooms, Freezers, and Fridges under main kitchen areas
 UNIT_CATALOG = {
-    # --- COOLROOMS ---
     "Garbage Room Walk-In (Chiller)": [
         {"Unit_ID": "GRB-Cold Room-CR01", "Type": "Coolroom"},
     ],
@@ -31,6 +30,7 @@ UNIT_CATALOG = {
     "The Bombay Café": [
         {"Unit_ID": "CK-Cold Room-CR13", "Type": "Coolroom"},
         {"Unit_ID": "TBC/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "TBC/UC/REF/01", "Type": "Fridge"},
     ],
     "Banquet Kitchen": [
         {"Unit_ID": "BQT-Cold Room-CR14", "Type": "Coolroom"},
@@ -42,10 +42,24 @@ UNIT_CATALOG = {
         {"Unit_ID": "BQC/VR/FRZ/01", "Type": "Freezer"},
         {"Unit_ID": "BQK/UC/FRZ/01", "Type": "Freezer"},
         {"Unit_ID": "BQT SER- Cold room - CR26", "Type": "Coolroom"},
+        {"Unit_ID": "MKI/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MKT/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MKA/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MKC/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "BQC/VR/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "BQC/VR/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "BQC/VR/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "BQK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "BQK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "BQK/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "BQK/UC/REF/04", "Type": "Fridge"},
     ],
     "Garde Manger": [
         {"Unit_ID": "GM-Cold Room-CR18", "Type": "Coolroom"},
         {"Unit_ID": "GM/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "GM/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "GM/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "GM/UC/REF/03", "Type": "Fridge"},
     ],
     "Bakery & Pastry": [
         {"Unit_ID": "BK-Cold Room-CR19", "Type": "Coolroom"},
@@ -53,10 +67,20 @@ UNIT_CATALOG = {
         {"Unit_ID": "PK-Cold Room-CR21", "Type": "Coolroom"},
         {"Unit_ID": "PS/UC/FRZ/01", "Type": "Freezer"},
         {"Unit_ID": "CR/VR/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "PS/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "PS/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "PS/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "CR/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "CR/VR/REF/01", "Type": "Fridge"},
     ],
     "Banquet - Service": [
         {"Unit_ID": "BQT SER- Cold room - CR261", "Type": "Coolroom"},
         {"Unit_ID": "BQS/VR/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "BQS/VR/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "BQS/VR/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "BQS/VR/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "BQS/VR/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "BQB/UC/REF/01", "Type": "Fridge"},
     ],
     "Merchant Chiller": [
         {"Unit_ID": "TM-Cold Room - CR27", "Type": "Coolroom"},
@@ -70,248 +94,9 @@ UNIT_CATALOG = {
         {"Unit_ID": "IRDK/DF/33", "Type": "Freezer"},
         {"Unit_ID": "IRDK/UC/FRZ/01", "Type": "Freezer"},
         {"Unit_ID": "IRDK/UC/FRZ/02", "Type": "Freezer"},
-    ],
-    "Oryn Kitchen": [
-        {"Unit_ID": "ORN/Cold Room/CR34", "Type": "Coolroom"},
-        {"Unit_ID": "OK/VR/FRZ/01", "Type": "Freezer"},
-    ],
-    "Merchants - Service": [
-        {"Unit_ID": "MS/Cold Room/25", "Type": "Coolroom"},
-        {"Unit_ID": "MB/UC/FRZ/01", "Type": "Freezer"},
-    ],
-
-    # --- FREEZERS ---
-    "The Merchants - Chocolate Atelier": [
-        {"Unit_ID": "MBP/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MBP/DIS/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MBP/UC/FRZ/03", "Type": "Freezer"},
-        {"Unit_ID": "MCA/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "The Merchants - Western Hot": [
-        {"Unit_ID": "MWH/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "The Merchants - Cold Kitchen": [
-        {"Unit_ID": "MCK/VR/FRZ/01", "Type": "Freezer"},
-    ],
-    "The Merchants Indian Non Veg": [
-        {"Unit_ID": "MIN/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "The Merchants Indian Veg": [
-        {"Unit_ID": "MIV/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "The Merchants Japanese Section": [
-        {"Unit_ID": "MJ/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "The Merchants - Asian Section": [
-        {"Unit_ID": "MA/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "Beyond Oryn Bar": [
-        {"Unit_ID": "BO/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "Gold Lounge Kitchen": [
-        {"Unit_ID": "GK/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "Gold Lounge Service": [
-        {"Unit_ID": "GS/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "Hedonist Kitchen": [
-        {"Unit_ID": "HK/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "Hedonist Bar": [
-        {"Unit_ID": "HB/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "MDP Kitchen": [
-        {"Unit_ID": "MDPK/VR/FRZ/01", "Type": "Freezer"},
-    ],
-    "Halwai Kitchen": [
-        {"Unit_ID": "HLK/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "Samaa Kitchen": [
-        {"Unit_ID": "SK/UC/FRZ/01", "Type": "Freezer"},
-    ],
-    "Hygiene Office": [
-        {"Unit_ID": "HO/VR/FRZ/01", "Type": "Freezer"},
-    ],
-    "Samaa Bar": [
-        {"Unit_ID": "SB/UC/FRZ/01", "Type": "Freezer"},
-    ],
-
-    # --- FRIDGES ---
-    "The Merchants - Chocolate Atelier (Fridge)": [
-        {"Unit_ID": "MBP/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MBP/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MBP/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "MCA/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MCA/UC/REF/02", "Type": "Fridge"},
-    ],
-    "The Merchants - Western Hot (Fridge)": [
-        {"Unit_ID": "MWH/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MWH/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MWH/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "MWH/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "MWH/UC/REF/05", "Type": "Fridge"},
-        {"Unit_ID": "MWH/UC/REF/06", "Type": "Fridge"},
-    ],
-    "The Merchants - Cold Kitchen (Fridge)": [
-        {"Unit_ID": "MCK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MCK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MCK/UC/REF/03", "Type": "Fridge"},
-    ],
-    "The Merchants Indian Non Veg (Fridge)": [
-        {"Unit_ID": "MIN/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MIN/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MIN/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "MIN/DIS/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MIN/DIS/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MIN/DIS/REF/03", "Type": "Fridge"},
-    ],
-    "The Merchants Indian Veg (Fridge)": [
-        {"Unit_ID": "MIV/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MIV/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MIV/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "MIV/DIS/REF/01", "Type": "Fridge"},
-    ],
-    "Merchants - Service (Fridge)": [
-        {"Unit_ID": "MB/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MB/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MB/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "MBS/VR/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MBS/VR/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MBS/VR/REF/03", "Type": "Fridge"},
-    ],
-    "The Merchants Japanese Section (Fridge)": [
-        {"Unit_ID": "MJ/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MJ/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MJ/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "MJ/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "MJ/DIS/REF/01", "Type": "Fridge"},
-    ],
-    "The Merchants - Asian Section (Fridge)": [
-        {"Unit_ID": "MA/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MA/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MA/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "MA/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "MA/DIS/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MA/DIS/REF/02", "Type": "Fridge"},
-    ],
-    "IRD (Fridge)": [
         {"Unit_ID": "IRD/UC/REF/01", "Type": "Fridge"},
         {"Unit_ID": "IRD/VR/REF/01", "Type": "Fridge"},
         {"Unit_ID": "IRD/VR/REF/02", "Type": "Fridge"},
-    ],
-    "Oryn kitchen (Fridge)": [
-        {"Unit_ID": "OK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "OK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "OK/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "OK/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "OK/VR/REF/01", "Type": "Fridge"},
-    ],
-    "Beyond Oryn Bar (Fridge)": [
-        {"Unit_ID": "BO/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "BO/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "BO/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "BO/UC/REF/04", "Type": "Fridge"},
-    ],
-    "Gold Lounge Kitchen (Fridge)": [
-        {"Unit_ID": "GK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "GK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "GK/VR/REF/01", "Type": "Fridge"},
-    ],
-    "Gold Lounge Service (Fridge)": [
-        {"Unit_ID": "GS/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "GS/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "GS/DIS/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "GS/DIS/REF/02", "Type": "Fridge"},
-    ],
-    "Hedonist Kitchen (Fridge)": [
-        {"Unit_ID": "HK/UC/REF/01", "Type": "Fridge"},
-    ],
-    "Hedonist Bar (Fridge)": [
-        {"Unit_ID": "HB/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "HB/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "HB/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "HB/VR/REF/01", "Type": "Fridge"},
-    ],
-    "MDP Kitchen (Fridge)": [
-        {"Unit_ID": "MDPK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MDPK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MDPK/VR/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MDPK/VR/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MDPK/VR/REF/03", "Type": "Fridge"},
-    ],
-    "MDP Service (Fridge)": [
-        {"Unit_ID": "MDPS/VR/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MDPS/VR/REF/02", "Type": "Fridge"},
-    ],
-    "MDP Tea Lounge (Fridge)": [
-        {"Unit_ID": "MDPS/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MDPS/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MDPS/DIS/REF/01", "Type": "Fridge"},
-    ],
-    "The Bombay Café (Fridge)": [
-        {"Unit_ID": "TBC/UC/REF/01", "Type": "Fridge"},
-    ],
-    "Banquet Kitchen (Fridge)": [
-        {"Unit_ID": "MKI/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MKT/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MKA/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MKC/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "BQC/VR/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "BQC/VR/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "BQC/VR/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "BQK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "BQK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "BQK/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "BQK/UC/REF/04", "Type": "Fridge"},
-    ],
-    "Garde Manger (Fridge)": [
-        {"Unit_ID": "GM/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "GM/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "GM/UC/REF/03", "Type": "Fridge"},
-    ],
-    "Halwai Kitchen (Fridge)": [
-        {"Unit_ID": "HLK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "HLK/UC/REF/02", "Type": "Fridge"},
-    ],
-    "Bakery & Pastry (Fridge)": [
-        {"Unit_ID": "PS/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "PS/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "PS/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "CR/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "CR/VR/REF/01", "Type": "Fridge"},
-    ],
-    "Banquets - Grand Terminus (Fridge)": [
-        {"Unit_ID": "GT/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "GT/UC/REF/02", "Type": "Fridge"},
-    ],
-    "Banquet - Service (Fridge)": [
-        {"Unit_ID": "BQS/VR/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "BQS/VR/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "BQS/VR/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "BQS/VR/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "BQB/UC/REF/01", "Type": "Fridge"},
-    ],
-    "Samaa Kitchen (Fridge)": [
-        {"Unit_ID": "SK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "SK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "SK/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "SK/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "SK/VR/REF/01", "Type": "Fridge"},
-    ],
-    "Hygiene Office (Fridge)": [
-        {"Unit_ID": "HO/VR/REF/01", "Type": "Fridge"},
-    ],
-    "Samaa Bar (Fridge)": [
-        {"Unit_ID": "SB/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "SB/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "SB/UC/REF/03", "Type": "Fridge"},
-    ],
-    "SPA (Fridge)": [
-        {"Unit_ID": "SPA/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "SPA/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "SPA/DIS/REF/01", "Type": "Fridge"},
-    ],
-    "IRD Kitchen (Fridge)": [
         {"Unit_ID": "IRDK/VR/REF/01", "Type": "Fridge"},
         {"Unit_ID": "IRDK/UC/REF/01", "Type": "Fridge"},
         {"Unit_ID": "IRDK/UC/REF/02", "Type": "Fridge"},
@@ -320,6 +105,164 @@ UNIT_CATALOG = {
         {"Unit_ID": "IRDK/UC/REF/05", "Type": "Fridge"},
         {"Unit_ID": "IRDK/UC/REF/06", "Type": "Fridge"},
         {"Unit_ID": "IRDK/UC/REF/07", "Type": "Fridge"},
+    ],
+    "Oryn Kitchen": [
+        {"Unit_ID": "ORN/Cold Room/CR34", "Type": "Coolroom"},
+        {"Unit_ID": "OK/VR/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "OK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "OK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "OK/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "OK/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "OK/VR/REF/01", "Type": "Fridge"},
+    ],
+    "Merchants - Service": [
+        {"Unit_ID": "MS/Cold Room/25", "Type": "Coolroom"},
+        {"Unit_ID": "MB/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MB/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MB/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MB/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MBS/VR/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MBS/VR/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MBS/VR/REF/03", "Type": "Fridge"},
+    ],
+    "The Merchants - Chocolate Atelier": [
+        {"Unit_ID": "MBP/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MBP/DIS/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MBP/UC/FRZ/03", "Type": "Freezer"},
+        {"Unit_ID": "MCA/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MBP/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MBP/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MBP/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "MCA/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MCA/UC/REF/02", "Type": "Fridge"},
+    ],
+    "The Merchants - Western Hot": [
+        {"Unit_ID": "MWH/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MWH/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MWH/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MWH/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MWH/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "MWH/UC/REF/05", "Type": "Fridge"},
+        {"Unit_ID": "MWH/UC/REF/06", "Type": "Fridge"},
+    ],
+    "The Merchants - Cold Kitchen": [
+        {"Unit_ID": "MCK/VR/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MCK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MCK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MCK/UC/REF/03", "Type": "Fridge"},
+    ],
+    "The Merchants Indian Non Veg": [
+        {"Unit_ID": "MIN/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MIN/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MIN/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MIN/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MIN/DIS/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MIN/DIS/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MIN/DIS/REF/03", "Type": "Fridge"},
+    ],
+    "The Merchants Indian Veg": [
+        {"Unit_ID": "MIV/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MIV/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MIV/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MIV/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MIV/DIS/REF/01", "Type": "Fridge"},
+    ],
+    "The Merchants Japanese Section": [
+        {"Unit_ID": "MJ/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MJ/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MJ/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MJ/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MJ/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "MJ/DIS/REF/01", "Type": "Fridge"},
+    ],
+    "The Merchants - Asian Section": [
+        {"Unit_ID": "MA/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MA/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MA/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MA/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MA/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "MA/DIS/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MA/DIS/REF/02", "Type": "Fridge"},
+    ],
+    "Beyond Oryn Bar": [
+        {"Unit_ID": "BO/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "BO/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "BO/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "BO/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "BO/UC/REF/04", "Type": "Fridge"},
+    ],
+    "Gold Lounge Kitchen": [
+        {"Unit_ID": "GK/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "GK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "GK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "GK/VR/REF/01", "Type": "Fridge"},
+    ],
+    "Gold Lounge Service": [
+        {"Unit_ID": "GS/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "GS/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "GS/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "GS/DIS/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "GS/DIS/REF/02", "Type": "Fridge"},
+    ],
+    "Hedonist Kitchen": [
+        {"Unit_ID": "HK/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "HK/UC/REF/01", "Type": "Fridge"},
+    ],
+    "Hedonist Bar": [
+        {"Unit_ID": "HB/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "HB/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "HB/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "HB/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "HB/VR/REF/01", "Type": "Fridge"},
+    ],
+    "MDP Kitchen": [
+        {"Unit_ID": "MDPK/VR/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MDPK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MDPK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MDPK/VR/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MDPK/VR/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MDPK/VR/REF/03", "Type": "Fridge"},
+    ],
+    "MDP Service": [
+        {"Unit_ID": "MDPS/VR/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MDPS/VR/REF/02", "Type": "Fridge"},
+    ],
+    "MDP Tea Lounge": [
+        {"Unit_ID": "MDPS/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MDPS/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MDPS/DIS/REF/01", "Type": "Fridge"},
+    ],
+    "Halwai Kitchen": [
+        {"Unit_ID": "HLK/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "HLK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "HLK/UC/REF/02", "Type": "Fridge"},
+    ],
+    "Samaa Kitchen": [
+        {"Unit_ID": "SK/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "SK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "SK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "SK/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "SK/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "SK/VR/REF/01", "Type": "Fridge"},
+    ],
+    "Hygiene Office": [
+        {"Unit_ID": "HO/VR/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "HO/VR/REF/01", "Type": "Fridge"},
+    ],
+    "Samaa Bar": [
+        {"Unit_ID": "SB/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "SB/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "SB/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "SB/UC/REF/03", "Type": "Fridge"},
+    ],
+    "Banquets - Grand Terminus": [
+        {"Unit_ID": "GT/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "GT/UC/REF/02", "Type": "Fridge"},
+    ],
+    "SPA": [
+        {"Unit_ID": "SPA/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "SPA/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "SPA/DIS/REF/01", "Type": "Fridge"},
     ],
 }
 
@@ -606,21 +549,21 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
     st.write("")
     st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>📋 Shift Status Across Locations ({selected_day_str})</h4>", unsafe_allow_html=True)
 
-    # Sort location summary data: Completed first, then Pending
-    sorted_loc_summary = sorted(
+    # Sort location summary data: Pending first (incomplete), Completed at bottom
+    sorted_loc_summary_op = sorted(
         loc_summary_data,
-        key=lambda x: (0 if (x["op_count"] == x["total_u"]) else 1, x["loc_name"])
+        key=lambda x: (0 if x["op_count"] < x["total_u"] else 1, x["loc_name"])
     )
     sorted_loc_summary_cl = sorted(
         loc_summary_data,
-        key=lambda x: (0 if (x["cl_count"] == x["total_u"]) else 1, x["loc_name"])
+        key=lambda x: (0 if x["cl_count"] < x["total_u"] else 1, x["loc_name"])
     )
 
     shift_col1, shift_col2 = st.columns(2)
 
     with shift_col1:
       op_items_html = ""
-      for item in sorted_loc_summary:
+      for item in sorted_loc_summary_op:
         l_name = item["loc_name"]
         c_op = item["op_count"]
         t_u = item["total_u"]
@@ -666,10 +609,10 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
     st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Location Summary Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
     st.caption("Each location summary block tracks Opening & Closing logs and displays pending units.")
 
-    # 3-Card Grid Layout using st.columns(3)
-    loc_cols = st.columns(3)
+    # 4-Card Grid Layout using st.columns(4)
+    loc_cols = st.columns(4)
     for idx, item in enumerate(loc_summary_data):
-      col_target = loc_cols[idx % 3]
+      col_target = loc_cols[idx % 4]
       loc_name = item["loc_name"]
       total_u = item["total_u"]
       op_count = item["op_count"]
@@ -685,26 +628,26 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
       else:
         compliance_badge = "<span style='color:#16a34a; font-weight:700; font-size:0.75rem; float:right;'>🟢 Fully Compliant</span>"
 
-      pending_op_html = "".join([f"<div style='font-size:0.72rem; color:#b45309; margin-left:6px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_opening]) if pending_opening else "<div style='font-size:0.72rem; color:#16a34a; margin-top:2px; margin-left:6px;'>• All units logged.</div>"
+      pending_op_html = "".join([f"<div style='font-size:0.7rem; color:#b45309; margin-left:6px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_opening]) if pending_opening else "<div style='font-size:0.7rem; color:#16a34a; margin-top:2px; margin-left:6px;'>• All units logged.</div>"
       
-      pending_cl_html = "".join([f"<div style='font-size:0.72rem; color:#b45309; margin-left:6px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_closing]) if pending_closing else "<div style='font-size:0.72rem; color:#16a34a; margin-top:2px; margin-left:6px;'>• All units logged.</div>"
+      pending_cl_html = "".join([f"<div style='font-size:0.7rem; color:#b45309; margin-left:6px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_closing]) if pending_closing else "<div style='font-size:0.7rem; color:#16a34a; margin-top:2px; margin-left:6px;'>• All units logged.</div>"
 
       col_target.markdown(f"""
-      <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:10px 12px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05); min-height:240px;">
-          <div style="font-weight:700; font-size:0.9rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:5px; margin-bottom:8px;">
-              📍 {loc_name} <span style="font-size:0.7rem; color:#64748b; font-weight:normal;">({total_u})</span> {compliance_badge}
+      <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:10px 12px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05); min-height:230px;">
+          <div style="font-weight:700; font-size:0.85rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:5px; margin-bottom:8px;">
+              📍 {loc_name} <span style="font-size:0.68rem; color:#64748b; font-weight:normal;">({total_u})</span> {compliance_badge}
           </div>
           <div style="background:#f8fafc; border-left:3px solid #16a34a; padding:6px 8px; border-radius:4px; margin-bottom:6px;">
-              <div style="font-size:0.8rem; color:#15803d; font-weight:700; display:flex; justify-content:space-between;">
+              <div style="font-size:0.78rem; color:#15803d; font-weight:700; display:flex; justify-content:space-between;">
                   <span>🌅 Opening</span><span>{op_count}/{total_u} Logged</span>
               </div>
-              <div style="margin-top:3px; max-height:70px; overflow-y:auto;">{pending_op_html}</div>
+              <div style="margin-top:3px; max-height:60px; overflow-y:auto;">{pending_op_html}</div>
           </div>
           <div style="background:#f8fafc; border-left:3px solid #0284c7; padding:6px 8px; border-radius:4px; margin-bottom:4px;">
-              <div style="font-size:0.8rem; color:#0369a1; font-weight:700; display:flex; justify-content:space-between;">
+              <div style="font-size:0.78rem; color:#0369a1; font-weight:700; display:flex; justify-content:space-between;">
                   <span>🌙 Closing</span><span>{cl_count}/{total_u} Logged</span>
               </div>
-              <div style="margin-top:3px; max-height:70px; overflow-y:auto;">{pending_cl_html}</div>
+              <div style="margin-top:3px; max-height:60px; overflow-y:auto;">{pending_cl_html}</div>
           </div>
       </div>
       """, unsafe_allow_html=True)
