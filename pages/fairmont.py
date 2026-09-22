@@ -4,45 +4,16 @@ import pandas as pd
 import requests
 import streamlit as st
 
-from records_fairmont.record_02 import (
-    render_record_02_view,
-    parse_record_02_submissions,
-)
-from records_fairmont.record_03 import (
-    render_record_03_view,
-    parse_record_03_submissions,
-    UNIT_CATALOG,
-    clean_unit_token,
-)
-from records_fairmont.record_04 import (
-    render_record_04_view,
-    parse_all_record_04_dishes,
-)
-from records_fairmont.record_05 import (
-    render_record_05_view,
-    parse_record_05_submissions,
-)
-from records_fairmont.record_06 import (
-    render_record_06_view,
-    parse_record_06_submissions,
-)
+from records_fairmont.record_02 import render_record_02_view
+from records_fairmont.record_03 import render_record_03_view
+from records_fairmont.record_04 import render_record_04_view
+from records_fairmont.record_05 import render_record_05_view
+from records_fairmont.record_06 import render_record_06_view
 from records_fairmont.record_12 import render_record_12_view
-from records_fairmont.record_13 import (
-    render_record_13_view,
-    parse_record_13_submissions,
-)
-from records_fairmont.record_15 import (
-    render_record_15_view,
-    parse_record_15_submissions,
-)
-from records_fairmont.record_21 import (
-    render_record_21_view,
-    parse_record_21_submissions,
-)
-from records_fairmont.record_25 import (
-    render_record_25_view,
-    parse_record_25_submissions,
-)
+from records_fairmont.record_13 import render_record_13_view
+from records_fairmont.record_15 import render_record_15_view
+from records_fairmont.record_21 import render_record_21_view
+from records_fairmont.record_25 import render_record_25_view
 
 st.set_page_config(
     page_title="Fairmont Mumbai - EHCO Status",
@@ -58,6 +29,9 @@ st.markdown(
     .serif-title { font-size: 2.1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.2rem; letter-spacing: -0.02em; }
     .sub-head { font-size: 0.85rem; color: #475569; font-weight: 600; }
     .record-header-box { background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 1.6rem; font-weight: 700; }
+    .kpi-box { background: #ffffff; border: 1px solid #e2e8f0; border-top: 4px solid #0f172a; border-radius: 8px; padding: 14px 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 10px; }
+    .kpi-num { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
+    .kpi-lbl { font-size: 0.78rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
 </style>
 """,
     unsafe_allow_html=True,
@@ -251,6 +225,7 @@ else:
       on_click=go_to_overview,
   )
   st.write("")
+
   if st.session_state.fairmont_nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
     st.markdown(
         f'<div class="record-header-box">🚚 {st.session_state.fairmont_nav_choice}</div>',
@@ -275,4 +250,16 @@ else:
         " TEMPERATURE RECORD</div>",
         unsafe_allow_html=True,
     )
-    render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
+    raw_04 = get_master_df(23706, unwind=True)
+    render_record_04_view(raw_04, selected_day_str, start_date, end_date)
+  elif (
+      st.session_state.fairmont_nav_choice
+      == "RECORD 05 - COOLING OF FOOD RECORD"
+  ):
+    st.markdown(
+        f'<div class="record-header-box">❄️ RECORD 05 - COOLING OF FOOD'
+        " RECORD</div>",
+        unsafe_allow_html=True,
+    )
+    raw_05 = get_master_df(23707, unwind=True)
+    render_record_05_view(raw_05, selected_day_str, start_date, end_date)
