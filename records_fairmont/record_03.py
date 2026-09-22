@@ -124,7 +124,7 @@ UNIT_CATALOG = {
         {"Unit_ID": "HLK/UC/FRZ/01", "Type": "Freezer"},
     ],
     "Samaa Kitchen": [
-        {"Unit_ID": "SK/VR/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "SK/UC/FRZ/01", "Type": "Freezer"},
     ],
     "Hygiene Office": [
         {"Unit_ID": "HO/VR/FRZ/01", "Type": "Freezer"},
