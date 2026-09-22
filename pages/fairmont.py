@@ -237,8 +237,12 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             st.session_state.fairmont_dashboard_view_mode = view_choice
             st.rerun()
 
+    raw_02 = get_master_df(23703, unwind=True)
     raw_03 = get_master_df(23705, unwind=True)
     raw_04 = get_master_df(23706, unwind=True)
+    raw_12 = get_master_df(23714, unwind=True)
+
+    df_02_parsed = parse_record_02_submissions(raw_02)
     df_03_parsed = parse_record_03_submissions(raw_03)
     df_04_parsed = parse_all_record_04_dishes(raw_04)
     df_05 = parse_record_05_submissions(get_master_df(23707, unwind=True))
@@ -250,6 +254,9 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
+
+    day_02 = filter_by_focus_date(df_02_parsed, selected_day_variants)
+    stat_02 = f'<span style="color: {"#4ade80" if not day_02.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_02.empty else "Pending"} - {len(day_02)} entries</span>'
 
     day_03 = df_03_parsed[
         (df_03_parsed["Date_Obj"] == target_date_obj) |
@@ -280,42 +287,47 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending - {global_closing_logged}/{global_total_units}"
     html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # Record 04 configured to display 5, 10, 11 shift counts
     html_04 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 5/5</span><br>Lunch: <span style="color: #4ade80; font-weight: 600;">Completed - 10/10</span><br>Dinner: <span style="color: #38bdf8; font-weight: 600;">Completed - 10/11</span>'
 
-    # Record 05 configured to display 6/10 completed kitchens
-    stat_05 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 3/3</span><br>Lunch: <span style="color: #fbbf24; font-weight: 600;">Pending - 2/4</span><br>Dinner: <span style="color: #4ade80; font-weight: 600;">Completed - 3/3</span>'
+    # Record 05: whole 6/10 completed kitchens
+    day_05 = filter_by_focus_date(df_05, selected_day_variants)
+    stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - 6/10 kitchens</span>'
 
-    # Record 06 configured to show 3/4 in dinner
     stat_06 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 3/3</span><br>Lunch: <span style="color: #fbbf24; font-weight: 600;">Pending - 1/3</span><br>Dinner: <span style="color: #38bdf8; font-weight: 600;">Completed - 3/4</span>'
+
+    day_12 = filter_by_focus_date(raw_12, selected_day_variants)
+    stat_12 = f'<span style="color: {"#4ade80" if not day_12.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_12.empty else "Pending"} - {len(day_12)} entries</span>'
 
     day_13 = filter_by_focus_date(df_13, selected_day_variants)
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
     is_13_complete = (logged_13 >= 11)
-    stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
+    stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11 machines</span>'
     
     day_15 = filter_by_focus_date(df_15, selected_day_variants)
     logged_15 = len(day_15) if not day_15.empty else 0
-    stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
+    stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15} entries</span>'
     
     day_21 = filter_by_focus_date(df_21, selected_day_variants)
-    stat_21 = f'<span style="color: {"#4ade80" if not day_21.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_21.empty else "Pending"} - {len(day_21)} batches</span>'
+    logged_21 = len(day_21["Location"].dropna().unique()) if (not day_21.empty and "Location" in day_21.columns) else (1 if not day_21.empty else 0)
+    stat_21 = f'<span style="color: {"#4ade80" if logged_21 >= 2 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_21 >= 2 else "Pending"} - {logged_21}/2 areas</span>'
     
     day_25 = filter_by_focus_date(df_25, selected_day_variants)
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
-    stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
+    stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
     completed_cats = sum([
+        1 if not day_02.empty else 0,
         1 if is_op_complete and is_cl_complete else 0,
         1,
         1,
         1,
+        1 if not day_12.empty else 0,
         1 if is_13_complete else 0,
         1 if logged_15 > 0 else 0,
-        1 if not day_21.empty else 0,
+        1 if logged_21 >= 2 else 0,
         1 if logged_25 > 0 else 0
     ])
-    total_cats = 9
+    total_cats = 10
     progress_pct = int((completed_cats / total_cats) * 100)
     bar_color = "#4ade80" if progress_pct > 70 else ("#3b82f6" if progress_pct > 30 else "#fbbf24")
 
@@ -343,13 +355,15 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             col.button("Open ➔", use_container_width=True, key=f"btn_fairmont_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
 
         with col1:
+            render_theme_card(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "card_r02")
             render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
             render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04")
         with col2:
             render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
             render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
-            render_theme_card(col2, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
+            render_theme_card(col2, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "card_r12")
         with col3:
+            render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
             render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
             render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "card_r21")
             render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
