@@ -11,7 +11,7 @@ RECORD_06_MEAL_RULES = {
     "Gold Lounge": ["Breakfast", "Dinner"],
     "The Bombay Café": ["Breakfast", "Lunch", "Dinner"],
     "The Merchants": ["Breakfast", "Lunch", "Dinner"],
-    "Banquets": ["Breakfast", "Lunch", "Dinner"],
+    "Banquets": ["Lunch", "Dinner"],
 }
 
 
