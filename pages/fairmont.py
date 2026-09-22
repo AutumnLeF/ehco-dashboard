@@ -293,3 +293,11 @@ else:
     )
     raw_15 = get_master_df(23717, unwind=True)
     render_record_15_view(raw_15, selected_day_str, start_date, end_date)
+  elif st.session_state.fairmont_nav_choice == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
+    st.markdown(
+        f'<div class="record-header-box">🥗 RECORD 21 - FOOD WASH RECORD'
+        " - CHLORINE WASH</div>",
+        unsafe_allow_html=True,
+    )
+    raw_21 = get_master_df(23723, unwind=True)
+    render_record_21_view(raw_21, selected_day_str, start_date, end_date)
