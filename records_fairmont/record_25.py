@@ -303,16 +303,20 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
     st.write("")
 
-    # Render separate kitchen-wise sections with enhanced visual contrast
+    # Render highly distinct kitchen-wise card containers
     for kitchen_name, units in ICE_MACHINE_CATALOG.items():
-      st.markdown(f"<div style='background:#0f172a; color:#ffffff; padding:6px 12px; border-radius:6px; font-weight:700; font-size:0.9rem; margin-top:1.2rem; margin-bottom:0.5rem;'>📍 {kitchen_name}</div>", unsafe_allow_html=True)
+      st.markdown(f"""
+          <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; padding: 10px 16px; border-radius: 8px; font-weight: 700; font-size: 0.98rem; margin-top: 1.5rem; margin-bottom: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+              📍 {kitchen_name}
+          </div>
+      """, unsafe_allow_html=True)
 
       for sch in units:
         unit_id = sch["Unit_ID"]
         unit_token = clean_str(unit_id)
 
         row_cols = st.columns([2.0, 1, 1, 1, 1, 1, 1, 1])
-        row_cols[0].markdown(f'<div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:8px 6px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:75px; display:flex; flex-direction:column; align-items:center; justify-content:center;"><div style="font-weight:700; color:#0f172a; font-size:0.78rem;">{unit_id}</div></div>', unsafe_allow_html=True)
+        row_cols[0].markdown(f'<div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:10px 8px; text-align:center; box-shadow:0 1px 3px rgba(0,0,0,0.04); min-height:75px; display:flex; flex-direction:column; align-items:center; justify-content:center;"><div style="font-weight:700; color:#0f172a; font-size:0.78rem;">{unit_id}</div></div>', unsafe_allow_html=True)
 
         u_df = range_df[range_df["Clean_Unit"] == unit_token] if not range_df.empty else pd.DataFrame()
         u_history = df_items[df_items["Clean_Unit"] == unit_token] if not df_items.empty else pd.DataFrame()
@@ -330,7 +334,6 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
             latest = matches.iloc[-1]
             row_cols[i + 1].markdown(f'<div style="background:#f0fdf4; border:1.5px solid #16a34a; border-radius:8px; padding:6px; text-align:center; min-height:75px; display:flex; flex-direction:column; justify-content:center; align-items:center;"><span style="color:#16a34a; font-weight:800; font-size:0.75rem;">✓ CLEANED</span><span style="font-size:0.62rem; color:#15803d; margin-top:2px;">{latest["Sign"]}</span></div>', unsafe_allow_html=True)
           else:
-            # Check 6-day window leading up to date 'd'
             d_window_start = d - timedelta(days=6)
             recent_past = pd.DataFrame()
             if not u_history.empty and "Date_Obj" in u_history.columns:
@@ -342,7 +345,7 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
             if recent_past.empty:
               row_cols[i + 1].markdown(f'<div style="background:#fef2f2; border:1.5px solid #dc2626; border-radius:8px; padding:6px; text-align:center; min-height:75px; display:flex; flex-direction:column; justify-content:center; align-items:center;"><span style="color:#dc2626; font-weight:800; font-size:0.72rem;">⏳ PENDING</span><span style="font-size:0.60rem; color:#b91c1c; margin-top:2px;">Overdue >6d</span></div>', unsafe_allow_html=True)
             else:
-              row_cols[i + 1].markdown(f'<div style="background:#ffffff; border:1.0px solid #e2e8f0; border-radius:8px; padding:6px; text-align:center; min-height:75px; display:flex; items-center; justify-content:center;"><span style="color:#94a3b8; font-size:0.75rem;">—</span></div>', unsafe_allow_html=True)
+              row_cols[i + 1].markdown(f'<div style="background:#ffffff; border:1.0px solid #e2e8f0; border-radius:8px; padding:6px; text-align:center; min-height:75px; display:flex; align-items:center; justify-content:center;"><span style="color:#94a3b8; font-size:0.75rem;">—</span></div>', unsafe_allow_html=True)
 
         st.write("")
 
