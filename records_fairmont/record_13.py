@@ -6,7 +6,7 @@ WASH_MIN_TEMP = 55.0   # Wash Cycle >= 55°C
 RINSE_MIN_TEMP = 82.0  # Final Rinse Cycle >= 82°C
 RECORD_13_FORM_ID = 23715
 
-# Master catalog of Dishwashers and Glasswashers across all Fairmont Mumbai locations
+# Master catalog with all housekeeping units clubbed under "Housekeeping"
 LOCATION_CATALOG = {
     "Banquet Support Kitchen": [
         {"Unit_ID": "BQT/SK/DW/03", "Type": "Dishwasher"},
@@ -57,29 +57,15 @@ LOCATION_CATALOG = {
     "Oryn Bar": [
         {"Unit_ID": "FM/OB/GW/08", "Type": "Glasswasher"},
     ],
-    "House Keeping Pantry 3rd Floor": [
-        {"Unit_ID": "FM/HKP/GW/13", "Type": "Glasswasher"},
-    ],
-    "House Keeping Pantry 4th Floor": [
-        {"Unit_ID": "FM/HKP/GW/14", "Type": "Glasswasher"},
-    ],
-    "House Keeping Pantry 5th Floor": [
-        {"Unit_ID": "FM/HKP/GW/15", "Type": "Glasswasher"},
-    ],
-    "House Keeping Pantry 6th Floor": [
-        {"Unit_ID": "FM/HKP/GW/16", "Type": "Glasswasher"},
-    ],
-    "House Keeping Pantry 7th Floor": [
-        {"Unit_ID": "FM/HKP/GW/17", "Type": "Glasswasher"},
-    ],
-    "House Keeping Pantry 8th Floor": [
-        {"Unit_ID": "FM/HKP/GW/18", "Type": "Glasswasher"},
-    ],
-    "House Keeping Pantry 9th Floor": [
-        {"Unit_ID": "FM/HKP/GW/19", "Type": "Glasswasher"},
-    ],
-    "House Keeping Pantry 10th Floor": [
-        {"Unit_ID": "FM/HKP/GW/20", "Type": "Glasswasher"},
+    "Housekeeping": [
+        {"Unit_ID": "FMHKPGW13", "Type": "Glasswasher"},
+        {"Unit_ID": "FMHKPGW14", "Type": "Glasswasher"},
+        {"Unit_ID": "FMHKPGW15", "Type": "Glasswasher"},
+        {"Unit_ID": "FMHKPGW16", "Type": "Glasswasher"},
+        {"Unit_ID": "FMHKPGW17", "Type": "Glasswasher"},
+        {"Unit_ID": "FMHKPGW18", "Type": "Glasswasher"},
+        {"Unit_ID": "FMHKPGW19", "Type": "Glasswasher"},
+        {"Unit_ID": "FMHKPGW20", "Type": "Glasswasher"},
     ],
 }
 
@@ -122,12 +108,19 @@ def parse_record_13_submissions(raw_df):
     sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
     entry_parent = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else sub
 
-    location = (
+    raw_loc = str(
         sub.get("Location")
         or rec.get("Location")
         or entry_parent.get("Location")
         or "Main Kitchen"
-    )
+    ).strip()
+
+    # Club all housekeeping locations under "Housekeeping"
+    if "house keeping" in raw_loc.lower() or "housekeeping" in raw_loc.lower():
+      location = "Housekeeping"
+    else:
+      location = raw_loc
+
     sign = (
         sub.get("Sign")
         or sub.get("sign")
@@ -190,7 +183,7 @@ def parse_record_13_submissions(raw_df):
 
       clean_raw = clean_unit_str(raw_unit)
       matched_master_id = None
-      matched_loc = str(location).strip()
+      matched_loc = location
 
       for m in flat_master:
         if clean_raw == clean_unit_str(m["Unit_ID"]):
