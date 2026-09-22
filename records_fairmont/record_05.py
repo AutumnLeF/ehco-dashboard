@@ -105,10 +105,11 @@ def parse_record_05_submissions(raw_df):
         or []
     )
 
-    if isinstance(entries, dict):
+    # Prevent boolean/non-iterable crashes
+    if isinstance(entries, bool) or not isinstance(entries, (list, dict)):
+      entries = [sub] if isinstance(sub, dict) else []
+    elif isinstance(entries, dict):
       entries = [entries]
-    elif not entries and isinstance(sub, dict):
-      entries = [sub]
 
     for entry in entries:
       if not isinstance(entry, dict):
@@ -134,7 +135,6 @@ def parse_record_05_submissions(raw_df):
           errors="coerce",
       )
 
-      # Expanded list of potential keys for 2-hour end temperature
       end_raw = (
           entry.get("Temperature_After_2_Hours")
           or entry.get("After_2_Hours")
@@ -483,6 +483,6 @@ def render_record_05_view(raw_df, selected_day_str, start_date, end_date):
                 "End_Temp",
                 "Sign",
             ]
-            if c in range_df.columns
+            if c in range_df.range_df if c in range_df.columns
         ]
         st.dataframe(range_df[show_cols], use_container_width=True, hide_index=True)
