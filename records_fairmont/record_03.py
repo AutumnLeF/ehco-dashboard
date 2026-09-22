@@ -6,8 +6,9 @@ MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer <= -18.0°C
 RECORD_03_FORM_ID = 23705
 
-# Unified Catalog combining Coolrooms, Freezers, and Fridges under main kitchen areas
+# Comprehensive Catalog mapped from site data (CoolRooms, Freezers & Fridges)
 UNIT_CATALOG = {
+    # --- COOLROOMS ---
     "Garbage Room Walk-In (Chiller)": [
         {"Unit_ID": "GRB-Cold Room-CR01", "Type": "Coolroom"},
     ],
@@ -452,6 +453,8 @@ def parse_record_03_submissions(raw_df):
 def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
   df_items = parse_record_03_submissions(raw_df)
 
+  current_time_str = datetime.now().strftime("%H:%M:%S")
+
   with st.expander("🔍 Date Diagnostic (Inspect dates loaded in memory)"):
     st.write(f"Total parsed records: **{len(df_items)}**")
     if not df_items.empty and "Date_Obj" in df_items.columns:
@@ -536,20 +539,27 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
           "loc_breaches": loc_breaches
       })
 
+    pending_shifts_count = global_total_units * 2 - (global_opening_logged + global_closing_logged)
+
     k1, k2, k3, k4 = st.columns(4)
     with k1:
       st.markdown(f'<div class="kpi-container" style="border-top-color: #dc2626;"><div class="kpi-num" style="color:#dc2626;">{total_breaches}</div><div class="kpi-lbl">Temperature Breaches</div></div>', unsafe_allow_html=True)
     with k2:
       st.markdown(f'<div class="kpi-container" style="border-top-color: #16a34a;"><div class="kpi-num" style="color:#16a34a;">{fully_logged_areas}/{total_catalog_locations}</div><div class="kpi-lbl">Fully Logged Areas</div></div>', unsafe_allow_html=True)
     with k3:
-      st.markdown(f'<div class="kpi-container" style="border-top-color: #d97706;"><div class="kpi-num" style="color:#d97706;">{max(0, global_total_units * 2 - (global_opening_logged + global_closing_logged))}</div><div class="kpi-lbl">Pending Shifts</div></div>', unsafe_allow_html=True)
+      st.markdown(f'<div class="kpi-container" style="border-top-color: #d97706;"><div class="kpi-num" style="color:#d97706;">{pending_shifts_count}</div><div class="kpi-lbl">Pending Shifts</div></div>', unsafe_allow_html=True)
     with k4:
       st.markdown(f'<div class="kpi-container" style="border-top-color: #0f172a;"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Count</div></div>', unsafe_allow_html=True)
 
     st.write("")
-    st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>📋 Shift Status Across Locations ({selected_day_str})</h4>", unsafe_allow_html=True)
+    st.markdown(f"""
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1rem; margin-bottom:0.5rem;">
+        <h4 style='color:#0f172a; margin:0;'>📋 Location Status ({selected_day_str})</h4>
+        <span style="font-size:0.85rem; color:#475569; font-weight:600; background:#e2e8f0; padding:4px 10px; border-radius:6px;">🕒 Current Time (IST): {current_time_str}</span>
+    </div>
+    """, unsafe_allow_html=True)
 
-    # Sort location summary data: Pending first (incomplete), Completed at bottom
+    # Sort location summary data: Pending first, Completed at bottom
     sorted_loc_summary_op = sorted(
         loc_summary_data,
         key=lambda x: (0 if x["op_count"] < x["total_u"] else 1, x["loc_name"])
@@ -573,6 +583,8 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
           badge = f"<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending ({c_op}/{t_u})</span>"
         op_items_html += f"<div style='padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:0.85rem;'><b>{l_name}</b> {badge}</div>"
 
+      op_progress = global_opening_logged / max(1, global_total_units)
+
       st.markdown(f"""
       <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #16a34a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
           <div style="font-weight:700; font-size:0.95rem; color:#15803d; margin-bottom:8px; display:flex; justify-content:space-between;">
@@ -582,6 +594,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
           {op_items_html}
       </div>
       """, unsafe_allow_html=True)
+      st.progress(op_progress, text=f"Opening Shift Progress: {int(op_progress * 100)}%")
 
     with shift_col2:
       cl_items_html = ""
@@ -595,6 +608,8 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
           badge = f"<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending ({c_cl}/{t_u})</span>"
         cl_items_html += f"<div style='padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:0.85rem;'><b>{l_name}</b> {badge}</div>"
 
+      cl_progress = global_closing_logged / max(1, global_total_units)
+
       st.markdown(f"""
       <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0284c7; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
           <div style="font-weight:700; font-size:0.95rem; color:#0369a1; margin-bottom:8px; display:flex; justify-content:space-between;">
@@ -604,9 +619,10 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
           {cl_items_html}
       </div>
       """, unsafe_allow_html=True)
+      st.progress(cl_progress, text=f"Closing Shift Progress: {int(cl_progress * 100)}%")
 
     st.write("")
-    st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🏢 Location Summary Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
+    st.markdown(f"<h4 style='color:#0f172a; margin-top:1.5rem;'>🏢 Location Summary Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
     st.caption("Each location summary block tracks Opening & Closing logs and displays pending units.")
 
     # 4-Card Grid Layout using st.columns(4)
