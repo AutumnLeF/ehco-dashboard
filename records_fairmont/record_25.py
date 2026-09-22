@@ -164,7 +164,6 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
   else:
     selected_dt = selected_dt.date()
 
-  # 6-day window check for pending status (not cleaned in last 6 days)
   window_start_dt = selected_dt - timedelta(days=6)
 
   if not df_items.empty and "Date_Obj" in df_items.columns and df_items["Date_Obj"].notna().any():
@@ -172,7 +171,6 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
         (df_items["Date_Obj"] >= start_date)
         & (df_items["Date_Obj"] <= end_date)
     ]
-    # All historical logs up to selected date for 6-day check
     history_df = df_items[df_items["Date_Obj"] <= selected_dt]
   else:
     range_df = df_items.copy()
@@ -203,7 +201,6 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
       u_id = sch["Unit_ID"]
       u_token = clean_str(u_id)
       
-      # Check if cleaned today
       today_log = pd.DataFrame()
       if not day_df.empty and "Clean_Unit" in day_df.columns:
         today_log = day_df[day_df["Clean_Unit"] == u_token]
@@ -212,7 +209,6 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
         cleaned_count += 1
         unit_status_list.append({"Unit": sch, "Status": "Cleaned", "Log": today_log.iloc[-1]})
       else:
-        # Check if cleaned in the last 6 days
         recent_logs = pd.DataFrame()
         if not history_df.empty and "Date_Obj" in history_df.columns:
           recent_logs = history_df[
@@ -268,7 +264,7 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
   with tab_matrix:
     st.subheader("Kitchen-Wise Weekly Ice Machine Cleaning Matrix")
-    st.caption("Ice machines grouped separately by kitchen area across the 7-day view.")
+    st.caption("Ice machines grouped separately by kitchen area with 6-day compliance tracking.")
 
     total_days = (end_date - start_date).days + 1
     all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
@@ -307,18 +303,19 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
     st.write("")
 
-    # Render separate kitchen-wise sections
+    # Render separate kitchen-wise sections with enhanced visual contrast
     for kitchen_name, units in ICE_MACHINE_CATALOG.items():
-      st.markdown(f"<div style='background:#f1f5f9; color:#0f172a; padding:6px 12px; border-radius:6px; font-weight:700; font-size:0.9rem; margin-top:1rem; margin-bottom:0.5rem;'>📍 {kitchen_name}</div>", unsafe_allow_html=True)
+      st.markdown(f"<div style='background:#0f172a; color:#ffffff; padding:6px 12px; border-radius:6px; font-weight:700; font-size:0.9rem; margin-top:1.2rem; margin-bottom:0.5rem;'>📍 {kitchen_name}</div>", unsafe_allow_html=True)
 
       for sch in units:
         unit_id = sch["Unit_ID"]
         unit_token = clean_str(unit_id)
 
         row_cols = st.columns([2.0, 1, 1, 1, 1, 1, 1, 1])
-        row_cols[0].markdown(f'<div style="background:#ffffff; border:1.5px solid #94a3b8; border-radius:8px; padding:8px 6px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:75px; display:flex; flex-direction:column; align-items:center; justify-content:center;"><div style="font-weight:700; color:#0f172a; font-size:0.8rem;">{unit_id}</div></div>', unsafe_allow_html=True)
+        row_cols[0].markdown(f'<div style="background:#ffffff; border:1.5px solid #cbd5e1; border-radius:8px; padding:8px 6px; text-align:center; box-shadow:0 1px 2px rgba(0,0,0,0.05); min-height:75px; display:flex; flex-direction:column; align-items:center; justify-content:center;"><div style="font-weight:700; color:#0f172a; font-size:0.78rem;">{unit_id}</div></div>', unsafe_allow_html=True)
 
         u_df = range_df[range_df["Clean_Unit"] == unit_token] if not range_df.empty else pd.DataFrame()
+        u_history = df_items[df_items["Clean_Unit"] == unit_token] if not df_items.empty else pd.DataFrame()
 
         for i, d in enumerate(page_dates):
           d_str = d.strftime("%d/%m/%Y")
@@ -333,7 +330,19 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
             latest = matches.iloc[-1]
             row_cols[i + 1].markdown(f'<div style="background:#f0fdf4; border:1.5px solid #16a34a; border-radius:8px; padding:6px; text-align:center; min-height:75px; display:flex; flex-direction:column; justify-content:center; align-items:center;"><span style="color:#16a34a; font-weight:800; font-size:0.75rem;">✓ CLEANED</span><span style="font-size:0.62rem; color:#15803d; margin-top:2px;">{latest["Sign"]}</span></div>', unsafe_allow_html=True)
           else:
-            row_cols[i + 1].markdown(f'<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:8px; padding:6px; text-align:center; min-height:75px; display:flex; align-items:center; justify-content:center;"><span style="color:#cbd5e1; font-size:0.8rem;">—</span></div>', unsafe_allow_html=True)
+            # Check 6-day window leading up to date 'd'
+            d_window_start = d - timedelta(days=6)
+            recent_past = pd.DataFrame()
+            if not u_history.empty and "Date_Obj" in u_history.columns:
+              recent_past = u_history[
+                  (u_history["Date_Obj"] >= d_window_start)
+                  & (u_history["Date_Obj"] <= d)
+              ]
+
+            if recent_past.empty:
+              row_cols[i + 1].markdown(f'<div style="background:#fef2f2; border:1.5px solid #dc2626; border-radius:8px; padding:6px; text-align:center; min-height:75px; display:flex; flex-direction:column; justify-content:center; align-items:center;"><span style="color:#dc2626; font-weight:800; font-size:0.72rem;">⏳ PENDING</span><span style="font-size:0.60rem; color:#b91c1c; margin-top:2px;">Overdue >6d</span></div>', unsafe_allow_html=True)
+            else:
+              row_cols[i + 1].markdown(f'<div style="background:#ffffff; border:1.0px solid #e2e8f0; border-radius:8px; padding:6px; text-align:center; min-height:75px; display:flex; items-center; justify-content:center;"><span style="color:#94a3b8; font-size:0.75rem;">—</span></div>', unsafe_allow_html=True)
 
         st.write("")
 
