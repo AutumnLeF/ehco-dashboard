@@ -194,7 +194,6 @@ def parse_all_record_04_dishes(raw_df):
 
 
 def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
-  # Custom CSS injection for beautiful KPI styling
   st.markdown(
       """
     <style>
@@ -315,7 +314,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             "Sign": r["Sign"],
         })
 
-    # --- ENHANCED VISUAL KPI DASHBOARD ---
+    # KPI Dashboard
     k1, k2, k3, k4 = st.columns(4)
     with k1:
       st.markdown(
@@ -373,7 +372,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
     st.write("")
 
-    # Separate cards into Pending Cards (Top) and Completed Cards (Bottom)
     pending_cards = []
     completed_cards = []
 
@@ -382,20 +380,11 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
       m_list = k_info["Meals"]
 
       pending_meals = [m for m in m_list if m["Status"] == "Pending"]
-      completed_meals = [m for m in m_list if m["Status"] == "Completed"]
 
       if pending_meals:
-        pending_cards.append({
-            "Kitchen": k_name,
-            "Meals": m_list,
-            "HasPending": True,
-        })
+        pending_cards.append({"Kitchen": k_name, "Meals": m_list})
       else:
-        completed_cards.append({
-            "Kitchen": k_name,
-            "Meals": m_list,
-            "HasPending": False,
-        })
+        completed_cards.append({"Kitchen": k_name, "Meals": m_list})
 
     # --- SECTION 1: PENDING / INCOMPLETE SHIFT CARDS (TOP) ---
     st.markdown(
