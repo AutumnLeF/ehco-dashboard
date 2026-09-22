@@ -29,7 +29,7 @@ st.markdown(
     .serif-title { font-size: 2.1rem; font-weight: 700; color: #0f172a; margin-bottom: 0.2rem; letter-spacing: -0.02em; }
     .sub-head { font-size: 0.85rem; color: #475569; font-weight: 600; }
     .record-header-box { background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 1.6rem; font-weight: 700; }
-    .kpi-box { background: #ffffff; border: 1px solid #e2e8f0; border-top: 4px solid #0f172a; border-radius: 8px; padding: 14px 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 10px; }
+    .kpi-container { background: #ffffff; border: 1px solid #e2e8f0; border-top: 4px solid #0f172a; border-radius: 8px; padding: 14px 18px; box-shadow: 0 2px 4px rgba(0,0,0,0.02); margin-bottom: 10px; }
     .kpi-num { font-size: 1.6rem; font-weight: 800; letter-spacing: -0.02em; }
     .kpi-lbl { font-size: 0.78rem; color: #64748b; font-weight: 700; text-transform: uppercase; margin-top: 2px; }
 </style>
@@ -301,3 +301,11 @@ else:
     )
     raw_21 = get_master_df(23723, unwind=True)
     render_record_21_view(raw_21, selected_day_str, start_date, end_date)
+  elif st.session_state.fairmont_nav_choice == "RECORD 25 - ICE MACHINE CLEANING RECORD":
+    st.markdown(
+        f'<div class="record-header-box">❄️ RECORD 25 - ICE MACHINE CLEANING'
+        " RECORD</div>",
+        unsafe_allow_html=True,
+    )
+    raw_25 = get_master_df(23727, unwind=True)
+    render_record_25_view(raw_25, selected_day_str, start_date, end_date)
