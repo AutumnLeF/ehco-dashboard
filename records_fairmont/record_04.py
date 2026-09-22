@@ -348,13 +348,20 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                         <b style="color:{temp_color}; white-space:nowrap;">{temp_text}</b>
                     </div>
                     """
-          details_html = (
-              f'<div style="margin-top:5px;">{dishes_html}</div><div'
-              ' style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed:'
-              f' {m["Sign"]}</div>'
-          )
+          details_html = f"""
+                <div style="margin-top:5px;">
+                    {dishes_html}
+                </div>
+                <div style="font-size:0.68rem; color:#64748b; margin-top:5px;">
+                    Signed: {m["Sign"]}
+                </div>
+                """
         else:
-          details_html = '<div style="font-size:0.72rem; color:#b45309; margin-top:5px;">No records submitted</div>'
+          details_html = """
+                <div style="font-size:0.72rem; color:#b45309; margin-top:5px;">
+                    No records submitted
+                </div>
+                """
 
         meals_html += f"""
             <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
@@ -368,7 +375,9 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
       card_html = f"""
         <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #0f172a; border-radius:6px; padding:10px; margin-bottom:12px;">
-            <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">📍 {k_name}</div>
+            <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">
+                📍 {k_name}
+            </div>
             <div style="font-size:0.7rem; margin-top:6px; color:#475569;">
                 <span style="color:#16a34a;font-weight:700;">{completed} completed</span> &nbsp;|&nbsp;
                 <span style="color:#d97706;font-weight:700;">{pending} pending</span>
@@ -401,55 +410,57 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
   with tab_matrix:
     st.markdown(
-        f"<h4 style='color:#0f172a; margin-top:1rem;'>📈 Cooking Compliance"
+        f"<h4 style='color:#0f172a; margin-top:1.5rem;'>📈 14-Day Compliance"
         f" Matrix ({start_date.strftime('%d/%m/%Y')} to"
         f" {end_date.strftime('%d/%m/%Y')})</h4>",
         unsafe_allow_html=True,
     )
-    st.caption("Card-style daily shift breakdown with logged items and temperatures.")
+    st.caption(
+        "Kitchen names on the left, dates across the columns with shift"
+        " breakdown."
+    )
 
     if range_df.empty:
-      st.info("No cooking logs found for this date range.")
+      st.info("No temperature logs found for this date range.")
     else:
       total_days = max(1, (end_date - start_date).days + 1)
-      matrix_dates = [start_date + timedelta(days=i) for i in range(total_days)]
+      matrix_dates = [
+          start_date + timedelta(days=i) for i in range(total_days)
+      ]
       today_date_obj = datetime.now().date()
 
       for kitchen, meals in KITCHEN_MEAL_RULES.items():
         st.markdown(
-            f'<div style="background:#0f172a; color:#ffffff; padding:10px'
-            ' 14px; border-radius:6px; margin-top:1.4rem;'
-            ' margin-bottom:0.6rem; display:flex; justify-content:space-between;'
-            f' align-items:center;"><span style="font-weight:700;'
-            f' font-size:0.98rem;">📍 {kitchen}</span></div>',
+            f'<div style="background:#0f172a; color:#ffffff; padding:8px'
+            ' 12px; border-radius:6px; margin-top:1.2rem;'
+            ' margin-bottom:0.5rem; font-weight:700; font-size:0.95rem;">📍'
+            f" {kitchen}</div>",
             unsafe_allow_html=True,
         )
 
         num_dates = len(matrix_dates)
-        col_ratios = [1.5] + [1.0] * num_dates
-
+        col_ratios = [1.2] + [1.0] * num_dates
         cols = st.columns(col_ratios)
+
         cols[0].markdown(
-            '<div style="font-weight:700; font-size:0.80rem; color:#475569;'
-            ' padding:6px 2px;">Meal Service</div>',
+            '<div style="font-weight:700; font-size:0.78rem; color:#475569;'
+            ' padding:4px;">Meal Service</div>',
             unsafe_allow_html=True,
         )
         for i, d in enumerate(matrix_dates):
           cols[i + 1].markdown(
               f'<div style="background:#f1f5f9; font-weight:700;'
-              ' font-size:0.80rem; text-align:center; padding:6px 2px;'
+              ' font-size:0.75rem; text-align:center; padding:4px;'
               f' border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>',
               unsafe_allow_html=True,
           )
-
-        st.write("")
 
         for meal in meals:
           row_cols = st.columns(col_ratios)
           row_cols[0].markdown(
               f'<div style="background:#ffffff; border:1px solid #cbd5e1;'
-              ' border-radius:6px; padding:8px; min-height:75px; display:flex;'
-              f' align-items:center;"><b style="font-size:0.85rem;'
+              ' border-radius:4px; padding:6px; min-height:60px; display:flex;'
+              f' align-items:center;"><b style="font-size:0.8rem;'
               f' color:#0f172a;">{meal}</b></div>',
               unsafe_allow_html=True,
           )
@@ -470,24 +481,17 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
             if match_entry.empty:
               is_past = d < today_date_obj
-              if is_past:
-                card_bg = "#fef2f2"
-                border_c = "#dc2626"
-                tag_txt = "❌ Not Filled"
-                tag_color = "#dc2626"
-              else:
-                card_bg = "#f8fafc"
-                border_c = "#d97706"
-                tag_txt = "⏳ Pending"
-                tag_color = "#d97706"
+              card_bg = "#fef2f2" if is_past else "#f8fafc"
+              border_c = "#dc2626" if is_past else "#d97706"
+              tag_txt = "❌ Missing" if is_past else "⏳ Pending"
+              tag_color = "#dc2626" if is_past else "#d97706"
 
               row_cols[i + 1].markdown(
-                  f'<div style="background:{card_bg}; border:1.5px dashed'
-                  f" {border_c}; border-radius:6px; padding:6px;"
-                  " min-height:75px; display:flex; flex-direction:column;"
-                  " justify-content:center; align-items:center;"><span"
-                  f" style=\"color:{tag_color}; font-weight:800;"
-                  f' font-size:0.75rem;">{tag_txt}</span></div>',
+                  f"""
+                    <div style="background:{card_bg}; border:1px solid {border_c}; border-radius:4px; padding:6px; min-height:60px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                        <span style="color:{tag_color}; font-weight:800; font-size:0.7rem;">{tag_txt}</span>
+                    </div>
+                    """,
                   unsafe_allow_html=True,
               )
             else:
@@ -496,41 +500,23 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
               items_preview = ""
               for _, dish in match_entry.iterrows():
-                t_val = f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
-                items_preview += (
-                    "<div style='font-size:0.65rem; color:#475569;"
-                    " white-space:nowrap; overflow:hidden;"
-                    f" text-overflow:ellipsis;'>• {dish['Food']}:"
-                    f" <b>{t_val}</b></div>"
+                t_val = (
+                    f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
                 )
+                items_preview += f"""
+                    <div style='font-size:0.65rem; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>
+                        • {dish['Food']}: <b>{t_val}</b>
+                    </div>
+                    """
 
               row_cols[i + 1].markdown(
-                  f'<div style="background:#ffffff; border:1.5px solid'
-                  f" {border_c}; border-radius:6px; padding:4px 6px;"
-                  " min-height:75px; display:flex; flex-direction:column;"
-                  f' justify-content:flex-start;"><div style="font-weight:800;'
-                  f' font-size:0.72rem; color:{border_c}; border-bottom:1px'
-                  ' solid #f1f5f9; padding-bottom:2px; margin-bottom:2px;">✓'
-                  f" Logged ({len(match_entry)})</div>{items_preview}</div>",
+                  f"""
+                    <div style="background:#ffffff; border:1.5px solid {border_c}; border-radius:4px; padding:4px; min-height:60px; display:flex; flex-direction:column; justify-content:flex-start;">
+                        <div style="font-weight:800; font-size:0.68rem; color:{border_c};">✓ Completed</div>
+                        {items_preview}
+                    </div>
+                    """,
                   unsafe_allow_html=True,
               )
 
           st.write("")
-
-      range_violations = range_df[range_df["Temp"] < TEMP_THRESHOLD]
-      st.write(f"**Total Excursions Across Window:** {len(range_violations)}")
-      if not range_violations.empty:
-        st.dataframe(
-            range_violations[[
-                "Date_Str",
-                "Time",
-                "Location",
-                "Meal_Service",
-                "Heat_Treatment",
-                "Food",
-                "Temp",
-                "Sign",
-            ]],
-            use_container_width=True,
-            hide_index=True,
-        )
