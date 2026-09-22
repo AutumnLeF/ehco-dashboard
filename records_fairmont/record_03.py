@@ -6,7 +6,7 @@ MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer <= -18.0°C
 RECORD_03_FORM_ID = 23705
 
-# Comprehensive CoolRooms Catalog mapped from site data
+# Complete Catalog of all 23 CoolRooms mapped from site data
 UNIT_CATALOG = {
     "Garbage Room Walk-In (Chiller)": [
         {"Unit_ID": "GRB-Cold Room-CR01", "Type": "Coolroom"},
