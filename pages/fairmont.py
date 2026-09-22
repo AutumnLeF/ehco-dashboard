@@ -263,3 +263,14 @@ else:
     )
     raw_05 = get_master_df(23707, unwind=True)
     render_record_05_view(raw_05, selected_day_str, start_date, end_date)
+      elif (
+      st.session_state.fairmont_nav_choice
+      == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD"
+  ):
+    st.markdown(
+        f'<div class="record-header-box">🥗 RECORD 06 - FOOD DISPLAY'
+        " TEMPERATURE RECORD</div>",
+        unsafe_allow_html=True,
+    )
+    raw_06 = get_master_df(23708, unwind=True)
+    render_record_06_view(raw_06, selected_day_str, start_date, end_date)
