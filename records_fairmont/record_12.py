@@ -326,7 +326,9 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
         unsafe_allow_html=True,
     )
     if not pending_cards:
-      st.success("🎉 All kitchen areas have submitted defrosting records!")
+      st.success(
+          "🎉 All kitchen areas have submitted mandatory defrosting records!"
+      )
     else:
       p_cols = st.columns(3, gap="small")
       for idx, p_info in enumerate(pending_cards):
@@ -337,7 +339,7 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
                         📍 {p_info["Area"]}
                     </div>
                     <div style="font-size:0.75rem; color:#b45309; margin-top:8px; font-style:italic;">
-                        ⏳ Mandatory defrost log missing for today.
+                        ⏳ Mandatory minimum 1 defrost item missing for today.
                     </div>
                 </div>
             """).strip()
@@ -370,7 +372,7 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
                 <div style="background:#f8fafc; border-left:3px solid {temp_color}; border-radius:4px; padding:6px 8px; margin-top:6px; font-size:0.76rem;">
                     <div style="font-weight:700; color:#0f172a;">🧊 {b["Food"]}</div>
                     <div style="color:#475569; margin-top:2px;">Initial: <b>{start_t}</b> ({b['Start_Time']}) ➔ Final: <b style="color:{temp_color};">{final_t}</b> ({b['Finish_Time']})</div>
-                    <div style="color:#64748b; font-size:0.68rem; margin-top:2px;">Duration: {b['Duration']}</div>
+                    <div style="color:#0284c7; font-size:0.68rem; margin-top:2px;">Start Date: {b['Start_Date']} | Note: {b['Duration']}</div>
                 </div>
             """).strip()
 
@@ -520,7 +522,7 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
                 "<div style='font-size:0.65rem; color:#334155; margin-top:2px;"
                 " text-align:left; border-top:1px solid #f1f5f9;"
                 f" padding-top:2px;'><b>{items_preview_name}</b><br/><span"
-                f" style='color:#0284c7;'>Init: {start_t} ➔ Fin: {final_t}</span></div>"
+                f" style='color:#0284c7;'>Init: {start_t} ({dish['Start_Time']})<br/>Fin: {final_t} ({dish['Finish_Time']})</span></div>"
             )
 
           row_cols[i + 1].markdown(
