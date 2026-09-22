@@ -3,11 +3,11 @@ import textwrap
 import pandas as pd
 import streamlit as st
 
-RECORD_15_FORM_ID = 23717  # Form ID for Pesticide Usage Record
+RECORD_15_FORM_ID = 23717
 
 
 def parse_record_15_submissions(raw_df):
-  """Parses Record 15 Pesticide Usage submissions into a normalized DataFrame."""
+  """Parses Record 15 Pesticide Usage submissions into a normalized DataFrame, un-nesting sets if present."""
   if raw_df is None or raw_df.empty:
     return pd.DataFrame()
 
@@ -31,12 +31,15 @@ def parse_record_15_submissions(raw_df):
       rec = record.to_dict()
 
     sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
-    entry_parent = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else sub
-
+    
+    # Extract top-level submission fields
+    company = sub.get("Company") or rec.get("Company") or "Rentokil PCI"
+    tech_name = sub.get("Technician") or sub.get("Technician Name") or "Technician"
+    
     raw_date = (
-        sub.get("Date of Visit")
+        sub.get("Date")
+        or sub.get("Date of Visit")
         or sub.get("DateOfVisit")
-        or sub.get("Date")
         or rec.get("createdAt")
         or rec.get("dateTimeSubmitted")
         or ""
@@ -56,67 +59,71 @@ def parse_record_15_submissions(raw_df):
       date_str = str(raw_date)[:10]
       date_obj = None
 
-    company = (
-        sub.get("Company")
-        or sub.get("Vendor")
-        or rec.get("Company")
-        or "Rentokil PCI"
-    )
-    tech_name = (
-        sub.get("Technician Name")
-        or sub.get("TechnicianName")
-        or sub.get("Technician")
-        or "Technician"
-    )
-    areas_treated = (
-        sub.get("Areas Treated")
-        or sub.get("AreasTreated")
-        or sub.get("Location")
-        or "General Areas"
-    )
-    chemical = (
-        sub.get("Chemical Used")
-        or sub.get("ChemicalUsed")
-        or sub.get("Chemical")
-        or "Chemical"
-    )
-    amount = (
-        sub.get("Amount of Chemical Used")
-        or sub.get("AmountOfChemicalUsed")
-        or sub.get("Amount")
-        or "—"
-    )
-    method = (
-        sub.get("Method of Application")
-        or sub.get("MethodOfApplication")
-        or sub.get("Method")
-        or "Spray"
-    )
-    batch = (
-        sub.get("Batch Codes of Chemical")
-        or sub.get("BatchCodesOfChemical")
-        or sub.get("Batch")
-        or "—"
-    )
-    sign = (
-        sub.get("Sign (Initial)")
-        or sub.get("Sign")
-        or sub.get("sign")
-        or tech_name
-    )
+    # Handle repeatable sets or entries if present
+    entries = sub.get("set") or sub.get("Entry") or sub.get("items") or [sub]
+    if isinstance(entries, bool) or not isinstance(entries, (list, dict)):
+      entries = [sub] if isinstance(sub, dict) else []
+    elif isinstance(entries, dict):
+      entries = [entries]
 
-    rows.append({
-        "Date_Str": date_str,
-        "Date_Obj": date_obj,
-        "Company": str(company).strip(),
-        "Technician": str(tech_name).strip(),
-        "Areas_Treated": str(areas_treated).strip(),
-        "Chemical": str(chemical).strip(),
-        "Amount": str(amount).strip(),
-        "Method": str(method).strip(),
-        "Batch": str(batch).strip(),
-        "Sign": str(sign).strip(),
-    })
+    for entry in entries:
+      if not isinstance(entry, dict):
+        entry = sub
+
+      areas_treated = (
+          entry.get("Areas Treated")
+          or entry.get("AreasTreated")
+          or entry.get("Location")
+          or sub.get("Areas Treated")
+          or "General Areas"
+      )
+      chemical = (
+          entry.get("Chemical Used")
+          or entry.get("ChemicalUsed")
+          or entry.get("Chemical")
+          or sub.get("Chemical Used")
+          or "Chemical"
+      )
+      amount = (
+          entry.get("Amount of Chemical Used")
+          or entry.get("AmountOfChemicalUsed")
+          or entry.get("Amount")
+          or sub.get("Amount")
+          or "—"
+      )
+      method = (
+          entry.get("Method of Application")
+          or entry.get("MethodOfApplication")
+          or entry.get("Method")
+          or sub.get("Method")
+          or "Spray"
+      )
+      batch = (
+          entry.get("Batch Codes of Chemical")
+          or entry.get("BatchCodesOfChemical")
+          or entry.get("Batch")
+          or sub.get("Batch")
+          or "—"
+      )
+      sign = (
+          entry.get("Sign (Initial)")
+          or entry.get("Sign")
+          or sub.get("Sign")
+          or tech_name
+      )
+
+      rows.append({
+          "Date_Str": date_str,
+          "Date_Obj": date_obj,
+          "Company": str(company).strip(),
+          "Technician": str(tech_name).strip(),
+          "Areas_Treated": str(areas_treated).strip(),
+          "Chemical": str(chemical).strip(),
+          "Amount": str(amount).strip(),
+          "Method": str(method).strip(),
+          "Batch": str(batch).strip(),
+          "Sign": str(sign).strip(),
+      })
 
   df_out = pd.DataFrame(rows)
   if not df_out.empty:
@@ -235,16 +242,18 @@ def render_record_15_view(raw_df, selected_day_str, start_date, end_date):
       for _, r in day_df.iterrows():
         st.markdown(
             textwrap.dedent(f"""
-                <div style="background:#ffffff; border:1px solid #cbd5e1; border-left:5px solid #0f172a; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-                    <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <span style="font-weight:700; font-size:0.95rem; color:#0f172a;">🏢 {r['Areas_Treated']}</span>
-                        <span style="background:#f1f5f9; color:#475569; padding:2px 8px; border-radius:4px; font-weight:600; font-size:0.75rem;">{r['Method']}</span>
+                <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #0f172a; border-radius:8px; padding:14px; margin-bottom:12px; box-shadow:0 2px 4px rgba(0,0,0,0.03);">
+                    <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:8px; margin-bottom:8px;">
+                        <span style="font-weight:700; font-size:0.92rem; color:#0f172a;">🏢 Areas Treated: {r['Areas_Treated']}</span>
+                        <span style="background:#e0f2fe; color:#0369a1; padding:3px 10px; border-radius:4px; font-weight:700; font-size:0.75rem;">{r['Method']}</span>
                     </div>
-                    <div style="font-size:0.85rem; color:#1e293b; margin-top:5px;">
-                        Chemical: <b>{r['Chemical']}</b> ({r['Amount']}) &nbsp;|&nbsp; Batch: <code style="font-size:0.78rem;">{r['Batch']}</code>
+                    <div style="font-size:0.85rem; color:#1e293b; margin-top:4px;">
+                        🧪 Chemical: <b>{r['Chemical']}</b> ({r['Amount']}) &nbsp;|&nbsp; Batch Code: <code style="background:#f8fafc; padding:2px 6px; border-radius:4px; font-size:0.78rem; color:#0f172a;">{r['Batch']}</code>
                     </div>
-                    <div style="font-size:0.75rem; color:#64748b; margin-top:4px;">
-                        Contractor: <b>{r['Company']}</b> &nbsp;|&nbsp; Technician: {r['Technician']} &nbsp;|&nbsp; Initial: {r['Sign']}
+                    <div style="font-size:0.75rem; color:#64748b; margin-top:8px; display:flex; gap:15px; border-top:1px solid #f8fafc; padding-top:6px;">
+                        <span>Contractor: <b>{r['Company']}</b></span>
+                        <span>Technician: <b>{r['Technician']}</b></span>
+                        <span>Sign: <b>{r['Sign']}</b></span>
                     </div>
                 </div>
             """).strip(),
@@ -333,17 +342,16 @@ def render_record_15_view(raw_df, selected_day_str, start_date, end_date):
           )
         else:
           count = len(matches)
-          chem_summary = []
+          
+          # Separate Chemicals and Areas clearly
+          entries_html = ""
           for _, r in matches.iterrows():
-            chem_summary.append(f"{r['Chemical']} ({r['Method']})")
-          chem_text = "<br>".join(list(dict.fromkeys(chem_summary)))
-
-          areas_list = list(
-              dict.fromkeys(matches["Areas_Treated"].dropna().tolist())
-          )
-          areas_html = ""
-          for a in areas_list:
-            areas_html += f"<div style='font-size:0.72rem; color:#1e293b; background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:3px 5px; margin-top:4px; word-wrap:break-word; text-align:left;'>📍 {a}</div>"
+            entries_html += textwrap.dedent(f"""
+                <div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:6px; padding:6px; margin-top:5px; text-align:left;">
+                    <div style="font-size:0.75rem; font-weight:700; color:#0f172a;">🧪 {r['Chemical']} <span style="font-weight:500; color:#64748b;">({r['Method']})</span></div>
+                    <div style="font-size:0.68rem; color:#334155; margin-top:2px;">📍 {r['Areas_Treated']}</div>
+                </div>
+            """).strip()
 
           tech_names = ", ".join(
               list(dict.fromkeys(matches["Technician"].dropna().tolist()))
@@ -351,16 +359,13 @@ def render_record_15_view(raw_df, selected_day_str, start_date, end_date):
 
           st.markdown(
               textwrap.dedent(f"""
-                <div style="background:#ffffff; border:1.5px solid #0f172a; border-radius:8px; padding:10px 6px; text-align:center; min-height:160px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                    <div style="font-size:1.15rem; font-weight:800; color:#16a34a; line-height:1;">✓ {count} Done</div>
+                <div style="background:#ffffff; border:1.5px solid #0f172a; border-radius:8px; padding:8px 6px; text-align:center; min-height:160px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+                    <div style="font-size:1.1rem; font-weight:800; color:#16a34a; line-height:1;">✓ {count} Done</div>
                     <div style="height:1px; background:#cbd5e1; margin:6px 0;"></div>
-                    <div style="font-size:0.78rem; font-weight:700; color:#0f172a; line-height:1.25;">
-                        {chem_text}
+                    <div style="margin-top:4px;">
+                        {entries_html}
                     </div>
-                    <div style="margin-top:6px;">
-                        {areas_html}
-                    </div>
-                    <div style="font-size:0.68rem; color:#64748b; margin-top:6px;">By: {tech_names}</div>
+                    <div style="font-size:0.65rem; color:#64748b; margin-top:6px;">By: {tech_names}</div>
                 </div>
             """).strip(),
               unsafe_allow_html=True,
