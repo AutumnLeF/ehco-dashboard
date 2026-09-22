@@ -285,3 +285,11 @@ else:
     )
     raw_12 = get_master_df(23714, unwind=True)
     render_record_12_view(raw_12, selected_day_str, start_date, end_date)
+  elif st.session_state.fairmont_nav_choice == "RECORD 15 - PESTICIDE USAGE RECORD":
+    st.markdown(
+        f'<div class="record-header-box">🐛 RECORD 15 - PESTICIDE USAGE'
+        " RECORD</div>",
+        unsafe_allow_html=True,
+    )
+    raw_15 = get_master_df(23717, unwind=True)
+    render_record_15_view(raw_15, selected_day_str, start_date, end_date)
