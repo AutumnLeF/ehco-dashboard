@@ -7,7 +7,7 @@ RECORD_02_FORM_ID = 23703
 
 
 def parse_record_02_submissions(raw_df):
-  """Parses Record 02 Food Delivery submissions handling nested repeatable sets and robust supplier extraction from sub and rec."""
+  """Parses Record 02 Food Delivery submissions handling nested repeatable sets and proper supplier extraction."""
   if raw_df is None or raw_df.empty:
     return pd.DataFrame()
 
@@ -26,7 +26,7 @@ def parse_record_02_submissions(raw_df):
 
   rows = []
   for _, record in df.iterrows():
-    rec = record.get("raw_record") if "raw_record" in df.columns else record.to_dict()
+    rec = record.get("raw_record") if "raw_record" in raw_df.columns else record.to_dict()
     if not isinstance(rec, dict):
       rec = record.to_dict()
 
@@ -61,43 +61,25 @@ def parse_record_02_submissions(raw_df):
         or "Receiving Area"
     ).strip()
 
-    # Robust supplier extraction checking both sub and rec (top-level)
-    sup_main = str(
-        sub.get("Name_of_Supplier")
-        or sub.get("Name of Supplier")
-        or rec.get("Name_of_Supplier")
-        or rec.get("Name of Supplier")
-        or ""
-    ).strip()
-
-    sup_other = str(
-        sub.get("Supplier")
-        or rec.get("Supplier")
-        or sub.get("Name of Supplier (Other)")
-        or rec.get("Name of Supplier (Other)")
-        or sub.get("Name_of_Supplier_Other")
-        or rec.get("Name_of_Supplier_Other")
-        or ""
-    ).strip()
+    sup_main = str(sub.get("Name_of_Supplier") or sub.get("Name of Supplier") or rec.get("Name_of_Supplier") or rec.get("Name of Supplier") or "").strip()
+    sup_other = str(sub.get("Supplier") or rec.get("Supplier") or sub.get("Name of Supplier (Other)") or rec.get("Name of Supplier (Other)") or "").strip()
 
     if sup_main.lower().strip() == "other":
       supplier = sup_other if sup_other else "Other"
-    elif sup_main and sup_main.lower().strip() not in ["none", "nan", ""]:
+    elif sup_main and sup_main.lower().strip() not in ["other", "none", "nan", ""]:
       supplier = sup_main
     elif sup_other:
       supplier = sup_other
     else:
-      supplier = "Local Supplier"
+      supplier = sup_main if sup_main else "Local Supplier"
 
     sign = str(
         sub.get("Sign")
         or rec.get("Sign")
         or sub.get("sign")
-        or sub.get("Sign (Initial)")
         or "Staff"
     ).strip()
 
-    # Extract repeatable set items or flat entries
     entries = []
     for k in ["set", "Entry", "items", "rows"]:
       val = sub.get(k) or rec.get(k)
@@ -177,7 +159,7 @@ def parse_record_02_submissions(raw_df):
 
 
 def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
-  """Renders Record 02 Daily Audit and Weekly Card Matrix with robust supplier mapping and item temperatures."""
+  """Renders Record 02 Daily Audit and Weekly Matrix with supplier-wise grouping on both pages."""
 
   df_items = parse_record_02_submissions(raw_df)
 
@@ -206,21 +188,14 @@ def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
         else pd.DataFrame()
     )
 
-    excursions = []
-    compliant_deliveries = []
-
-    if not day_df.empty:
-      for _, r in day_df.iterrows():
-        if r["Has_Breach"]:
-          excursions.append(r.to_dict())
-        else:
-          compliant_deliveries.append(r.to_dict())
+    excursions_df = day_df[day_df["Has_Breach"]] if not day_df.empty else pd.DataFrame()
+    compliant_df = day_df[~day_df["Has_Breach"]] if not day_df.empty else pd.DataFrame()
 
     k1, k2, k3 = st.columns(3)
     with k1:
-      st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div><div class="kpi-lbl">Delivery Temp Breaches</div></div>', unsafe_allow_html=True)
+      st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#dc2626;">{len(excursions_df)}</div><div class="kpi-lbl">Delivery Temp Breaches</div></div>', unsafe_allow_html=True)
     with k2:
-      st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{len(compliant_deliveries)}</div><div class="kpi-lbl">Verified Deliveries</div></div>', unsafe_allow_html=True)
+      st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#16a34a;">{len(compliant_df)}</div><div class="kpi-lbl">Verified Deliveries</div></div>', unsafe_allow_html=True)
     with k3:
       st.markdown(f'<div class="kpi-box"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Items Received</div></div>', unsafe_allow_html=True)
 
@@ -230,18 +205,28 @@ def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
     c1, c2 = st.columns(2)
     with c1:
       st.markdown('<div style="font-weight:700; color:#dc2626; margin-bottom:8px;">🔴 Rejected / Excursions</div>', unsafe_allow_html=True)
-      if excursions:
-        for exc in excursions:
-          err_msg = f"Temp: {exc['Temp_Disp']} (> 5°C)" if exc['Temp'] and exc['Temp'] > CHILLED_MAX_TEMP else "Packaging / Label Issue"
-          st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:12px; border-radius:6px; margin-bottom:10px;"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">📦 {exc["Food_Type"]}</div><div style="font-size:0.8rem; color:#475569;">Supplier: <b>{exc["Supplier"]}</b> | Temp: <b>{exc["Temp_Disp"]}</b></div><div style="font-size:0.85rem; color:#dc2626; font-weight:700; margin-top:4px;">{err_msg}</div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Received By: {exc["Sign"]}</div></div>', unsafe_allow_html=True)
+      if not excursions_df.empty:
+        for sup_name, group in excursions_df.groupby("Supplier"):
+          items_html = ""
+          for _, r in group.iterrows():
+            err_msg = f"Temp: {r['Temp_Disp']} (> 5°C)" if r['Temp'] and r['Temp'] > CHILLED_MAX_TEMP else "Packaging Issue"
+            items_html += f'<div style="font-size:0.75rem; color:#334155; margin-top:3px; border-top:1px solid #fee2e2; padding-top:2px;">• <b>{r["Food_Type"]}</b> (Temp: <b style="color:#dc2626;">{r["Temp_Disp"]}</b>) — <span style="color:#dc2626;">{err_msg}</span></div>'
+          
+          signs = ", ".join(list(dict.fromkeys(group["Sign"].dropna().tolist())))
+          st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:10px 12px; border-radius:6px; margin-bottom:10px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a;">🏢 {sup_name}</div>{items_html}<div style="font-size:0.7rem; color:#64748b; margin-top:6px;">Received By: {signs}</div></div>', unsafe_allow_html=True)
       else:
         st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">All incoming goods arrived within critical temperature limits.</div>', unsafe_allow_html=True)
 
     with c2:
       st.markdown('<div style="font-weight:700; color:#16a34a; margin-bottom:8px;">🟢 Accepted Compliant</div>', unsafe_allow_html=True)
-      if compliant_deliveries:
-        for ok in compliant_deliveries:
-          st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:12px; border-radius:6px; margin-bottom:10px;"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">📦 {ok["Food_Type"]}</div><div style="font-size:0.8rem; color:#334155; margin-top:2px;">Supplier: <b>{ok["Supplier"]}</b> | Temp: <b style="color:#16a34a;">{ok["Temp_Disp"]}</b></div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Type: {ok["Delivery_Type"]} | Received By: {ok["Sign"]}</div></div>', unsafe_allow_html=True)
+      if not compliant_df.empty:
+        for sup_name, group in compliant_df.groupby("Supplier"):
+          items_html = ""
+          for _, r in group.iterrows():
+            items_html += f'<div style="font-size:0.75rem; color:#334155; margin-top:3px; border-top:1px solid #f1f5f9; padding-top:2px;">• <b>{r["Food_Type"]}</b> (Temp: <b style="color:#16a34a;">{r["Temp_Disp"]}</b> | Type: {r["Delivery_Type"]})</div>'
+          
+          signs = ", ".join(list(dict.fromkeys(group["Sign"].dropna().tolist())))
+          st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:10px 12px; border-radius:6px; margin-bottom:10px;"><div style="font-weight:700; font-size:0.9rem; color:#0f172a;">🏢 {sup_name}</div>{items_html}<div style="font-size:0.7rem; color:#64748b; margin-top:6px;">Received By: {signs}</div></div>', unsafe_allow_html=True)
       else:
         st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">No deliveries logged for this date.</div>', unsafe_allow_html=True)
 
