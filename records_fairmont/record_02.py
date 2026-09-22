@@ -87,7 +87,6 @@ def parse_record_02_submissions(raw_df):
         or "Staff"
     ).strip()
 
-    # Extract repeating set items
     entries = sub.get("set") or sub.get("Entry") or sub.get("items") or [sub]
     if isinstance(entries, dict):
       entries = [entries]
@@ -158,7 +157,7 @@ def parse_record_02_submissions(raw_df):
 
 
 def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
-  """Renders Record 02 Daily Audit and Weekly Card Matrix with distinct Item & Supplier separation."""
+  """Renders Record 02 Daily Audit and Weekly Card Matrix with Supplier grouping & individual item temperatures."""
 
   df_items = parse_record_02_submissions(raw_df)
 
@@ -214,7 +213,7 @@ def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
       if excursions:
         for exc in excursions:
           err_msg = f"Temp: {exc['Temp_Disp']} (> 5°C)" if exc['Temp'] and exc['Temp'] > CHILLED_MAX_TEMP else "Packaging / Label Issue"
-          st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:12px; border-radius:6px; margin-bottom:10px;"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">📦 {exc["Food_Type"]}</div><div style="font-size:0.8rem; color:#475569;">Supplier: <b>{exc["Supplier"]}</b></div><div style="font-size:0.85rem; color:#dc2626; font-weight:700; margin-top:4px;">{err_msg}</div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Received By: {exc["Sign"]}</div></div>', unsafe_allow_html=True)
+          st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:12px; border-radius:6px; margin-bottom:10px;"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">📦 {exc["Food_Type"]}</div><div style="font-size:0.8rem; color:#475569;">Supplier: <b>{exc["Supplier"]}</b> | Temp: <b>{exc["Temp_Disp"]}</b></div><div style="font-size:0.85rem; color:#dc2626; font-weight:700; margin-top:4px;">{err_msg}</div><div style="font-size:0.75rem; color:#64748b; margin-top:4px;">Received By: {exc["Sign"]}</div></div>', unsafe_allow_html=True)
       else:
         st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:14px; color:#64748b; font-size:0.85rem; text-align:center;">All incoming goods arrived within critical temperature limits.</div>', unsafe_allow_html=True)
 
@@ -275,19 +274,19 @@ def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
           batch_count = len(matches)
           has_day_breach = any(matches["Has_Breach"])
 
-          # Distinct item list preview with supplier separation
-          items_html = ""
-          for _, r in matches.head(5).iterrows():
-            items_html += f'<div style="font-size:0.7rem; color:#0f172a; font-weight:700; text-align:left; border-top:1px solid #f1f5f9; padding-top:2px;">📦 {r["Food_Type"]}<br/><span style="color:#64748b; font-weight:500;">Sup: {r["Supplier"]}</span></div>'
-
-          if batch_count > 5:
-            items_html += f'<div style="font-size:0.62rem; color:#64748b; font-style:italic; text-align:left;">+ {batch_count - 5} more items</div>'
+          # Group items by Supplier and render clubbed cards
+          grouped_suppliers = matches.groupby("Supplier")
+          suppliers_html = ""
+          for sup_name, group_df in grouped_suppliers:
+            items_str = ", ".join(group_df["Food_Type"].tolist())
+            t_sample = group_df["Temp_Disp"].iloc[0]
+            suppliers_html += f'<div style="background:#f8fafc; border-left:3px solid #0f172a; border-radius:4px; padding:5px 6px; margin-top:4px; text-align:left;"><div style="font-size:0.72rem; font-weight:700; color:#0f172a;">🏢 {sup_name}</div><div style="font-size:0.68rem; color:#334155; margin-top:1px;">📦 {items_str}</div><div style="font-size:0.65rem; color:#16a34a; font-weight:600; margin-top:1px;">Temp: {t_sample}</div></div>'
 
           signs = ", ".join(list(dict.fromkeys(matches["Sign"].dropna().tolist())))
           badge = f'<span style="color:#dc2626; font-weight:800; font-size:0.85rem;">🔴 {batch_count} Items</span>' if has_day_breach else f'<span style="color:#16a34a; font-weight:800; font-size:0.85rem;">✓ {batch_count} Items</span>'
           card_border = "2px solid #dc2626" if has_day_breach else "1.5px solid #0f172a"
 
-          st.markdown(f'<div style="background:#ffffff; border:{card_border}; border-radius:8px; padding:8px 6px; text-align:center; min-height:160px; box-shadow:0 1px 3px rgba(0,0,0,0.08);"><div>{badge}</div><div style="height:1px; background:#cbd5e1; margin:6px 0;"></div>{items_html}<div style="font-size:0.65rem; color:#64748b; margin-top:6px;">By: {signs}</div></div>', unsafe_allow_html=True)
+          st.markdown(f'<div style="background:#ffffff; border:{card_border}; border-radius:8px; padding:8px 6px; text-align:center; min-height:160px; box-shadow:0 1px 3px rgba(0,0,0,0.08);"><div>{badge}</div><div style="height:1px; background:#cbd5e1; margin:6px 0;"></div>{suppliers_html}<div style="font-size:0.65rem; color:#64748b; margin-top:6px;">By: {signs}</div></div>', unsafe_allow_html=True)
 
     st.divider()
     with st.expander("📋 View All Individual Food Delivery Records (Table View)"):
