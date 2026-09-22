@@ -42,7 +42,7 @@ UNIT_CATALOG = {
         {"Unit_ID": "PK-Cold Room-CR21", "Type": "Coolroom"},
     ],
     "Banquet - Service": [
-        {"Unit_ID": "BQT SER- Cold room - CR26.1", "Type": "Coolroom"},
+        {"Unit_ID": "BQT SER- Cold room - CR261", "Type": "Coolroom"},
     ],
     "Merchant Chiller": [
         {"Unit_ID": "TM-Cold Room - CR27", "Type": "Coolroom"},
