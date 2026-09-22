@@ -74,13 +74,13 @@ def go_to_overview():
     st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
     st.session_state.nav_selectbox = "🏠 Roswyn - EHCO Status Overview"
 
-# --- RESTRUCTURED SIDEBAR: SITES AT THE TOP ---
+# --- CLEANED SIDEBAR: PORTAL SWITCHER AT TOP ---
 st.sidebar.title("🏢 Portal Switcher")
 site_col1, site_col2 = st.sidebar.columns(2)
 
 with site_col1:
     if st.button("🏨 Roswyn", use_container_width=True, type="primary"):
-        pass # Already here
+        pass
 
 with site_col2:
     if st.button("🏰 Fairmont", use_container_width=True):
@@ -88,11 +88,6 @@ with site_col2:
 
 st.sidebar.divider()
 st.sidebar.title("⚙️ Inspection Controls")
-
-if st.sidebar.button("← Back to Landing Portal", use_container_width=True):
-    st.switch_page("app.py")
-
-st.sidebar.markdown("**Active Site:** Roswyn (Site 1)")
 
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
 today = ist_now.date()
@@ -248,7 +243,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     if "dashboard_view_mode" not in st.session_state:
         st.session_state.dashboard_view_mode = "📊 Overview Cards"
 
-    # Customized Header: Date button on left, Heading in mid, Clock on right
     hdr_cols = st.columns([2.5, 4, 3])
     with hdr_cols[0]:
         st.markdown(f"""
