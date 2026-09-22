@@ -547,7 +547,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
     with k2:
       st.markdown(f'<div class="kpi-container" style="border-top-color: #16a34a;"><div class="kpi-num" style="color:#16a34a;">{fully_logged_areas}/{total_catalog_locations}</div><div class="kpi-lbl">Fully Logged Areas</div></div>', unsafe_allow_html=True)
     with k3:
-      st.markdown(f'<div class="kpi-container" style="border-top-color: #d97706;"><div class="kpi-num" style="color:#d97706;">{pending_shifts_count}</div><div class="kpi-lbl">Pending Shifts</div></div>', unsafe_allow_html=True)
+      st.markdown(f'<div class="kpi-container" style="border-top-color: #d97706;"><div class="kpi-num" style="color:#d97706;">{pending_shifts_count}</div><div class="kpi-lbl">Pending Units</div></div>', unsafe_allow_html=True)
     with k4:
       st.markdown(f'<div class="kpi-container" style="border-top-color: #0f172a;"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Count</div></div>', unsafe_allow_html=True)
 
@@ -556,7 +556,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
     <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 12px 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; margin-bottom: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
         <div style="display: flex; align-items: center; gap: 10px;">
             <span style="font-size: 1.2rem;">📋</span>
-            <span style="font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em;">Location Status — {selected_day_str}</span>
+            <span style="font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em;">Location Status &nbsp;—&nbsp; {selected_day_str}</span>
         </div>
         <div style="background: rgba(255, 255, 255, 0.1); padding: 6px 14px; border-radius: 20px; font-size: 0.88rem; font-weight: 600; border: 1px solid rgba(255, 255, 255, 0.15); display: flex; align-items: center; gap: 6px;">
             <span>🕒 Current Time (IST):</span> <span style="color: #38bdf8;">{current_time_str}</span>
