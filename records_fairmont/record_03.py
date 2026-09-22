@@ -67,7 +67,7 @@ UNIT_CATALOG = {
     "IRD Kitchen": [
         {"Unit_ID": "IRDK/Cold Room/31", "Type": "Coolroom"},
         {"Unit_ID": "IRDK/Cold Room/32", "Type": "Coolroom"},
-        {"Unit_ID": "IRDK/DF/CR33", "Type": "Freezer"},
+        {"Unit_ID": "IRDK/DF/33", "Type": "Freezer"},
         {"Unit_ID": "IRDK/UC/FRZ/01", "Type": "Freezer"},
         {"Unit_ID": "IRDK/UC/FRZ/02", "Type": "Freezer"},
     ],
