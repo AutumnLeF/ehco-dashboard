@@ -6,16 +6,56 @@ MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer <= -18.0°C
 RECORD_03_FORM_ID = 23705
 
-# Initial Location & Unit Catalog for Record 03
+# Comprehensive CoolRooms Catalog mapped from site data
 UNIT_CATALOG = {
-    "The Merchants - Asian Section": [
-        {"Unit_ID": "MADISREF01", "Type": "Fridge"},
+    "Garbage Room Walk-In (Chiller)": [
+        {"Unit_ID": "GRB-Cold Room-CR01", "Type": "Coolroom"},
     ],
-    "The Merchants Japanese Section": [
-        {"Unit_ID": "MJUCFRZ01", "Type": "Freezer"},
+    "Receiving": [
+        {"Unit_ID": "CMM-Cold Room-CR02", "Type": "Coolroom"},
+    ],
+    "Commissary": [
+        {"Unit_ID": "CMM-Cold Room-CR04", "Type": "Coolroom"},
+        {"Unit_ID": "CMM-Cold Room-CR05", "Type": "Coolroom"},
+        {"Unit_ID": "VP-Cold Room-CR09", "Type": "Coolroom"},
+    ],
+    "Butchery": [
+        {"Unit_ID": "CMM-Cold Room-CR06", "Type": "Coolroom"},
+        {"Unit_ID": "CMM-Cold Room-CR07", "Type": "Coolroom"},
+        {"Unit_ID": "BCH-Cold Room-CR10", "Type": "Coolroom"},
+        {"Unit_ID": "SF-Cold Room-CR11", "Type": "Coolroom"},
+    ],
+    "The Bombay Café": [
+        {"Unit_ID": "CK-Cold Room-CR13", "Type": "Coolroom"},
+    ],
+    "Banquet Kitchen": [
+        {"Unit_ID": "BQT-Cold Room-CR14", "Type": "Coolroom"},
+        {"Unit_ID": "BQT-Cold Room-CR15", "Type": "Coolroom"},
+        {"Unit_ID": "BQT-Cold Room-CR17", "Type": "Coolroom"},
+        {"Unit_ID": "BQT SER- Cold room - CR26", "Type": "Coolroom"},
+    ],
+    "Garde Manger": [
+        {"Unit_ID": "GM-Cold Room-CR18", "Type": "Coolroom"},
+    ],
+    "Bakery & Pastry": [
+        {"Unit_ID": "BK-Cold Room-CR19", "Type": "Coolroom"},
+        {"Unit_ID": "PK-Cold Room-CR21", "Type": "Coolroom"},
+    ],
+    "Banquet - Service": [
+        {"Unit_ID": "BQT SER- Cold room - CR26.1", "Type": "Coolroom"},
     ],
     "Merchant Chiller": [
-        {"Unit_ID": "TMCold RoomCR27", "Type": "Coolroom"},
+        {"Unit_ID": "TM-Cold Room - CR27", "Type": "Coolroom"},
+    ],
+    "IRD Kitchen": [
+        {"Unit_ID": "IRDK/Cold Room/31", "Type": "Coolroom"},
+        {"Unit_ID": "IRDK/Cold Room/32", "Type": "Coolroom"},
+    ],
+    "Oryn Kitchen": [
+        {"Unit_ID": "ORN/Cold Room/34", "Type": "Coolroom"},
+    ],
+    "Merchants - Service": [
+        {"Unit_ID": "MS/Cold Room/25", "Type": "Coolroom"},
     ],
 }
 
@@ -151,7 +191,7 @@ def parse_record_03_submissions(raw_df):
     clean_u = clean_unit_token(raw_unit_str)
     matched_id = None
     matched_loc = location
-    matched_type = str(entry.get("Type") or sub.get("Coolroom/Fridge/Freezer") or "Fridge").capitalize()
+    matched_type = str(entry.get("Type") or sub.get("Coolroom/Fridge/Freezer") or "Coolroom").capitalize()
 
     for m in flat_master:
       if clean_u == m["Clean_ID"]:
