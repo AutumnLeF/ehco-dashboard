@@ -285,6 +285,17 @@ else:
     )
     raw_12 = get_master_df(23714, unwind=True)
     render_record_12_view(raw_12, selected_day_str, start_date, end_date)
+  elif (
+      st.session_state.fairmont_nav_choice
+      == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD"
+  ):
+    st.markdown(
+        f'<div class="record-header-box">🍽️ RECORD 13 - DISHWASHER /'
+        " GLASSWASHER TEMPERATURE RECORD</div>",
+        unsafe_allow_html=True,
+    )
+    raw_13 = get_master_df(23715, unwind=True)
+    render_record_13_view(raw_13, selected_day_str, start_date, end_date)
   elif st.session_state.fairmont_nav_choice == "RECORD 15 - PESTICIDE USAGE RECORD":
     st.markdown(
         f'<div class="record-header-box">🐛 RECORD 15 - PESTICIDE USAGE'
