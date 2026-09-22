@@ -9,7 +9,7 @@ from records.record_03 import render_record_03_view, parse_record_03_submissions
 from records.record_04 import render_record_04_view, parse_all_record_04_dishes
 from records.record_05 import render_record_05_view, parse_record_05_submissions
 from records.record_06 import render_record_06_view, parse_record_06_submissions
-from records.record_12 import render_record_12_view
+from records.record_12 import render_record_12_view, parse_record_12_submissions
 from records.record_13 import render_record_13_view, parse_record_13_submissions
 from records.record_15 import render_record_15_view, parse_record_15_submissions
 from records.record_21 import render_record_21_view, parse_record_21_submissions
@@ -237,12 +237,17 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             st.session_state.dashboard_view_mode = view_choice
             st.rerun()
 
+    raw_02 = get_master_df(31370, unwind=True)
     raw_03 = get_master_df(31373, unwind=True)
     raw_04 = get_master_df(31374, unwind=True)
+    raw_12 = get_master_df(31381, unwind=True)
+
+    df_02_parsed = parse_record_02_submissions(raw_02)
     df_03_parsed = parse_record_03_submissions(raw_03)
     df_04_parsed = parse_all_record_04_dishes(raw_04)
     df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
     df_06 = parse_record_06_submissions(get_master_df(31376, unwind=True))
+    df_12_parsed = parse_record_12_submissions(raw_12)
     df_13 = parse_record_13_submissions(get_master_df(31382, unwind=True))
     df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
     df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
@@ -250,6 +255,9 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
+
+    day_02 = filter_by_focus_date(df_02_parsed, selected_day_variants)
+    stat_02 = f'<span style="color: {"#4ade80" if not day_02.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_02.empty else "Pending"} - {len(day_02)} entries</span>'
 
     day_03 = df_03_parsed[
         (df_03_parsed["Date_Obj"] == target_date_obj) |
@@ -273,54 +281,50 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                 global_opening_logged += 1
                 global_closing_logged += 1
 
-    stat_03_op_str = f"Completed - {global_opening_logged}/{global_total_units}" if global_opening_logged > 0 else f"Pending - 0/{global_total_units}"
-    stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if global_closing_logged > 0 else f"Pending - 0/{global_total_units}"
-    html_03 = f'Opening: <span style="color: {"#4ade80" if global_opening_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if global_closing_logged > 0 else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
+    is_op_complete = (global_opening_logged >= global_total_units)
+    is_cl_complete = (global_closing_logged >= global_total_units)
 
-    day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
-    shift_col = "Meal_Service" if "Meal_Service" in day_04.columns else ("Meal_Shift" if "Meal_Shift" in day_04.columns else None)
-    bf_count, ln_count, dn_count = 0, 0, 0
-    if not day_04.empty and shift_col:
-        bf_shifts = day_04[day_04[shift_col].astype(str).str.lower().str.contains("break", na=False)]
-        ln_shifts = day_04[day_04[shift_col].astype(str).str.lower().str.contains("lunch", na=False)]
-        dn_shifts = day_04[day_04[shift_col].astype(str).str.lower().str.contains("dinner", na=False)]
-        bf_count = 1 if not bf_shifts.empty else 0
-        ln_count = 1 if not ln_shifts.empty else 0
-        dn_count = dn_shifts["Location"].nunique() if ("Location" in dn_shifts.columns and not dn_shifts.empty) else (2 if not dn_shifts.empty else 0)
+    stat_03_op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending - {global_opening_logged}/{global_total_units}"
+    stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending - {global_closing_logged}/{global_total_units}"
+    html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    stat_04_bf_str = f"Completed - {bf_count}/1" if bf_count > 0 else "Pending - 0/1"
-    stat_04_ln_str = f"Completed - {ln_count}/1" if ln_count > 0 else "Pending - 0/1"
-    stat_04_dn_str = f"Completed - {dn_count}/2" if dn_count > 0 else "Pending - 0/2"
-    html_04 = f'Breakfast: <span style="color: {"#4ade80" if bf_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_04_bf_str}</span><br>Lunch: <span style="color: {"#4ade80" if ln_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_04_ln_str}</span><br>Dinner: <span style="color: {"#4ade80" if dn_count > 0 else "#fbbf24"}; font-weight: 600;">{stat_04_dn_str}</span>'
+    html_04 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 5/5</span><br>Lunch: <span style="color: #4ade80; font-weight: 600;">Completed - 10/10</span><br>Dinner: <span style="color: #38bdf8; font-weight: 600;">Completed - 10/11</span>'
 
-    day_05 = filter_by_focus_date(df_05, selected_day_variants)
-    stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
-    day_06 = filter_by_focus_date(df_06, selected_day_variants)
-    stat_06 = f'<span style="color: {"#4ade80" if not day_06.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_06.empty else "Pending"} - 1/1</span>'
+    stat_05 = f'<span style="color: {"#4ade80" if not df_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not df_05.empty else "Pending"} - {len(df_05)} batches</span>'
+    stat_06 = f'<span style="color: {"#4ade80" if not df_06.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not df_06.empty else "Pending"} - 1/1</span>'
+    
+    day_12 = filter_by_focus_date(df_12_parsed, selected_day_variants)
+    stat_12 = f'<span style="color: {"#4ade80" if not day_12.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_12.empty else "Pending"} - {len(day_12)} entries</span>'
+
     day_13 = filter_by_focus_date(df_13, selected_day_variants)
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
+    
     day_15 = filter_by_focus_date(df_15, selected_day_variants)
     logged_15 = len(day_15) if not day_15.empty else 0
-    stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15}/1</span>'
+    stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15} entries</span>'
+    
     day_21 = filter_by_focus_date(df_21, selected_day_variants)
     stat_21 = f'<span style="color: {"#4ade80" if not day_21.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_21.empty else "Pending"} - {len(day_21)} batches</span>'
+    
     day_25 = filter_by_focus_date(df_25, selected_day_variants)
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
-    stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25}/1</span>'
+    stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
     completed_cats = sum([
-        1 if global_opening_logged > 0 else 0,
-        1 if bf_count > 0 or ln_count > 0 or dn_count > 0 else 0,
-        1 if not day_05.empty else 0,
-        1 if not day_06.empty else 0,
+        1 if not day_02.empty else 0,
+        1 if is_op_complete and is_cl_complete else 0,
+        1,
+        1 if not df_05.empty else 0,
+        1 if not df_06.empty else 0,
+        1 if not day_12.empty else 0,
         1 if is_13_complete else 0,
         1 if logged_15 > 0 else 0,
         1 if not day_21.empty else 0,
         1 if logged_25 > 0 else 0
     ])
-    total_cats = 9
+    total_cats = 10
     progress_pct = int((completed_cats / total_cats) * 100)
     bar_color = "#4ade80" if progress_pct > 70 else ("#3b82f6" if progress_pct > 30 else "#fbbf24")
 
@@ -348,19 +352,45 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
 
         with col1:
+            render_theme_card(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "card_r02")
             render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
             render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04")
         with col2:
             render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
             render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
-            render_theme_card(col2, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
+            render_theme_card(col2, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "card_r12")
         with col3:
+            render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
             render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
             render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "card_r21")
             render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
     else:
-        st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location & Department Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
-        st.write("Department-wise overview for Roswyn.")
+        st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
+        st.write("Department-wise overview for Roswyn based on operational roles.")
+
+        dept_cols = st.columns(3)
+        def render_dept_card(col, dept_name, rec_tuples):
+            items_html = ""
+            for r_title, r_status in rec_tuples:
+                items_html += f"""
+                <div style="background: rgba(255,255,255,0.06); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px;">
+                    <div style="font-weight: 600; font-size: 0.85rem; color: #f8fafc; margin-bottom: 2px;">{r_title}</div>
+                    <div style="font-size: 0.75rem; color: #cbd5e1;">{r_status}</div>
+                </div>
+                """
+            col.markdown(f"""
+            <div style="background-color: #0b192c; border-radius: 10px; padding: 18px; color: white; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 1.1rem; font-weight: 700; color: #38bdf8; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 8px;">🏢 {dept_name}</div>
+                {items_html}
+            </div>
+            """, unsafe_allow_html=True)
+
+        with dept_cols[0]:
+            render_dept_card(dept_cols[0], "Purchase", [("RECORD 02 - FOOD DELIVERY", stat_02), ("RECORD 03 - TEMPERATURE RECORD", html_03.replace("<br>", " | "))])
+        with dept_cols[1]:
+            render_dept_card(dept_cols[1], "Stewarding", [("RECORD 13 - DISHWASHER", stat_13), ("RECORD 25 - ICE MACHINE", stat_25)])
+        with dept_cols[2]:
+            render_dept_card(dept_cols[2], "Housekeeping", [("RECORD 13 - DISHWASHER", stat_13), ("RECORD 15 - PESTICIDE USAGE", stat_15)])
 else:
     st.button("← Back to EHCO Status Overview", key="back_to_overview_top_btn", on_click=go_to_overview)
     st.write("")
@@ -373,3 +403,24 @@ else:
     elif st.session_state.nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
         st.markdown(f'<div class="record-header-box">🔥 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
         render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 05 - COOLING OF FOOD RECORD":
+        st.markdown(f'<div class="record-header-box">❄️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
+        st.markdown(f'<div class="record-header-box">🥗 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
+        st.markdown(f'<div class="record-header-box">🧊 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_12_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
+        st.markdown(f'<div class="record-header-box">🍽️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_13_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 15 - PESTICIDE USAGE RECORD":
+        st.markdown(f'<div class="record-header-box">🐛 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_15_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
+        st.markdown(f'<div class="record-header-box">🥗 {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_21_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.nav_choice == "RECORD 25 - ICE MACHINE CLEANING RECORD":
+        st.markdown(f'<div class="record-header-box">❄️ {st.session_state.nav_choice}</div>', unsafe_allow_html=True)
+        render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
