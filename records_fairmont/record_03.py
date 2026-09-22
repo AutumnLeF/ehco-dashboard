@@ -6,7 +6,7 @@ MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer <= -18.0°C
 RECORD_03_FORM_ID = 23705
 
-# Comprehensive CoolRooms & Freezers Catalog mapped from site data
+# Comprehensive CoolRooms, Freezers & Fridges Catalog mapped from site data
 UNIT_CATALOG = {
     # --- COOLROOMS ---
     "Garbage Room Walk-In (Chiller)": [
@@ -79,6 +79,8 @@ UNIT_CATALOG = {
         {"Unit_ID": "MS/Cold Room/25", "Type": "Coolroom"},
         {"Unit_ID": "MB/UC/FRZ/01", "Type": "Freezer"},
     ],
+
+    # --- FREEZERS ---
     "The Merchants - Chocolate Atelier": [
         {"Unit_ID": "MBP/UC/FRZ/01", "Type": "Freezer"},
         {"Unit_ID": "MBP/DIS/FRZ/01", "Type": "Freezer"},
@@ -131,6 +133,78 @@ UNIT_CATALOG = {
     ],
     "Samaa Bar": [
         {"Unit_ID": "SB/UC/FRZ/01", "Type": "Freezer"},
+    ],
+
+    # --- FRIDGES (NEW CATALOG ADDITIONS) ---
+    "The Merchants - Chocolate Atelier (Fridge)": [
+        {"Unit_ID": "MBP/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MBP/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MBP/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MBP/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "MCA/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MCA/UC/REF/02", "Type": "Fridge"},
+    ],
+    "The Merchants - Western Hot (Fridge)": [
+        {"Unit_ID": "MWH/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MWH/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MWH/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MWH/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "MWH/UC/REF/05", "Type": "Fridge"},
+        {"Unit_ID": "MWH/UC/REF/06", "Type": "Fridge"},
+    ],
+    "The Merchants - Cold Kitchen (Fridge)": [
+        {"Unit_ID": "MCK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MCK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MCK/UC/REF/03", "Type": "Fridge"},
+    ],
+    "The Merchants Indian Non Veg (Fridge)": [
+        {"Unit_ID": "MIN/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MIN/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MIN/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MIN/DIS/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MIN/DIS/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MIN/DIS/REF/03", "Type": "Fridge"},
+    ],
+    "The Merchants Indian Veg (Fridge)": [
+        {"Unit_ID": "MIV/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MIV/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MIV/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MIV/DIS/REF/01", "Type": "Fridge"},
+    ],
+    "Merchants - Service (Fridge)": [
+        {"Unit_ID": "MB/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MB/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MB/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MBS/VR/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MBS/VR/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MBS/VR/REF/03", "Type": "Fridge"},
+    ],
+    "The Merchants Japanese Section (Fridge)": [
+        {"Unit_ID": "MJ/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MJ/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MJ/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MJ/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "MJ/DIS/REF/01", "Type": "Fridge"},
+    ],
+    "The Merchants - Asian Section (Fridge)": [
+        {"Unit_ID": "MA/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MA/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "MA/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "MA/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "MA/DIS/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "MA/DIS/REF/02", "Type": "Fridge"},
+    ],
+    "IRD (Fridge)": [
+        {"Unit_ID": "IRD/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "IRD/VR/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "IRD/VR/REF/02", "Type": "Fridge"},
+    ],
+    "Oryn kitchen (Fridge)": [
+        {"Unit_ID": "OK/UC/REF/01", "Type": "Fridge"},
+        {"Unit_ID": "OK/UC/REF/02", "Type": "Fridge"},
+        {"Unit_ID": "OK/UC/REF/03", "Type": "Fridge"},
+        {"Unit_ID": "OK/UC/REF/04", "Type": "Fridge"},
+        {"Unit_ID": "OK/VR/REF/01", "Type": "Fridge"},
     ],
 }
 
@@ -266,7 +340,7 @@ def parse_record_03_submissions(raw_df):
     clean_u = clean_unit_token(raw_unit_str)
     matched_id = None
     matched_loc = location
-    matched_type = str(entry.get("Type") or sub.get("Coolroom/Fridge/Freezer") or "Coolroom").capitalize()
+    matched_type = str(entry.get("Type") or sub.get("Coolroom/Fridge/Freezer") or "Fridge").capitalize()
 
     for m in flat_master:
       if clean_u == m["Clean_ID"]:
