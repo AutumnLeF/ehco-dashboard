@@ -7,7 +7,7 @@ RECORD_02_FORM_ID = 23703
 
 
 def parse_record_02_submissions(raw_df):
-  """Parses Record 02 Food Delivery submissions handling nested repeatable sets for items and top-level supplier info."""
+  """Parses Record 02 Food Delivery submissions handling nested repeatable sets and proper supplier extraction."""
   if raw_df is None or raw_df.empty:
     return pd.DataFrame()
 
@@ -60,23 +60,16 @@ def parse_record_02_submissions(raw_df):
         or "Receiving Area"
     ).strip()
 
-    sup_main = str(
-        sub.get("Name_of_Supplier")
-        or sub.get("Name of Supplier")
-        or ""
-    ).strip()
+    # Robust supplier extraction handling "Other" and top-level Supplier key
+    sup_main = str(sub.get("Name_of_Supplier") or sub.get("Name of Supplier") or "").strip()
+    sup_other = str(sub.get("Supplier") or sub.get("Name of Supplier (Other)") or sub.get("Name_of_Supplier_Other") or "").strip()
 
-    sup_other = str(
-        sub.get("Supplier")
-        or sub.get("Name of Supplier (Other)")
-        or sub.get("Name_of_Supplier_Other")
-        or ""
-    ).strip()
-
-    if sup_other and sup_other.lower() not in ["none", "nan", ""]:
+    if sup_main.lower() == "other" and sup_other:
       supplier = sup_other
     elif sup_main and sup_main.lower() not in ["other", "none", "nan", ""]:
       supplier = sup_main
+    elif sup_other:
+      supplier = sup_other
     else:
       supplier = "Local Supplier"
 
@@ -157,7 +150,7 @@ def parse_record_02_submissions(raw_df):
 
 
 def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
-  """Renders Record 02 Daily Audit and Weekly Card Matrix with distinct Item & Supplier separation."""
+  """Renders Record 02 Daily Audit and Weekly Card Matrix with complete supplier extraction."""
 
   df_items = parse_record_02_submissions(raw_df)
 
@@ -274,7 +267,6 @@ def render_record_02_view(raw_df, selected_day_str, start_date, end_date):
           batch_count = len(matches)
           has_day_breach = any(matches["Has_Breach"])
 
-          # Group items by Supplier and render individual item temperatures
           grouped_suppliers = matches.groupby("Supplier")
           suppliers_html = ""
           for sup_name, group_df in grouped_suppliers:
