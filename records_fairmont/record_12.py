@@ -5,7 +5,7 @@ import streamlit as st
 
 RECORD_12_FORM_ID = 23714
 CRITICAL_LIMIT_DEFROST = 5.0  # Max final temp: <= 5.0°C
-RECORD_12_AREAS = ["Butchery", "Main Kitchen"]
+RECORD_12_AREAS = ["Butchery"]
 
 
 def parse_record_12_submissions(raw_df):
@@ -43,24 +43,23 @@ def parse_record_12_submissions(raw_df):
         or entry_parent.get("Location")
         or "Butchery"
     )
-    if str(loc_main).strip().lower() in ["other", ""] and (
-        sub.get("Location_other_copy") or sub.get("Location (Other)")
-    ):
-      loc_main = str(
-          sub.get("Location_other_copy") or sub.get("Location (Other)")
-      ).strip()
 
-    food_main = (
-        sub.get("Name of food (Other)")
-        or sub.get("Food")
+    food_raw = str(
+        sub.get("Food")
         or sub.get("Name of Food")
         or entry_parent.get("Food")
         or "Defrosted Item"
-    )
-    if str(food_main).strip().lower() in ["other", ""] and sub.get(
-        "Name of food (Other)"
-    ):
-      food_main = str(sub.get("Name of food (Other)")).strip()
+    ).strip()
+
+    if food_raw.lower() == "other":
+      food_main = (
+          sub.get("Name_of_food_Other")
+          or sub.get("Name of food (Other)")
+          or sub.get("Other Food")
+          or "Other Item"
+      )
+    else:
+      food_main = food_raw
 
     finish_raw = (
         sub.get("End_Date")
@@ -86,7 +85,7 @@ def parse_record_12_submissions(raw_df):
       finish_str = str(finish_raw)[:10]
       finish_date_obj = None
 
-    start_raw = sub.get("Start_Date") or sub.get("Start Date") or sub.get("StartDate") or ""
+    start_raw = sub.get("Start_Date") or sub.get("Start Date") or ""
     start_dt = pd.to_datetime(start_raw, errors="coerce")
     if pd.isna(start_dt):
       start_dt = pd.to_datetime(start_raw, dayfirst=True, errors="coerce")
@@ -96,10 +95,8 @@ def parse_record_12_submissions(raw_df):
         start_dt_ist = start_dt + timedelta(hours=5, minutes=30)
       else:
         start_dt_ist = start_dt.tz_convert("Asia/Kolkata")
-      start_str = start_dt_ist.strftime("%d/%m/%Y")
       start_date_obj = start_dt_ist.date()
     else:
-      start_str = str(start_raw)[:10]
       start_date_obj = None
 
     date_rule_valid = True
@@ -110,25 +107,46 @@ def parse_record_12_submissions(raw_df):
         date_rule_valid = False
         duration_note = f"Anomaly: {days_diff}d diff (Expected 1d)"
 
-    start_time_raw = str(sub.get("Start_Time") or sub.get("Start Time") or sub.get("StartTime") or "")
+    start_time_raw = str(
+        sub.get("Start_Time")
+        or sub.get("Start Time")
+        or sub.get("StartTime")
+        or ""
+    )
     if "T" in start_time_raw:
       try:
-        start_time_str = start_time_raw.split("T")[1][:5]
+        dt_st = pd.to_datetime(start_time_raw, errors="coerce")
+        if pd.notna(dt_st):
+          dt_st_ist = dt_st + timedelta(hours=5, minutes=30)
+          start_time_str = dt_st_ist.strftime("%H:%M")
+        else:
+          start_time_str = start_time_raw.split("T")[1][:5]
       except Exception:
         start_time_str = start_time_raw[:8]
     else:
       start_time_str = start_time_raw[:8]
 
-    finish_time_raw = str(sub.get("End_Time") or sub.get("Finish Time") or sub.get("FinishTime") or sub.get("Time") or "")
+    finish_time_raw = str(
+        sub.get("End_Time")
+        or sub.get("Finish Time")
+        or sub.get("FinishTime")
+        or sub.get("Time")
+        or ""
+    )
     if "T" in finish_time_raw:
       try:
-        finish_time_str = finish_time_raw.split("T")[1][:5]
+        dt_ft = pd.to_datetime(finish_time_raw, errors="coerce")
+        if pd.notna(dt_ft):
+          dt_ft_ist = dt_ft + timedelta(hours=5, minutes=30)
+          finish_time_str = dt_ft_ist.strftime("%H:%M")
+        else:
+          finish_time_str = finish_time_raw.split("T")[1][:5]
       except Exception:
         finish_time_str = finish_time_raw[:8]
     else:
       finish_time_str = finish_time_raw[:8]
 
-    start_temp_raw = sub.get("Start_Temp") or sub.get("Start Temperature °C") or sub.get("Start_Temperature")
+    start_temp_raw = sub.get("Start_Temp") or sub.get("Start Temperature °C")
     start_temp = pd.to_numeric(
         str(start_temp_raw).replace("°C", "").strip(), errors="coerce"
     )
@@ -136,28 +154,17 @@ def parse_record_12_submissions(raw_df):
     final_temp_raw = (
         sub.get("Final_Temperature")
         or sub.get("Final Defrosting Temperature °C")
-        or sub.get("Final Defrosting Temperature")
         or sub.get("Final Temperature °C")
-        or sub.get("Temperature")
     )
     final_temp = pd.to_numeric(
         str(final_temp_raw).replace("°C", "").strip(), errors="coerce"
     )
 
-    sign = (
-        sub.get("Sign")
-        or sub.get("Sign (Full Name)")
-        or sub.get("sign")
-        or rec.get("Sign")
-        or rec.get("user.email")
-        or "Staff"
-    )
+    sign = sub.get("Sign") or sub.get("Sign (Full Name)") or "Staff"
 
     rows.append({
         "Date_Str": finish_str,
         "Date_Obj": finish_date_obj,
-        "Start_Date_Str": start_str,
-        "Start_Date_Obj": start_date_obj,
         "Date_Rule_Valid": date_rule_valid,
         "Duration_Note": duration_note,
         "Start_Time": start_time_str,
@@ -275,7 +282,6 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
               "Final_Temp": r["Final_Temp"],
               "Start_Time": r["Start_Time"],
               "Finish_Time": r["Finish_Time"],
-              "Start_Date": r["Start_Date_Str"],
               "Duration": r["Duration_Note"],
               "Excursion": pd.notna(r["Final_Temp"])
               and r["Final_Temp"] > CRITICAL_LIMIT_DEFROST,
@@ -284,7 +290,6 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
 
     total_finished = len(day_df)
 
-    # KPI Dashboard
     k1, k2, k3, k4 = st.columns(4)
     with k1:
       st.markdown(
@@ -336,9 +341,7 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
         unsafe_allow_html=True,
     )
     if not pending_cards:
-      st.success(
-          "🎉 All kitchen areas have submitted mandatory defrosting records!"
-      )
+      st.success("🎉 Butchery defrosting records submitted for today!")
     else:
       p_cols = st.columns(3, gap="small")
       for idx, p_info in enumerate(pending_cards):
@@ -382,7 +385,6 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
                 <div style="background:#f8fafc; border-left:3px solid {temp_color}; border-radius:4px; padding:6px 8px; margin-top:6px; font-size:0.76rem;">
                     <div style="font-weight:700; color:#0f172a;">🧊 {b["Food"]}</div>
                     <div style="color:#475569; margin-top:2px;">Init: <b>{start_t}</b> ({b['Start_Time']}) ➔ Fin: <b style="color:{temp_color};">{final_t}</b> ({b['Finish_Time']})</div>
-                    <div style="color:#0284c7; font-size:0.68rem; margin-top:2px;">Start Date: {b['Start_Date']} | Note: {b['Duration']}</div>
                 </div>
             """).strip()
 
@@ -468,11 +470,7 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
 
     st.write("")
 
-    all_kitchens = (
-        sorted(list(range_df["Location"].unique()))
-        if not range_df.empty and "Location" in range_df.columns
-        else RECORD_12_AREAS
-    )
+    all_kitchens = RECORD_12_AREas if "RECORD_12_AREas" in globals() else ["Butchery"]
 
     for kitchen in all_kitchens:
       row_cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
@@ -553,7 +551,6 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
             c
             for c in [
                 "Date_Str",
-                "Start_Date_Str",
                 "Start_Time",
                 "Finish_Time",
                 "Location",
