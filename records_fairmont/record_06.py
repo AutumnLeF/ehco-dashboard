@@ -3,11 +3,10 @@ import textwrap
 import pandas as pd
 import streamlit as st
 
-RECORD_06_FORM_ID = 23708  # Form ID for Food Display Temperature Record
+RECORD_06_FORM_ID = 23708
 HOT_MIN_TEMP = 70.0  # Hot display limit >= 70.0°C
 COLD_MAX_TEMP = 5.0  # Cold display limit <= 5.0°C
 
-# Required meal frequencies per location based on compliance rules
 RECORD_06_MEAL_RULES = {
     "Gold Lounge": ["Breakfast", "Dinner"],
     "The Bombay Café": ["Breakfast", "Lunch", "Dinner"],
@@ -260,6 +259,11 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
     )
 
     excursions = 0
+    shift_counts = {
+        "Breakfast": {"req": 0, "done": 0},
+        "Lunch": {"req": 0, "done": 0},
+        "Dinner": {"req": 0, "done": 0},
+    }
     kitchen_status_list = []
 
     for kitchen, meals in RECORD_06_MEAL_RULES.items():
@@ -271,12 +275,17 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
 
       meal_statuses = []
       for meal in meals:
+        if meal in shift_counts:
+          shift_counts[meal]["req"] += 1
+
         m_df = (
             k_df[k_df["Meal_Service"].str.strip().str.lower() == meal.lower()]
             if not k_df.empty
             else pd.DataFrame()
         )
         if not m_df.empty:
+          if meal in shift_counts:
+            shift_counts[meal]["done"] += 1
           for _, r in m_df.iterrows():
             if r["Has_Breach"]:
               excursions += 1
@@ -296,48 +305,7 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
 
       kitchen_status_list.append({"Kitchen": kitchen, "Meals": meal_statuses})
 
-    # Additional dynamic locations found in day_df that aren't in fixed rules
-    if not day_df.empty:
-      known_locs = [k.lower() for k in RECORD_06_MEAL_RULES.keys()]
-      other_locs = day_df[
-          ~day_df["Location"].str.strip().str.lower().isin(known_locs)
-      ]["Location"].unique()
-      for loc in other_locs:
-        k_df = day_df[day_df["Location"].str.strip().str.lower() == loc.lower()]
-        meals_found = k_df["Meal_Service"].unique()
-        meal_statuses = []
-        for meal in meals_found:
-          m_df = k_df[
-              k_df["Meal_Service"].str.strip().str.lower() == meal.lower()
-          ]
-          for _, r in m_df.iterrows():
-            if r["Has_Breach"]:
-              excursions += 1
-          meal_statuses.append({
-              "Meal": meal,
-              "Status": "Completed",
-              "Dishes": m_df.to_dict("records"),
-              "Sign": m_df["Sign"].iloc[0],
-          })
-        kitchen_status_list.append({"Kitchen": loc, "Meals": meal_statuses})
-
-    pending_cards = [
-        k for k in kitchen_status_list if any(m["Status"] == "Pending" for m in k["Meals"])
-    ]
-    completed_cards = [
-        k for k in kitchen_status_list if all(m["Status"] == "Completed" for m in k["Meals"])
-    ]
-
-    total_kitchens = len(kitchen_status_list)
-    completed_count_k = len(completed_cards)
-    pending_count_k = len(pending_cards)
-    completion_pct = (
-        int((completed_count_k / total_kitchens) * 100)
-        if total_kitchens > 0
-        else 0
-    )
-
-    # KPI Dashboard
+    # Record 04 style KPI Dashboard
     k1, k2, k3, k4 = st.columns(4)
     with k1:
       st.markdown(
@@ -350,41 +318,63 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
           unsafe_allow_html=True,
       )
     with k2:
+      b_done, b_req = (
+          shift_counts["Breakfast"]["done"],
+          shift_counts["Breakfast"]["req"],
+      )
       st.markdown(
           f"""
             <div class="kpi-container" style="border-top-color: #16a34a;">
-                <div class="kpi-num" style="color:#16a34a;">{completed_count_k}/{total_kitchens}</div>
-                <div class="kpi-lbl">Completed Kitchens</div>
+                <div class="kpi-num" style="color:#16a34a;">{b_done}/{b_req}</div>
+                <div class="kpi-lbl">Breakfast Shift Completed</div>
             </div>
             """,
           unsafe_allow_html=True,
       )
     with k3:
+      l_done, l_req = (
+          shift_counts["Lunch"]["done"],
+          shift_counts["Lunch"]["req"],
+      )
       st.markdown(
           f"""
             <div class="kpi-container" style="border-top-color: #d97706;">
-                <div class="kpi-num" style="color:#d97706;">{pending_count_k}/{total_kitchens}</div>
-                <div class="kpi-lbl">Pending Kitchens</div>
+                <div class="kpi-num" style="color:#d97706;">{l_done}/{l_req}</div>
+                <div class="kpi-lbl">Lunch Shift Completed</div>
             </div>
             """,
           unsafe_allow_html=True,
       )
     with k4:
+      d_done, d_req = (
+          shift_counts["Dinner"]["done"],
+          shift_counts["Dinner"]["req"],
+      )
+      pct = int((d_done / d_req) * 100) if d_req > 0 else 0
       st.markdown(
           f"""
             <div class="kpi-container" style="border-top-color: #2563eb;">
-                <div class="kpi-num" style="color:#2563eb;">{completion_pct}%</div>
-                <div class="kpi-lbl">Compliance Progress</div>
+                <div class="kpi-num" style="color:#2563eb;">{d_done}/{d_req} <span style="font-size:0.9rem; color:#64748b; font-weight:600;">({pct}%)</span></div>
+                <div class="kpi-lbl">Dinner Shift Completed</div>
             </div>
             """,
           unsafe_allow_html=True,
       )
 
-    st.progress(
-        completion_pct / 100.0,
-        text=f"Daily Display Compliance Progress: {completed_count_k} of {total_kitchens} Areas Completed ({completion_pct}%)",
-    )
     st.write("")
+
+    pending_cards = []
+    completed_cards = []
+
+    for k_info in kitchen_status_list:
+      k_name = k_info["Kitchen"]
+      m_list = k_info["Meals"]
+      pending_meals = [m for m in m_list if m["Status"] == "Pending"]
+
+      if pending_meals:
+        pending_cards.append({"Kitchen": k_name, "Meals": m_list})
+      else:
+        completed_cards.append({"Kitchen": k_name, "Meals": m_list})
 
     # --- SECTION 1: PENDING CARDS (TOP) ---
     st.markdown(
@@ -415,13 +405,16 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
             for dish in m["Dishes"]:
               temp = dish["Temp"]
               temp_text = f"{temp}°C" if pd.notna(temp) else "—"
-              dishes_html += f"""
+              dishes_html += textwrap.dedent(f"""
                     <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid #e2e8f0;">
-                        <span style="color:#334155;">• {dish["Food"]} ({dish["Treatment"]})</span>
+                        <span style="color:#334155; overflow-wrap:anywhere;">• {dish["Food"]} ({dish["Treatment"]})</span>
                         <b style="color:#0f172a; white-space:nowrap;">{temp_text}</b>
                     </div>
-                    """
-            details_html = f'<div style="margin-top:5px;">{dishes_html}</div><div style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed: {m["Sign"]}</div>'
+                """).strip()
+            details_html = textwrap.dedent(f"""
+                <div style="margin-top:5px;">{dishes_html}</div>
+                <div style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed: {m["Sign"]}</div>
+            """).strip()
           else:
             details_html = '<div style="font-size:0.72rem; color:#b45309; margin-top:5px;">No records submitted</div>'
 
@@ -481,13 +474,16 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
             for dish in m["Dishes"]:
               temp = dish["Temp"]
               temp_text = f"{temp}°C" if pd.notna(temp) else "—"
-              dishes_html += f"""
+              dishes_html += textwrap.dedent(f"""
                     <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid #e2e8f0;">
-                        <span style="color:#334155;">• {dish["Food"]} ({dish["Treatment"]})</span>
+                        <span style="color:#334155; overflow-wrap:anywhere;">• {dish["Food"]} ({dish["Treatment"]})</span>
                         <b style="color:#0f172a; white-space:nowrap;">{temp_text}</b>
                     </div>
-                    """
-            details_html = f'<div style="margin-top:5px;">{dishes_html}</div><div style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed: {m["Sign"]}</div>'
+                """).strip()
+            details_html = textwrap.dedent(f"""
+                <div style="margin-top:5px;">{dishes_html}</div>
+                <div style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed: {m["Sign"]}</div>
+            """).strip()
           else:
             details_html = '<div style="font-size:0.72rem; color:#b45309; margin-top:5px;">No records submitted</div>'
 
@@ -516,135 +512,115 @@ def render_record_06_view(raw_df, selected_day_str, start_date, end_date):
         """).strip()
         col_target.markdown(card_html, unsafe_allow_html=True)
 
+  # --- TAB 2: OUTLET-WISE 7-DAY COMPLIANCE MATRIX ---
   with tab_matrix:
-    st.subheader("7-Day Compliance Matrix")
-    total_days = (end_date - start_date).days + 1
-    all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
+    st.markdown(
+        f"<h4 style='color:#0f172a; margin-top:1.5rem;'>📈 7-Day Outlet Compliance"
+        f" Matrix ({start_date.strftime('%d/%m/%Y')} to"
+        f" {end_date.strftime('%d/%m/%Y')})</h4>",
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Outlets/Kitchens on the left, dates across the columns with shift"
+        " breakdown."
+    )
 
-    if "rec06_page" not in st.session_state:
-      st.session_state.rec06_page = max(0, (total_days - 1) // 7)
-    max_page = max(0, (total_days - 1) // 7)
+    if range_df.empty:
+      st.info("No temperature logs found for this date range.")
+    else:
+      total_days = max(1, (end_date - start_date).days + 1)
+      matrix_dates = [
+          start_date + timedelta(days=i) for i in range(total_days)
+      ]
+      today_date_obj = datetime.now().date()
 
-    nav1, nav2, nav3 = st.columns([1, 3, 1])
-    with nav1:
-      if st.button(
-          "⬅️ Previous 7 Days",
-          key="r06_prev",
-          disabled=(st.session_state.rec06_page <= 0),
-          use_container_width=True,
-      ):
-        st.session_state.rec06_page -= 1
-        st.rerun()
-    with nav3:
-      if st.button(
-          "Next 7 Days ➡️",
-          key="r06_next",
-          disabled=(st.session_state.rec06_page >= max_page),
-          use_container_width=True,
-      ):
-        st.session_state.rec06_page += 1
-        st.rerun()
-
-    p_start_idx = st.session_state.rec06_page * 7
-    page_dates = all_dates[p_start_idx : p_start_idx + 7]
-
-    with nav2:
-      if page_dates:
+      for kitchen, meals in RECORD_06_MEAL_RULES.items():
         st.markdown(
-            f"<div style='text-align:center; font-weight:700; color:#0f172a;"
-            f" font-size:0.95rem; padding-top:6px;'>Showing:"
-            f" <b>{page_dates[0].strftime('%d/%m/%Y')}</b> to"
-            f" <b>{page_dates[-1].strftime('%d/%m/%Y')}</b> (Block"
-            f" {st.session_state.rec06_page + 1} of {max_page + 1})</div>",
+            textwrap.dedent(f"""
+                <div style="background:#0f172a; color:#ffffff; padding:8px 12px; border-radius:6px; margin-top:1.2rem; margin-bottom:0.5rem; font-weight:700; font-size:0.95rem;">
+                    📍 {kitchen}
+                </div>
+            """).strip(),
             unsafe_allow_html=True,
         )
 
-    st.write("")
-    cols = st.columns(7)
-    for i, d in enumerate(page_dates):
-      cols[i].markdown(
-          f"""
-            <div style="background:#0f172a; color:#ffffff; font-weight:700; font-size:0.82rem; padding:10px 2px; border-radius:6px; text-align:center; margin-bottom:8px;">
-                {d.strftime('%d/%m (%a)')}
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
+        num_dates = len(matrix_dates)
+        col_ratios = [1.2] + [1.0] * num_dates
+        cols = st.columns(col_ratios)
 
-    for i, d in enumerate(page_dates):
-      d_str = d.strftime("%d/%m/%Y")
-      matches = (
-          range_df[range_df["Date_Obj"] == d]
-          if not range_df.empty and "Date_Obj" in range_df.columns
-          else pd.DataFrame()
-      )
-      if matches.empty and not range_df.empty:
-        matches = range_df[range_df["Date_Str"] == d_str]
-
-      with cols[i]:
-        if matches.empty:
-          st.markdown(
-              """
-                <div style="background:#ffffff; border:1px dashed #cbd5e1; border-radius:8px; padding:12px 6px; text-align:center; min-height:160px; display:flex; align-items:center; justify-content:center;">
-                    <span style="color:#94a3b8; font-weight:600; font-size:0.82rem;">— Not Logged</span>
-                </div>
-                """,
-              unsafe_allow_html=True,
-          )
-        else:
-          batch_count = len(matches)
-          has_day_breach = any(matches["Has_Breach"])
-          foods = list(dict.fromkeys(matches["Food"].dropna().tolist()))
-          foods_txt = ", ".join(foods[:3]) + (
-              "..." if len(foods) > 3 else ""
-          )
-          signs = ", ".join(
-              list(dict.fromkeys(matches["Sign"].dropna().tolist()))
-          )
-
-          badge = (
-              '<span style="color:#dc2626; font-weight:800;'
-              ' font-size:0.9rem;">🔴 BREACH</span>'
-              if has_day_breach
-              else (
-                  '<span style="color:#16a34a; font-weight:800;'
-                  f' font-size:0.95rem;">✓ {batch_count} Passed</span>'
-              )
-          )
-          card_border = "2px solid #dc2626" if has_day_breach else "1.5px solid #0f172a"
-
-          st.markdown(
-              f"""
-            <div style="background:#ffffff; border:{card_border}; border-radius:8px; padding:10px 6px; text-align:center; min-height:160px; box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-                <div>{badge}</div>
-                <div style="height:1px; background:#cbd5e1; margin:6px 0;"></div>
-                <div style="font-size:0.75rem; font-weight:700; color:#0f172a; line-height:1.25; word-wrap:break-word;">
-                    {foods_txt}
-                </div>
-                <div style="height:1px; background:#f1f5f9; margin:5px 0;"></div>
-                <div style="font-size:0.68rem; color:#64748b; margin-top:4px;">By: {signs}</div>
-            </div>
-            """,
-              unsafe_allow_html=True,
-          )
-
-    st.divider()
-    with st.expander("📋 View All Individual Food Display Records"):
-      if not range_df.empty:
-        show_cols = [
-            c
-            for c in [
-                "Date_Str",
-                "Time",
-                "Location",
-                "Meal_Service",
-                "Treatment",
-                "Food",
-                "Temp",
-                "Sign",
-            ]
-            if c in range_df.columns
-        ]
-        st.dataframe(
-            range_df[show_cols], use_container_width=True, hide_index=True
+        cols[0].markdown(
+            '<div style="font-weight:700; font-size:0.78rem; color:#475569; padding:4px;">Meal Service</div>',
+            unsafe_allow_html=True,
         )
+        for i, d in enumerate(matrix_dates):
+          cols[i + 1].markdown(
+              textwrap.dedent(f"""
+                <div style="background:#f1f5f9; font-weight:700; font-size:0.75rem; text-align:center; padding:4px; border-radius:4px; color:#0f172a;">
+                    {d.strftime('%d/%m (%a)')}
+                </div>
+            """).strip(),
+              unsafe_allow_html=True,
+          )
+
+        for meal in meals:
+          row_cols = st.columns(col_ratios)
+          row_cols[0].markdown(
+              textwrap.dedent(f"""
+                <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:6px; min-height:60px; display:flex; align-items:center;">
+                    <b style="font-size:0.80rem; color:#0f172a;">{meal}</b>
+                </div>
+            """).strip(),
+              unsafe_allow_html=True,
+          )
+
+          for i, d in enumerate(matrix_dates):
+            d_str = d.strftime("%d/%m/%Y")
+            match_entry = range_df[
+                (range_df["Date_Str"] == d_str)
+                & (
+                    range_df["Location"].str.strip().str.lower()
+                    == kitchen.lower()
+                )
+                & (
+                    range_df["Meal_Service"].str.strip().str.lower()
+                    == meal.lower()
+                )
+            ]
+
+            if match_entry.empty:
+              is_past = d < today_date_obj
+              card_bg = "#fef2f2" if is_past else "#f8fafc"
+              border_c = "#dc2626" if is_past else "#d97706"
+              tag_txt = "❌ Missing" if is_past else "⏳ Pending"
+              tag_color = "#dc2626" if is_past else "#d97706"
+
+              cell_html = textwrap.dedent(f"""
+                <div style="background:{card_bg}; border:1px solid {border_c}; border-radius:4px; padding:6px; min-height:60px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
+                    <span style="color:{tag_color}; font-weight:800; font-size:0.7rem;">{tag_txt}</span>
+                </div>
+            """).strip()
+              row_cols[i + 1].markdown(cell_html, unsafe_allow_html=True)
+            else:
+              has_exc = any(match_entry["Has_Breach"])
+              border_c = "#dc2626" if has_exc else "#16a34a"
+
+              items_preview = ""
+              for _, dish in match_entry.iterrows():
+                t_val = (
+                    f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
+                )
+                items_preview += textwrap.dedent(f"""
+                    <div style='font-size:0.65rem; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>
+                        • {dish['Food']}: <b>{t_val}</b>
+                    </div>
+                """).strip()
+
+              cell_html = textwrap.dedent(f"""
+                <div style="background:#ffffff; border:1.5px solid {border_c}; border-radius:4px; padding:4px; min-height:60px; display:flex; flex-direction:column; justify-content:flex-start;">
+                    <div style="font-weight:800; font-size:0.68rem; color:{border_c};">✓ Completed</div>
+                    {items_preview}
+                </div>
+            """).strip()
+              row_cols[i + 1].markdown(cell_html, unsafe_allow_html=True)
+
+          st.write("")
