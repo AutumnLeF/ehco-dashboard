@@ -547,7 +547,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
     with k2:
       st.markdown(f'<div class="kpi-container" style="border-top-color: #16a34a;"><div class="kpi-num" style="color:#16a34a;">{fully_logged_areas}/{total_catalog_locations}</div><div class="kpi-lbl">Fully Logged Areas</div></div>', unsafe_allow_html=True)
     with k3:
-      st.markdown(f'<div class="kpi-container" style="border-top-color: #d97706;"><div class="kpi-num" style="color:#d97706;">{pending_shifts_count}</div><div class="kpi-lbl">Pending Shifts</div></div>', unsafe_allow_html=True)
+      st.markdown(f'<div class="kpi-container" style="border-top-color: #d97706;"><div class="kpi-num" style="color:#d97706;">{pending_shifts_count}</div><div class="kpi-lbl">Pending Units</div></div>', unsafe_allow_html=True)
     with k4:
       st.markdown(f'<div class="kpi-container" style="border-top-color: #0f172a;"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Count</div></div>', unsafe_allow_html=True)
 
