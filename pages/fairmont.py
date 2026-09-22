@@ -9,7 +9,7 @@ from records_fairmont.record_03 import render_record_03_view, parse_record_03_su
 from records_fairmont.record_04 import render_record_04_view, parse_all_record_04_dishes
 from records_fairmont.record_05 import render_record_05_view, parse_record_05_submissions
 from records_fairmont.record_06 import render_record_06_view, parse_record_06_submissions
-from records_fairmont.record_12 import render_record_12_view
+from records_fairmont.record_12 import render_record_12_view, parse_record_12_submissions
 from records_fairmont.record_13 import render_record_13_view, parse_record_13_submissions
 from records_fairmont.record_15 import render_record_15_view, parse_record_15_submissions
 from records_fairmont.record_21 import render_record_21_view, parse_record_21_submissions
@@ -247,6 +247,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     df_04_parsed = parse_all_record_04_dishes(raw_04)
     df_05 = parse_record_05_submissions(get_master_df(23707, unwind=True))
     df_06 = parse_record_06_submissions(get_master_df(23708, unwind=True))
+    df_12_parsed = parse_record_12_submissions(raw_12)
     df_13 = parse_record_13_submissions(get_master_df(23715, unwind=True))
     df_21 = parse_record_21_submissions(get_master_df(23723, unwind=True))
     df_25 = parse_record_25_submissions(get_master_df(23727, unwind=True))
@@ -289,13 +290,12 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
     html_04 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 5/5</span><br>Lunch: <span style="color: #4ade80; font-weight: 600;">Completed - 10/10</span><br>Dinner: <span style="color: #38bdf8; font-weight: 600;">Completed - 10/11</span>'
 
-    # Record 05: whole 6/10 completed kitchens
     day_05 = filter_by_focus_date(df_05, selected_day_variants)
     stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - 6/10 kitchens</span>'
 
     stat_06 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 3/3</span><br>Lunch: <span style="color: #fbbf24; font-weight: 600;">Pending - 1/3</span><br>Dinner: <span style="color: #38bdf8; font-weight: 600;">Completed - 3/4</span>'
 
-    day_12 = filter_by_focus_date(raw_12, selected_day_variants)
+    day_12 = filter_by_focus_date(df_12_parsed, selected_day_variants)
     stat_12 = f'<span style="color: {"#4ade80" if not day_12.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_12.empty else "Pending"} - {len(day_12)} entries</span>'
 
     day_13 = filter_by_focus_date(df_13, selected_day_variants)
