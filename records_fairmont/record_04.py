@@ -114,7 +114,6 @@ def parse_all_record_04_dishes(raw_df):
           or "Unassigned"
       )
 
-      # Pull correct food item name
       food = (
           entry.get("Name_of_Food_Other")
           if str(entry.get("Food", "")).strip().lower() == "other"
@@ -127,7 +126,6 @@ def parse_all_record_04_dishes(raw_df):
           )
       )
 
-      # Direct extraction of backend keys from OneBlink
       temp_raw = (
           entry.get("Temperature")
           if pd.notna(entry.get("Temperature"))
@@ -225,7 +223,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
       "📈 14-Day Compliance Matrix",
   ])
 
-  # --- TAB 1: DAILY AUDIT (3 COMPACT CARDS PER ROW) ---
   with tab_day:
     day_df = (
         range_df[range_df["Date_Str"] == selected_day_str]
@@ -282,7 +279,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             "Sign": r["Sign"],
         })
 
-    # KPI Panel
     k1, k2, k3, k4 = st.columns(4)
     with k1:
       st.markdown(
@@ -320,7 +316,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         unsafe_allow_html=True,
     )
 
-    # 3 Kitchens per row compact layout
     loc_cols = st.columns(3, gap="small")
     for idx, k_info in enumerate(kitchen_status_list):
       col_target = loc_cols[idx % 3]
@@ -404,7 +399,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             unsafe_allow_html=True,
         )
 
-  # --- TAB 2: 14-DAY COMPLIANCE MATRIX (EXACT ROSWYN LAYOUT) ---
   with tab_matrix:
     st.markdown(
         f"<h4 style='color:#0f172a; margin-top:1rem;'>📈 Cooking Compliance"
@@ -412,9 +406,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
         f" {end_date.strftime('%d/%m/%Y')})</h4>",
         unsafe_allow_html=True,
     )
-    st.caption(
-        "Card-style daily shift breakdown with logged items and temperatures."
-    )
+    st.caption("Card-style daily shift breakdown with logged items and temperatures.")
 
     if range_df.empty:
       st.info("No cooking logs found for this date range.")
