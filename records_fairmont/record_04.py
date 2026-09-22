@@ -342,49 +342,48 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
               temp_text = "—"
               temp_color = "#64748b"
 
-            dishes_html += f"""
-                    <div style="display:flex; justify-content:space-between; gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid #e2e8f0;">
-                        <span style="color:#334155; overflow-wrap:anywhere;">• {dish["Food"]}</span>
-                        <b style="color:{temp_color}; white-space:nowrap;">{temp_text}</b>
-                    </div>
-                    """
-          details_html = f"""
-                <div style="margin-top:5px;">
-                    {dishes_html}
-                </div>
-                <div style="font-size:0.68rem; color:#64748b; margin-top:5px;">
-                    Signed: {m["Sign"]}
-                </div>
-                """
+            dishes_html += (
+                '<div style="display:flex; justify-content:space-between;'
+                ' gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid'
+                f' #e2e8f0;"><span style="color:#334155;'
+                f' overflow-wrap:anywhere;">• {dish["Food"]}</span><b'
+                f' style="color:{temp_color};'
+                f' white-space:nowrap;">{temp_text}</b></div>'
+            )
+          details_html = (
+              f'<div style="margin-top:5px;">{dishes_html}</div><div'
+              ' style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed:'
+              f' {m["Sign"]}</div>'
+          )
         else:
-          details_html = """
-                <div style="font-size:0.72rem; color:#b45309; margin-top:5px;">
-                    No records submitted
-                </div>
-                """
+          details_html = (
+              '<div style="font-size:0.72rem; color:#b45309;'
+              ' margin-top:5px;">No records submitted</div>'
+          )
 
-        meals_html += f"""
-            <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.78rem; font-weight:700; color:#0f172a;">
-                    <span>🍽️ {m["Meal"]}</span>
-                    <span style="color:{status_color}; white-space:nowrap;">{status_text}</span>
-                </div>
-                {details_html}
-            </div>
-            """
+        meals_html += (
+            '<div style="background:#f8fafc; border-left:3px solid'
+            f" {status_color}; border-radius:4px; padding:7px 9px;"
+            f' margin-top:7px;"><div style="display:flex;'
+            ' justify-content:space-between; align-items:center; gap:5px;'
+            f' font-size:0.78rem; font-weight:700; color:#0f172a;"><span>🍽️'
+            f' {m["Meal"]}</span><span style="color:{status_color};'
+            f' white-space:nowrap;">{status_text}</span></div>{details_html}</div>'
+        )
 
-      card_html = f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #0f172a; border-radius:6px; padding:10px; margin-bottom:12px;">
-            <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">
-                📍 {k_name}
-            </div>
-            <div style="font-size:0.7rem; margin-top:6px; color:#475569;">
-                <span style="color:#16a34a;font-weight:700;">{completed} completed</span> &nbsp;|&nbsp;
-                <span style="color:#d97706;font-weight:700;">{pending} pending</span>
-            </div>
-            {meals_html}
-        </div>
-        """
+      card_html = (
+          '<div style="background:#ffffff; border:1px solid #cbd5e1;'
+          ' border-top:3px solid #0f172a; border-radius:6px; padding:10px;'
+          f' margin-bottom:12px;"><div style="font-size:0.88rem;'
+          f' font-weight:700; color:#0f172a; padding-bottom:7px;'
+          f' border-bottom:1px solid #e2e8f0;">📍 {k_name}</div><div'
+          ' style="font-size:0.7rem; margin-top:6px; color:#475569;"><span'
+          f' style="color:#16a34a;font-weight:700;">{completed}'
+          " completed</span> &nbsp;|&nbsp; <span"
+          f' style="color:#d97706;font-weight:700;">{pending}'
+          f" pending</span></div>{meals_html}</div>"
+      )
+
       col_target.markdown(card_html, unsafe_allow_html=True)
 
     if excursions:
@@ -487,11 +486,12 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
               tag_color = "#dc2626" if is_past else "#d97706"
 
               row_cols[i + 1].markdown(
-                  f"""
-                    <div style="background:{card_bg}; border:1px solid {border_c}; border-radius:4px; padding:6px; min-height:60px; display:flex; flex-direction:column; justify-content:center; align-items:center;">
-                        <span style="color:{tag_color}; font-weight:800; font-size:0.7rem;">{tag_txt}</span>
-                    </div>
-                    """,
+                  f'<div style="background:{card_bg}; border:1px solid'
+                  f" {border_c}; border-radius:4px; padding:6px;"
+                  " min-height:60px; display:flex; flex-direction:column;"
+                  " justify-content:center; align-items:center;"><span"
+                  f" style=\"color:{tag_color}; font-weight:800;"
+                  f' font-size:0.7rem;">{tag_txt}</span></div>',
                   unsafe_allow_html=True,
               )
             else:
@@ -503,19 +503,20 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
                 t_val = (
                     f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
                 )
-                items_preview += f"""
-                    <div style='font-size:0.65rem; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;'>
-                        • {dish['Food']}: <b>{t_val}</b>
-                    </div>
-                    """
+                items_preview += (
+                    "<div style='font-size:0.65rem; color:#334155;"
+                    " white-space:nowrap; overflow:hidden;"
+                    f" text-overflow:ellipsis;'>• {dish['Food']}:"
+                    f" <b>{t_val}</b></div>"
+                )
 
               row_cols[i + 1].markdown(
-                  f"""
-                    <div style="background:#ffffff; border:1.5px solid {border_c}; border-radius:4px; padding:4px; min-height:60px; display:flex; flex-direction:column; justify-content:flex-start;">
-                        <div style="font-weight:800; font-size:0.68rem; color:{border_c};">✓ Completed</div>
-                        {items_preview}
-                    </div>
-                    """,
+                  f'<div style="background:#ffffff; border:1.5px solid'
+                  f" {border_c}; border-radius:4px; padding:4px;"
+                  " min-height:60px; display:flex; flex-direction:column;"
+                  f' justify-content:flex-start;"><div style="font-weight:800;'
+                  f' font-size:0.68rem; color:{border_c};">✓'
+                  f" Completed</div>{items_preview}</div>",
                   unsafe_allow_html=True,
               )
 
