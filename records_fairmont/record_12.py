@@ -96,8 +96,61 @@ def parse_record_12_submissions(raw_df):
       else:
         start_dt_ist = start_dt.tz_convert("Asia/Kolkata")
       start_date_obj = start_dt_ist.date()
+      start_dt_full = start_dt_ist
     else:
       start_date_obj = None
+      start_dt_full = None
+
+    start_time_raw = sub.get("Start_Time") or sub.get("Start Time") or sub.get("StartTime") or ""
+    finish_time_raw = sub.get("End_Time") or sub.get("Finish Time") or sub.get("FinishTime") or sub.get("Time") or ""
+
+    start_dt_exact = pd.to_datetime(start_time_raw, errors="coerce")
+    finish_dt_exact = pd.to_datetime(finish_time_raw, errors="coerce")
+
+    if pd.notna(start_dt_exact):
+      start_dt_exact = (
+          start_dt_exact + timedelta(hours=5, minutes=30)
+          if start_dt_exact.tzinfo is None
+          else start_dt_exact.tz_convert("Asia/Kolkata")
+      )
+      start_time_str = start_dt_exact.strftime("%H:%M")
+    else:
+      start_time_str = str(start_time_raw)[-13:-8] if len(str(start_time_raw)) >= 13 else "00:00"
+
+    if pd.notna(finish_dt_exact):
+      finish_dt_exact = (
+          finish_dt_exact + timedelta(hours=5, minutes=30)
+          if finish_dt_exact.tzinfo is None
+          else finish_dt_exact.tz_convert("Asia/Kolkata")
+      )
+      finish_time_str = finish_dt_exact.strftime("%H:%M")
+    else:
+      finish_time_str = str(finish_time_raw)[-13:-8] if len(str(finish_time_raw)) >= 13 else "00:00"
+
+    # Calculate exact duration / time taken to thaw
+    duration_str = "—"
+    if pd.notna(start_dt_exact) and pd.notna(finish_dt_exact):
+      diff = finish_dt_exact - start_dt_exact
+      total_mins = int(diff.total_seconds() // 60)
+      if total_mins < 0:
+        total_mins += 24 * 60  # Handle day rollover if needed
+      hrs = total_mins // 60
+      mins = total_mins % 60
+      duration_str = f"{hrs}h {mins}m"
+    elif start_dt_full and finish_dt:
+      # Fallback to date diff + time estimate
+      try:
+        s_time_obj = datetime.strptime(start_time_str, "%H:%M")
+        f_time_obj = datetime.strptime(finish_time_str, "%H:%M")
+        full_start = datetime.combine(start_dt_full.date(), s_time_obj.time())
+        full_finish = datetime.combine(finish_dt, f_time_obj.time())
+        diff = full_finish - full_start
+        total_mins = int(diff.total_seconds() // 60)
+        hrs = total_mins // 60
+        mins = total_mins % 60
+        duration_str = f"{hrs}h {mins}m"
+      except Exception:
+        duration_str = "24h+"
 
     date_rule_valid = True
     duration_note = "Valid (24h)"
@@ -106,45 +159,6 @@ def parse_record_12_submissions(raw_df):
       if days_diff != 1:
         date_rule_valid = False
         duration_note = f"Anomaly: {days_diff}d diff (Expected 1d)"
-
-    start_time_raw = str(
-        sub.get("Start_Time")
-        or sub.get("Start Time")
-        or sub.get("StartTime")
-        or ""
-    )
-    if "T" in start_time_raw:
-      try:
-        dt_st = pd.to_datetime(start_time_raw, errors="coerce")
-        if pd.notna(dt_st):
-          dt_st_ist = dt_st + timedelta(hours=5, minutes=30)
-          start_time_str = dt_st_ist.strftime("%H:%M")
-        else:
-          start_time_str = start_time_raw.split("T")[1][:5]
-      except Exception:
-        start_time_str = start_time_raw[:8]
-    else:
-      start_time_str = start_time_raw[:8]
-
-    finish_time_raw = str(
-        sub.get("End_Time")
-        or sub.get("Finish Time")
-        or sub.get("FinishTime")
-        or sub.get("Time")
-        or ""
-    )
-    if "T" in finish_time_raw:
-      try:
-        dt_ft = pd.to_datetime(finish_time_raw, errors="coerce")
-        if pd.notna(dt_ft):
-          dt_ft_ist = dt_ft + timedelta(hours=5, minutes=30)
-          finish_time_str = dt_ft_ist.strftime("%H:%M")
-        else:
-          finish_time_str = finish_time_raw.split("T")[1][:5]
-      except Exception:
-        finish_time_str = finish_time_raw[:8]
-    else:
-      finish_time_str = finish_time_raw[:8]
 
     start_temp_raw = sub.get("Start_Temp") or sub.get("Start Temperature °C")
     start_temp = pd.to_numeric(
@@ -169,6 +183,7 @@ def parse_record_12_submissions(raw_df):
         "Duration_Note": duration_note,
         "Start_Time": start_time_str,
         "Finish_Time": finish_time_str,
+        "Thaw_Duration": duration_str,
         "Location": str(loc_main).strip(),
         "Food": str(food_main).strip(),
         "Start_Temp": start_temp,
@@ -282,7 +297,7 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
               "Final_Temp": r["Final_Temp"],
               "Start_Time": r["Start_Time"],
               "Finish_Time": r["Finish_Time"],
-              "Duration": r["Duration_Note"],
+              "Thaw_Duration": r["Thaw_Duration"],
               "Excursion": pd.notna(r["Final_Temp"])
               and r["Final_Temp"] > CRITICAL_LIMIT_DEFROST,
           })
@@ -385,6 +400,7 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
                 <div style="background:#f8fafc; border-left:3px solid {temp_color}; border-radius:4px; padding:6px 8px; margin-top:6px; font-size:0.76rem;">
                     <div style="font-weight:700; color:#0f172a;">🧊 {b["Food"]}</div>
                     <div style="color:#475569; margin-top:2px;">Init: <b>{start_t}</b> ({b['Start_Time']}) ➔ Fin: <b style="color:{temp_color};">{final_t}</b> ({b['Finish_Time']})</div>
+                    <div style="color:#0284c7; font-size:0.68rem; margin-top:2px; font-weight:700;">⏱️ Thaw Time: {b['Thaw_Duration']}</div>
                 </div>
             """).strip()
 
@@ -470,7 +486,7 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
 
     st.write("")
 
-    all_kitchens = RECORD_12_AREas if "RECORD_12_AREas" in globals() else ["Butchery"]
+    all_kitchens = RECORD_12_AREAS
 
     for kitchen in all_kitchens:
       row_cols = st.columns([1.5, 1, 1, 1, 1, 1, 1, 1])
@@ -530,7 +546,7 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
                 "<div style='font-size:0.65rem; color:#334155; margin-top:2px;"
                 " text-align:left; border-top:1px solid #f1f5f9;"
                 f" padding-top:2px;'><b>{items_preview_name}</b><br/><span"
-                f" style='color:#0284c7;'>Init: {start_t} ({dish['Start_Time']})<br/>Fin: {final_t} ({dish['Finish_Time']})</span></div>"
+                f" style='color:#0284c7;'>Init: {start_t} ({dish['Start_Time']})<br/>Fin: {final_t} ({dish['Finish_Time']})<br/>⏱️ {dish['Thaw_Duration']}</span></div>"
             )
 
           row_cols[i + 1].markdown(
@@ -553,6 +569,7 @@ def render_record_12_view(raw_df, selected_day_str, start_date, end_date):
                 "Date_Str",
                 "Start_Time",
                 "Finish_Time",
+                "Thaw_Duration",
                 "Location",
                 "Food",
                 "Start_Temp",
