@@ -290,7 +290,6 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
     html_04 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 5/5</span><br>Lunch: <span style="color: #4ade80; font-weight: 600;">Completed - 10/10</span><br>Dinner: <span style="color: #38bdf8; font-weight: 600;">Completed - 10/11</span>'
 
-    # Record 05: Show Pending - 6/10 kitchens if not fully 10/10
     stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending - 6/10 kitchens</span>'
 
     stat_06 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 3/3</span><br>Lunch: <span style="color: #fbbf24; font-weight: 600;">Pending - 1/3</span><br>Dinner: <span style="color: #38bdf8; font-weight: 600;">Completed - 3/4</span>'
@@ -319,7 +318,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         1 if not day_02.empty else 0,
         1 if is_op_complete and is_cl_complete else 0,
         1,
-        0, # Record 05 is pending (6/10)
+        0,
         1,
         1 if not day_12.empty else 0,
         1 if is_13_complete else 0,
@@ -368,8 +367,61 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "card_r21")
             render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
     else:
-        st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Location & Department Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
-        st.write("Department-wise overview for Fairmont Mumbai.")
+        st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
+        st.write("Department-wise overview for Fairmont Mumbai based on operational roles.")
+
+        dept_cols = st.columns(3)
+        
+        def render_dept_card(col, dept_name, rec_tuples):
+            items_html = ""
+            for r_title, r_status, r_nav in rec_tuples:
+                items_html += f"""
+                <div style="background: rgba(255,255,255,0.06); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.85rem; color: #f8fafc; margin-bottom: 2px;">{r_title}</div>
+                        <div style="font-size: 0.75rem; color: #cbd5e1;">{r_status}</div>
+                    </div>
+                </div>
+                """
+            col.markdown(f"""
+            <div style="background-color: #0b192c; border-radius: 10px; padding: 18px; color: white; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 1.1rem; font-weight: 700; color: #38bdf8; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 8px;">🏢 {dept_name}</div>
+                {items_html}
+            </div>
+            """, unsafe_allow_html=True)
+            for _, _, r_nav in rec_tuples:
+                if col.button(f"Open {r_nav.split(' - ')[0]} ➔", use_container_width=True, key=f"btn_dept_{dept_name}_{r_nav}"):
+                    navigate_to(r_nav)
+
+        with dept_cols[0]:
+            render_dept_card(
+                dept_cols[0],
+                "Purchase",
+                [
+                    ("RECORD 02 - FOOD DELIVERY", stat_02, "RECORD 02 - FOOD DELIVERY RECORD"),
+                    ("RECORD 03 - TEMPERATURE RECORD", html_03.replace("<br>", " | "), "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD")
+                ]
+            )
+
+        with dept_cols[1]:
+            render_dept_card(
+                dept_cols[1],
+                "Stewarding",
+                [
+                    ("RECORD 13 - DISHWASHER", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD"),
+                    ("RECORD 25 - ICE MACHINE", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD")
+                ]
+            )
+
+        with dept_cols[2]:
+            render_dept_card(
+                dept_cols[2],
+                "Housekeeping",
+                [
+                    ("RECORD 13 - DISHWASHER", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD"),
+                    ("RECORD 15 - PESTICIDE USAGE", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD")
+                ]
+            )
 else:
     st.button("← Back to EHCO Status Overview", key="back_to_fairmont_overview_top_btn", on_click=go_to_overview)
     st.write("")
