@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import textwrap
 import pandas as pd
 import streamlit as st
 
@@ -378,7 +379,6 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
     for k_info in kitchen_status_list:
       k_name = k_info["Kitchen"]
       m_list = k_info["Meals"]
-
       pending_meals = [m for m in m_list if m["Status"] == "Pending"]
 
       if pending_meals:
@@ -431,26 +431,30 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
           else:
             details_html = '<div style="font-size:0.72rem; color:#b45309; margin-top:5px;">No records submitted</div>'
 
-          meals_html += f"""
-            <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.78rem; font-weight:700; color:#0f172a;">
-                    <span>🍽️ {m["Meal"]}</span>
-                    <span style="color:{status_color}; white-space:nowrap;">{status_text}</span>
+          meals_html += textwrap.dedent(f"""
+                <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.78rem; font-weight:700; color:#0f172a;">
+                        <span>🍽️ {m["Meal"]}</span>
+                        <span style="color:{status_color}; white-space:nowrap;">{status_text}</span>
+                    </div>
+                    {details_html}
                 </div>
-                {details_html}
-            </div>
-            """
+            """).strip()
 
-        card_html = f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #d97706; border-radius:6px; padding:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-            <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">📍 {k_name}</div>
-            <div style="font-size:0.7rem; margin-top:6px; color:#475569;">
-                <span style="color:#16a34a;font-weight:700;">{completed_cnt} completed</span> &nbsp;|&nbsp;
-                <span style="color:#d97706;font-weight:700;">{pending_cnt} pending</span>
+        card_html = textwrap.dedent(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #d97706; border-radius:6px; padding:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">
+                    📍 {k_name}
+                </div>
+                <div style="font-size:0.7rem; margin-top:6px; color:#475569;">
+                    <span style="color:#16a34a;font-weight:700;">{completed_cnt} completed</span>
+                    &nbsp;|&nbsp;
+                    <span style="color:#d97706;font-weight:700;">{pending_cnt} pending</span>
+                </div>
+                {meals_html}
             </div>
-            {meals_html}
-        </div>
-        """
+        """).strip()
+
         col_target.markdown(card_html, unsafe_allow_html=True)
 
     st.write("")
@@ -500,26 +504,30 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
           else:
             details_html = '<div style="font-size:0.72rem; color:#b45309; margin-top:5px;">No records submitted</div>'
 
-          meals_html += f"""
-            <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.78rem; font-weight:700; color:#0f172a;">
-                    <span>🍽️ {m["Meal"]}</span>
-                    <span style="color:{status_color}; white-space:nowrap;">{status_text}</span>
+          meals_html += textwrap.dedent(f"""
+                <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.78rem; font-weight:700; color:#0f172a;">
+                        <span>🍽️ {m["Meal"]}</span>
+                        <span style="color:{status_color}; white-space:nowrap;">{status_text}</span>
+                    </div>
+                    {details_html}
                 </div>
-                {details_html}
-            </div>
-            """
+            """).strip()
 
-        card_html = f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-            <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">📍 {k_name}</div>
-            <div style="font-size:0.7rem; margin-top:6px; color:#475569;">
-                <span style="color:#16a34a;font-weight:700;">{completed_cnt} completed</span> &nbsp;|&nbsp;
-                <span style="color:#d97706;font-weight:700;">{pending_cnt} pending</span>
+        card_html = textwrap.dedent(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">
+                    📍 {k_name}
+                </div>
+                <div style="font-size:0.7rem; margin-top:6px; color:#475569;">
+                    <span style="color:#16a34a;font-weight:700;">{completed_cnt} completed</span>
+                    &nbsp;|&nbsp;
+                    <span style="color:#d97706;font-weight:700;">{pending_cnt} pending</span>
+                </div>
+                {meals_html}
             </div>
-            {meals_html}
-        </div>
-        """
+        """).strip()
+
         col_target.markdown(card_html, unsafe_allow_html=True)
 
     if excursions:
