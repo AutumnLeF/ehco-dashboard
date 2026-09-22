@@ -6,8 +6,9 @@ MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer <= -18.0°C
 RECORD_03_FORM_ID = 23705
 
-# Complete Catalog of all 23 CoolRooms mapped from site data
+# Comprehensive CoolRooms & Freezers Catalog mapped from site data
 UNIT_CATALOG = {
+    # --- COOLROOMS ---
     "Garbage Room Walk-In (Chiller)": [
         {"Unit_ID": "GRB-Cold Room-CR01", "Type": "Coolroom"},
     ],
@@ -42,7 +43,7 @@ UNIT_CATALOG = {
         {"Unit_ID": "PK-Cold Room-CR21", "Type": "Coolroom"},
     ],
     "Banquet - Service": [
-        {"Unit_ID": "BQT SER- Cold room - CR261", "Type": "Coolroom"},
+        {"Unit_ID": "BQT SER- Cold room - CR26.1", "Type": "Coolroom"},
     ],
     "Merchant Chiller": [
         {"Unit_ID": "TM-Cold Room - CR27", "Type": "Coolroom"},
@@ -56,6 +57,102 @@ UNIT_CATALOG = {
     ],
     "Merchants - Service": [
         {"Unit_ID": "MS/Cold Room/25", "Type": "Coolroom"},
+    ],
+
+    # --- FREEZERS ---
+    "The Merchants - Chocolate Atelier": [
+        {"Unit_ID": "MBP/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MBP/DIS/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MCA/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "The Merchants - Western Hot": [
+        {"Unit_ID": "MWH/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "The Merchants - Cold Kitchen": [
+        {"Unit_ID": "MCK/VR/FRZ/01", "Type": "Freezer"},
+    ],
+    "The Merchants Indian Non Veg": [
+        {"Unit_ID": "MIN/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "The Merchants Indian Veg": [
+        {"Unit_ID": "MIV/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "The Merchants Japanese Section": [
+        {"Unit_ID": "MJ/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "The Merchants - Asian Section": [
+        {"Unit_ID": "MA/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "Merchants - Service": [
+        {"Unit_ID": "MB/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "Oryn kitchen": [
+        {"Unit_ID": "OK/VR/FRZ/01", "Type": "Freezer"},
+    ],
+    "Beyond Oryn Bar": [
+        {"Unit_ID": "BO/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "Gold Lounge Kitchen": [
+        {"Unit_ID": "GK/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "Gold Lounge Service": [
+        {"Unit_ID": "GS/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "Hedonist Kitchen": [
+        {"Unit_ID": "HK/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "Hedonist Bar": [
+        {"Unit_ID": "HB/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "MDP Kitchen": [
+        {"Unit_ID": "MDPK/VR/FRZ/01", "Type": "Freezer"},
+    ],
+    "The Bombay Café": [
+        {"Unit_ID": "TBC/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "Banquet Kitchen": [
+        {"Unit_ID": "MKI/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "MKC/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "BQC/VR/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "BQK/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "BQT/DF/CR16", "Type": "Freezer"},
+    ],
+    "Garde Manger": [
+        {"Unit_ID": "GM/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "Halwai Kitchen": [
+        {"Unit_ID": "HLK/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "Bakery & Pastry": [
+        {"Unit_ID": "PS/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "CR/VR/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "BP/DF/CR20", "Type": "Freezer"},
+    ],
+    "Banquet - Service": [
+        {"Unit_ID": "BQS/VR/FRZ/01", "Type": "Freezer"},
+    ],
+    "Samaa Kitchen": [
+        {"Unit_ID": "SK/VR/FRZ/01", "Type": "Freezer"},
+    ],
+    "Hygiene Office": [
+        {"Unit_ID": "HO/VR/FRZ/01", "Type": "Freezer"},
+    ],
+    "Samaa Bar": [
+        {"Unit_ID": "SB/UC/FRZ/01", "Type": "Freezer"},
+    ],
+    "IRD Kitchen": [
+        {"Unit_ID": "IRDK/UC/FRZ/01", "Type": "Freezer"},
+        {"Unit_ID": "IRDK/UC/FRZ/02", "Type": "Freezer"},
+        {"Unit_ID": "IRDK/DF/CR33", "Type": "Freezer"},
+    ],
+    "Receiving": [
+        {"Unit_ID": "CMM/DF/CR03", "Type": "Freezer"},
+    ],
+    "Butchery": [
+        {"Unit_ID": "CMM/DF/CR08", "Type": "Freezer"},
+    ],
+    "The Merchants Deep Freezer": [
+        {"Unit_ID": "TM/DF/CR28", "Type": "Freezer"},
     ],
 }
 
