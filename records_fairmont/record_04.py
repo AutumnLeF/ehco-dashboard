@@ -126,39 +126,41 @@ def parse_all_record_04_dishes(raw_df):
       else:
         food_name = "Food Item"
 
-      # Universal Temperature Scanner: Checks all entry keys for numeric temperature values
-      temp_val = None
-      for k, v in entry.items():
-        if (
-            any(
-                sub in k.lower()
-                for sub in [
-                    "temp",
-                    "temperature",
-                    "cooking",
-                    "reheat",
-                    "deg",
-                    "°c",
-                ]
-            )
-            and v is not None
-            and str(v).strip() not in ["", "nan", "None", "null"]
-        ):
-          cleaned = (
-              str(v).replace("°C", "").replace("°", "").replace("C", "").strip()
-          )
-          try:
-            val = float(cleaned)
-            if 0 <= val <= 150:
-              temp_val = val
-              break
-          except ValueError:
-            continue
+      # Comprehensive temperature extraction mapping exact OneBlink field labels and variations
+      temp_raw = (
+          entry.get("Food Temperature °C (Cooking)")
+          or entry.get("Food Temperature °C (Reheating)")
+          or entry.get("Temperature_Cooking")
+          or entry.get("Temperature_Reheating")
+          or entry.get("Temperature")
+          or entry.get("Temp")
+      )
+
+      if pd.isna(temp_raw) or str(temp_raw).strip() in ["", "nan", "None", "null"]:
+        for k, v in entry.items():
+          if (
+              any(sub in k.lower() for sub in ["temp", "temperature", "°c"])
+              and pd.notna(v)
+              and str(v).strip() not in ["", "nan", "None", "null"]
+          ):
+            temp_raw = v
+            break
 
       heat_treatment = (
           entry.get("Type_of_Heat_Treatment")
           or entry.get("Heat_Treatment")
           or "Cooking"
+      )
+      if (
+          pd.notna(entry.get("Food Temperature °C (Reheating)"))
+          or pd.notna(entry.get("Temperature_Reheating"))
+          or "reheat" in str(entry).lower()
+      ):
+        heat_treatment = "Reheating"
+
+      temp_val = pd.to_numeric(
+          str(temp_raw).replace("°C", "").replace("°", "").strip(),
+          errors="coerce",
       )
       corrective = (
           entry.get("Corrective_Actions_cooking")
