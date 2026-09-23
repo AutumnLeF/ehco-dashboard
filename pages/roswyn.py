@@ -396,30 +396,53 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     html_04 = "<br>".join(r04_status_lines)
     is_04_complete = (r04_completed_shifts >= r04_total_shifts)
 
-    # --- CORRECTED FOCUS-DAY FILTERED METRICS FOR 05, 13, 15, 21, 25 ---
+    # --- STRICT FOCUS-DAY FILTERED & TRUE-DATA METRICS FOR 05, 13, 15, 21, 25 ---
     day_05 = filter_by_focus_date(df_05_parsed, selected_day_variants)
-    stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
+    if not day_05.empty:
+        food_col = next((c for c in ["Food", "Item", "Description", "Dish"] if c in day_05.columns), None)
+        foods = day_05[food_col].dropna().unique().tolist() if food_col else []
+        stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Cooled: {", ".join(str(f) for f in foods) if foods else f"{len(day_05)} items logged"}</span>'
+    else:
+        stat_05 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Cooling Logged</span>'
 
     day_06 = filter_by_focus_date(df_06_parsed, selected_day_variants)
     is_06_complete = not day_06.empty
     stat_06 = f'<span style="color: {"#4ade80" if is_06_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_06_complete else "Pending"} - {1 if is_06_complete else 0}/1</span>'
     
     day_13 = filter_by_focus_date(df_13_parsed, selected_day_variants)
-    logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
-    is_13_complete = (logged_13 >= 11)
-    stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
+    if not day_13.empty:
+        unit_col = next((c for c in ["Unit_ID", "Machine_Name", "Equipment", "Name"] if c in day_13.columns), None)
+        units_logged = day_13[unit_col].dropna().unique().tolist() if unit_col else []
+        logged_13_count = len(units_logged)
+        is_13_complete = (logged_13_count >= 11)
+        stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13_count}/11</span>'
+    else:
+        stat_13 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0/11</span>'
     
     day_15 = filter_by_focus_date(df_15_parsed, selected_day_variants)
-    logged_15 = len(day_15) if not day_15.empty else 0
-    stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15} entries</span>'
+    if not day_15.empty:
+        area_col = next((c for c in ["Area", "Location", "Pest", "Description", "Target"] if c in day_15.columns), None)
+        areas = day_15[area_col].dropna().unique().tolist() if area_col else []
+        stat_15 = f'<span style="color: #4ade80; font-weight: 600;">Areas: {", ".join(str(a) for a in areas) if areas else f"{len(day_15)} entries"}</span>'
+    else:
+        stat_15 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Pesticide Logged</span>'
     
     day_21 = filter_by_focus_date(df_21_parsed, selected_day_variants)
-    stat_21 = f'<span style="color: {"#4ade80" if not day_21.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_21.empty else "Pending"} - {len(day_21)} batches</span>'
+    if not day_21.empty:
+        wash_col = next((c for c in ["Location", "Area", "Food", "Item"] if c in day_21.columns), None)
+        washes = day_21[wash_col].dropna().unique().tolist() if wash_col else []
+        stat_21 = f'<span style="color: #4ade80; font-weight: 600;">Washed: {", ".join(str(w) for w in washes) if washes else f"{len(day_21)} batches"}</span>'
+    else:
+        stat_21 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Food Wash Logged</span>'
     
     day_25 = filter_by_focus_date(df_25_parsed, selected_day_variants)
-    if not day_25.empty and "Clean_Unit" in day_25.columns:
-        cleaned_machines = day_25["Clean_Unit"].dropna().unique().tolist()
-        stat_25 = f'<span style="color: #4ade80; font-weight: 600;">Cleaned: {", ".join(str(m) for m in cleaned_machines)}</span>'
+    if not day_25.empty:
+        raw_name_col = next((c for c in ["Machine_Name", "Ice_Machine", "Equipment", "Unit_Name", "Name"] if c in day_25.columns), None)
+        if raw_name_col:
+            machine_names = day_25[raw_name_col].dropna().unique().tolist()
+            stat_25 = f'<span style="color: #4ade80; font-weight: 600;">Cleaned: {", ".join(str(m) for m in machine_names) if machine_names else "Not Specified"}</span>'
+        else:
+            stat_25 = '<span style="color: #4ade80; font-weight: 600;">Cleaned (Name Not Specified by API)</span>'
     else:
         stat_25 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Ice Machine Logged</span>'
 
@@ -429,7 +452,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         1 if not day_05.empty else 0,
         1 if is_06_complete else 0,
         1 if is_13_complete else 0,
-        1 if logged_15 > 0 else 0,
+        1 if not day_15.empty else 0,
         1 if not day_21.empty else 0,
         1 if not day_25.empty else 0
     ])
@@ -459,7 +482,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             """, unsafe_allow_html=True)
             col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
 
-        # --- 3-CARD ROW LAYOUT STRUCTURE ---
+        # --- EXACT 3-CARD ROW LAYOUT ---
         # Top Row (3 Cards): Record 03, Record 04, Record 05
         col1, col2, col3 = st.columns(3)
         with col1:
