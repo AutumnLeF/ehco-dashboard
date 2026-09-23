@@ -48,6 +48,11 @@ st.markdown("""
         border-top: 4px solid #38bdf8;
         min-height: 220px;
     }
+    
+    /* Hides default Streamlit multi-page navigation links in the sidebar */
+    [data-testid="stSidebarNav"] {
+        display: none;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -156,9 +161,28 @@ if selected_record != st.session_state.nav_choice:
 
 active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 
-def fetch_submissions(url, token, form_id, start_dt, end_dt, unwind=True):
-    if not form_id or form_id == 0 or not token:
-        return []
+# --- PERSISTENT SESSION STATE INITIALIZATION ---
+cache_key_df = f"roswyn_persistent_records_df_{active_form_id}"
+cache_key_time = f"roswyn_last_sync_timestamp_{active_form_id}"
+
+if cache_key_df not in st.session_state:
+    st.session_state[cache_key_df] = pd.DataFrame()
+
+if cache_key_time not in st.session_state:
+    st.session_state[cache_key_time] = "No sync performed yet"
+
+def fetch_incremental_persistent_data(url, token, form_id):
+    existing_df = st.session_state[cache_key_df]
+    
+    newest_dt = None
+    if not existing_df.empty:
+        for col in ["dateTimeSubmitted", "CreatedAt", "submissionDate"]:
+            if col in existing_df.columns:
+                parsed_col = pd.to_datetime(existing_df[col], errors="coerce")
+                if not parsed_col.isna().all():
+                    newest_dt = parsed_col.max()
+                    break
+
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -168,46 +192,68 @@ def fetch_submissions(url, token, form_id, start_dt, end_dt, unwind=True):
         "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
     }
 
-    all_rows = []
-    current_offset = 0
+    if not token or token == "PASTE_FALLBACK_TOKEN_HERE":
+        if not existing_df.empty:
+            st.toast("⚠️ Using cached offline data (Bearer token expired or missing).", icon="🔒")
+            return existing_df
+
+    new_rows = []
     base_url = url.strip()
 
     for page in range(15):
         payload = {
             "formId": form_id,
-            "paging": {"limit": 50, "offset": current_offset},
+            "paging": {"limit": 50, "offset": page * 50},
             "sorting": [{"property": "dateTimeSubmitted", "direction": "descending"}],
-            "unwindRepeatableSets": unwind,
+            "unwindRepeatableSets": True,
         }
         try:
-            res = requests.post(base_url, headers=headers, json=payload, timeout=20)
+            res = requests.post(base_url, headers=headers, json=payload, timeout=15)
             if res.status_code != 200:
                 break
             data = res.json()
             items = data.get("submissions", []) if isinstance(data, dict) else data
             if not items:
                 break
-            all_rows.extend(items)
-            if len(items) < 50:
+            
+            stop_fetching = False
+            filtered_items = []
+            for item in items:
+                sub_dt = pd.to_datetime(item.get("dateTimeSubmitted"), errors="coerce")
+                if newest_dt and sub_dt <= newest_dt:
+                    stop_fetching = True
+                    break
+                filtered_items.append(item)
+            
+            new_rows.extend(filtered_items)
+            if stop_fetching or len(items) < 50:
                 break
-            current_offset += 50
         except Exception:
             break
-    return all_rows
 
-if "master_data_cache" not in st.session_state:
-    st.session_state["master_data_cache"] = {}
+    if new_rows:
+        new_df = pd.DataFrame({"raw_record": new_rows})
+        if not existing_df.empty:
+            combined_df = pd.concat([new_df, existing_df]).drop_duplicates().reset_index(drop=True)
+            st.session_state[cache_key_df] = combined_df
+        else:
+            st.session_state[cache_key_df] = new_df
+        
+        current_time_str = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%d/%m/%Y %I:%M:%S %p")
+        st.session_state[cache_key_time] = current_time_str
+        st.toast(f"📥 Appended {len(new_rows)} new entries successfully!", icon="🚀")
+    elif existing_df.empty:
+        st.session_state[cache_key_df] = pd.DataFrame()
+
+    return st.session_state[cache_key_df]
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 if force_refresh:
-    st.session_state["master_data_cache"] = {}
+    # Clear cache for current form to trigger full sync
+    st.session_state[cache_key_df] = pd.DataFrame()
 
-def get_master_df(form_id, unwind=True):
-    cache_key = f"{form_id}_unwind_{unwind}"
-    if cache_key not in st.session_state["master_data_cache"]:
-        items = fetch_submissions(api_url, clean_token, form_id, start_date, end_date, unwind=unwind)
-        st.session_state["master_data_cache"][cache_key] = pd.DataFrame({"raw_record": items}) if items else pd.DataFrame()
-    return st.session_state["master_data_cache"][cache_key]
+raw_records_df = fetch_incremental_persistent_data(api_url, clean_token, active_form_id) if active_form_id != 0 else pd.DataFrame()
+last_sync_display = st.session_state[cache_key_time]
 
 def filter_by_focus_date(df, date_variants):
     if df is None or df.empty:
@@ -224,8 +270,6 @@ def filter_by_focus_date(df, date_variants):
     except Exception:
         pass
     return pd.DataFrame()
-
-raw_records_df = get_master_df(active_form_id, unwind=True) if active_form_id != 0 else pd.DataFrame()
 
 if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     if "dashboard_view_mode" not in st.session_state:
@@ -249,8 +293,9 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     with hdr_cols[2]:
         st.markdown(f"""
-            <div style="background: #0b192c; color: white; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.85rem; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
-                <span>🕒 IST:</span> <span style="color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</span>
+            <div style="background: #0b192c; color: white; padding: 6px 12px; border-radius: 8px; font-weight: 500; font-size: 0.78rem; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div>🕒 IST: <span style="color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</span></div>
+                <div style="color: #94a3b8; font-size: 0.72rem; margin-top: 2px;">Last Sync: {last_sync_display}</div>
             </div>
         """, unsafe_allow_html=True)
 
@@ -274,16 +319,16 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             st.session_state.dashboard_view_mode = view_choice
             st.rerun()
 
-    raw_03 = get_master_df(31373, unwind=True)
-    raw_04 = get_master_df(31374, unwind=True)
+    raw_03 = fetch_incremental_persistent_data(api_url, clean_token, 31373)
+    raw_04 = fetch_incremental_persistent_data(api_url, clean_token, 31374)
     df_03_parsed = parse_record_03_submissions(raw_03)
     df_04_parsed = parse_all_record_04_dishes(raw_04)
-    df_05 = parse_record_05_submissions(get_master_df(31375, unwind=True))
-    df_06 = parse_record_06_submissions(get_master_df(31376, unwind=True))
-    df_13 = parse_record_13_submissions(get_master_df(31382, unwind=True))
-    df_21 = parse_record_21_submissions(get_master_df(31390, unwind=True))
-    df_25 = parse_record_25_submissions(get_master_df(31393, unwind=True))
-    df_15 = parse_record_15_submissions(get_master_df(31384, unwind=True))
+    df_05 = parse_record_05_submissions(fetch_incremental_persistent_data(api_url, clean_token, 31375))
+    df_06 = parse_record_06_submissions(fetch_incremental_persistent_data(api_url, clean_token, 31376))
+    df_13 = parse_record_13_submissions(fetch_incremental_persistent_data(api_url, clean_token, 31382))
+    df_21 = parse_record_21_submissions(fetch_incremental_persistent_data(api_url, clean_token, 31390))
+    df_25 = parse_record_25_submissions(fetch_incremental_persistent_data(api_url, clean_token, 31393))
+    df_15 = parse_record_15_submissions(fetch_incremental_persistent_data(api_url, clean_token, 31384))
 
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
@@ -436,8 +481,9 @@ else:
 
     with hdr_cols[2]:
         st.markdown(f"""
-            <div style="background: #0b192c; color: white; padding: 6px 12px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.04); display: flex; justify-content: flex-end; align-items: center; gap: 6px;">
-                <span>🕒 IST:</span> <span style="color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</span>
+            <div style="background: #0b192c; color: white; padding: 6px 12px; border-radius: 8px; font-weight: 500; font-size: 0.78rem; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div>🕒 IST: <span style="color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</span></div>
+                <div style="color: #94a3b8; font-size: 0.72rem; margin-top: 2px;">Last Sync: {last_sync_display}</div>
             </div>
         """, unsafe_allow_html=True)
 
