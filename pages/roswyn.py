@@ -472,9 +472,20 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
         col4, col5 = st.columns(2)
         with col4:
-            # Centremost Card 04 with Completion Visual & Timestamp badge
-            latest_04_time = day_04["Timestamp_DT"].max().strftime('%d/%m/%Y %I:%M %p') if not day_04.empty and "Timestamp_DT" in day_04.columns else "No timestamp"
-            r04_badge = f"✓ Completed on {latest_04_time}" if is_04_complete else f"⏳ Last Activity: {latest_04_time if not day_04.empty else 'Pending'}"
+            # Safe timestamp evaluation preventing tz-naive vs tz-aware comparison errors
+            latest_04_time = "No timestamp"
+            if not day_04.empty and "Timestamp_DT" in day_04.columns:
+                try:
+                    valid_dt = pd.to_datetime(day_04["Timestamp_DT"], errors="coerce").dropna()
+                    if not valid_dt.empty:
+                        # Normalize to naive local time to avoid timezone mismatch crashes
+                        if valid_dt.dt.tz is not None:
+                            valid_dt = valid_dt.dt.tz_localize(None)
+                        latest_04_time = valid_dt.max().strftime('%d/%m/%Y %I:%M %p')
+                except Exception:
+                    pass
+
+            r04_badge = f"✓ Completed on {latest_04_time}" if is_04_complete else f"⏳ Last Activity: {latest_04_time}"
             render_theme_card(col4, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04", center_badge=r04_badge)
         with col5:
             render_theme_card(col5, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
