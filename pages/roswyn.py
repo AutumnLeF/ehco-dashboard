@@ -396,7 +396,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     html_04 = "<br>".join(r04_status_lines)
     is_04_complete = (r04_completed_shifts >= r04_total_shifts)
 
-    # --- STRICT FOCUS-DAY FILTERED METRICS FOR 05, 13, 15, 21, 25 ---
+    # --- CORRECTED FOCUS-DAY FILTERED METRICS FOR 05, 13, 15, 21, 25 ---
     day_05 = filter_by_focus_date(df_05_parsed, selected_day_variants)
     stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
 
@@ -450,23 +450,30 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         </div>
         """, unsafe_allow_html=True)
 
-        def render_theme_card(col, title, status_html, target_nav, unique_key, center_badge=""):
-            badge_html = f'<div style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 0.72rem; padding: 3px 8px; border-radius: 6px; margin-top: 6px; font-weight: 600;">{center_badge}</div>' if center_badge else ''
+        def render_theme_card(col, title, status_html, target_nav, unique_key):
             col.markdown(f"""
             <div class="kpi-card">
                 <div style="font-size: 0.85rem; font-weight: 600; line-height: 1.3; margin-bottom: 4px;">{title}</div>
                 <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
-                {badge_html}
             </div>
             """, unsafe_allow_html=True)
             col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
 
-        # --- EXACT 3-CARD ROW LAYOUT ---
+        # --- 3-CARD ROW LAYOUT STRUCTURE ---
         # Top Row (3 Cards): Record 03, Record 04, Record 05
         col1, col2, col3 = st.columns(3)
         with col1:
             render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
         with col2:
+            render_theme_card(col2, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04")
+        with col3:
+            render_theme_card(col3, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
+
+        # Middle Row (3 Cards): Record 06, Completion Card, Record 13
+        col4, col5, col6 = st.columns(3)
+        with col4:
+            render_theme_card(col4, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
+        with col5:
             latest_04_time = "No timestamp"
             if not day_04.empty and "Timestamp_DT" in day_04.columns:
                 try:
@@ -477,25 +484,16 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                         latest_04_time = valid_dt.max().strftime('%d/%m/%Y %I:%M %p')
                 except Exception:
                     pass
-            r04_badge = f"✓ Completed on {latest_04_time}" if is_04_complete else f"⏳ Last Activity: {latest_04_time}"
-            render_theme_card(col2, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04", center_badge=r04_badge)
-        with col3:
-            render_theme_card(col3, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
-
-        # Middle Row (3 Cards): Record 06, Completion Card (Record 04 status visual), Record 13
-        col4, col5, col6 = st.columns(3)
-        with col4:
-            render_theme_card(col4, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
-        with col5:
             comp_badge = f"✓ Logged at {latest_04_time}" if is_04_complete else "⏳ Shift Pending Completion"
+            
             col5.markdown(f"""
             <div class="kpi-card" style="border: 2px dashed #38bdf8; background: #071120;">
-                <div style="font-size: 0.85rem; font-weight: 700; color: #38bdf8; margin-bottom: 4px;">🏁 DAILY SHIFT COMPLETION</div>
+                <div style="font-size: 0.85rem; font-weight: 700; color: #38bdf8; margin-bottom: 2px;">🏁 DAILY SHIFT COMPLETION</div>
                 <div style="font-size: 0.78rem; color: #ffffff; font-weight: 500;">Status: {comp_badge}</div>
-                <div style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; margin-top: 6px; font-weight: 600; text-align: center;">Focus Date: {selected_day_str}</div>
+                <div style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; margin-top: 4px; font-weight: 600; text-align: center;">Focus Date: {selected_day_str}</div>
             </div>
             """, unsafe_allow_html=True)
-            col5.write("") # spacer to align button height
+            col5.write("") # placeholder space for grid alignment
         with col6:
             render_theme_card(col6, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
 
