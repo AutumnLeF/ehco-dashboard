@@ -262,13 +262,13 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     with hdr_cols[0]:
         selected_site = st.selectbox(
             "Select Site Portal",
-            options=["🏰 Fairmont Mumbai (Site 2)", "🏨 Roswyn (Site 1)"],
+            options=["🏰 Fairmont Mumbai", "🏨 Roswyn Mumbai"],
             index=0,
             label_visibility="collapsed",
             key="global_site_switcher_select_fairmont"
         )
         if selected_site.startswith("🏨"):
-            st.switch_page("pages/ros_overview.py")
+            st.switch_page("pages/roswyn.py")
 
     with hdr_cols[1]:
         st.markdown('<div class="serif-title">Fairmont Mumbai - EHCO Status</div>', unsafe_allow_html=True)
