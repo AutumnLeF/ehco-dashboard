@@ -12,7 +12,7 @@ KITCHEN_MEAL_RULES = {
 
 
 def parse_all_record_04_dishes(raw_df):
-    if raw_df.empty:
+    if raw_df is None or raw_df.empty or not isinstance(raw_df, pd.DataFrame):
         return pd.DataFrame()
 
     df = raw_df.copy()
@@ -63,8 +63,8 @@ def parse_all_record_04_dishes(raw_df):
         entries = sub.get("set") or sub.get("Entry") or rec.get("set") or rec.get("Entry") or []
         if isinstance(entries, dict):
             entries = [entries]
-        if not entries and isinstance(sub, dict):
-            entries = [sub]
+        elif not isinstance(entries, list):
+            entries = [sub] if isinstance(sub, dict) else []
 
         for entry in entries:
             if not isinstance(entry, dict):
