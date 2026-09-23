@@ -397,9 +397,15 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_04_complete = (r04_completed_shifts >= r04_total_shifts)
 
     # --- TRUE-DATA METRICS FOR 05, 13, 15, 21, 25 (STRICTLY FOCUS DAY) ---
+    # --- STRICT FOCUS-DAY FILTERED METRICS FOR RECORD 05 ---
     day_05 = filter_by_focus_date(df_05_parsed, selected_day_variants)
+    
     if not day_05.empty:
-        stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {len(day_05)} items cooled</span>'
+        # Extract exact food items cooled strictly on the focus date
+        food_col = next((c for c in ["Food", "Item", "Name_of_Food", "Dish"] if c in day_05.columns), None)
+        foods_logged = day_05[food_col].dropna().tolist() if food_col else []
+        item_count = len(day_05)
+        stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {item_count} items cooled</span>'
     else:
         stat_05 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Cooling Logged</span>'
 
