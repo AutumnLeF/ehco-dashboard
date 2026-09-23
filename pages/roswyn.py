@@ -421,11 +421,10 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     
     day_15 = filter_by_focus_date(df_15_parsed, selected_day_variants)
     if not day_15.empty:
-        area_col = next((c for c in ["Area", "Location", "Pest", "Description", "Target"] if c in day_15.columns), None)
-        areas = day_15[area_col].dropna().unique().tolist() if area_col else []
-        stat_15 = f'<span style="color: #4ade80; font-weight: 600;">Areas: {", ".join(str(a) for a in areas) if areas else f"{len(day_15)} entries"}</span>'
+        areas = day_15["Area"].dropna().unique().tolist()
+        stat_15 = f'<span style="color: #4ade80; font-weight: 600;">Areas Treated: {", ".join(str(a) for a in areas) if areas else f"{len(day_15)} entries"}</span>'
     else:
-        stat_15 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Pesticide Logged</span>'
+        stat_15 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Pesticide Logged Today</span>'
     
     day_21 = filter_by_focus_date(df_21_parsed, selected_day_variants)
     if not day_21.empty:
