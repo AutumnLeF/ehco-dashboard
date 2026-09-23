@@ -461,7 +461,8 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             """, unsafe_allow_html=True)
             col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
 
-        # --- REARRANGED 3-2-3 GRID LAYOUT ---
+        # --- 3-2-3 GRID LAYOUT STRUCTURE ---
+        # Top Row (3 Cards): Record 03, Record 05, Record 13
         col1, col2, col3 = st.columns(3)
         with col1:
             render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
@@ -470,15 +471,14 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         with col3:
             render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
 
+        # Mid Row (2 Cards): Record 04 (Centremost with timestamp visual) and Record 06
         col4, col5 = st.columns(2)
         with col4:
-            # Safe timestamp evaluation preventing tz-naive vs tz-aware comparison errors
             latest_04_time = "No timestamp"
             if not day_04.empty and "Timestamp_DT" in day_04.columns:
                 try:
                     valid_dt = pd.to_datetime(day_04["Timestamp_DT"], errors="coerce").dropna()
                     if not valid_dt.empty:
-                        # Normalize to naive local time to avoid timezone mismatch crashes
                         if valid_dt.dt.tz is not None:
                             valid_dt = valid_dt.dt.tz_localize(None)
                         latest_04_time = valid_dt.max().strftime('%d/%m/%Y %I:%M %p')
@@ -490,6 +490,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         with col5:
             render_theme_card(col5, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
 
+        # Last Row (3 Cards): Record 15, Record 21, Record 25
         col6, col7, col8 = st.columns(3)
         with col6:
             render_theme_card(col6, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
