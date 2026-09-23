@@ -396,12 +396,10 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     html_04 = "<br>".join(r04_status_lines)
     is_04_complete = (r04_completed_shifts >= r04_total_shifts)
 
-    # --- STRICT FOCUS-DAY FILTERED & TRUE-DATA METRICS FOR 05, 13, 15, 21, 25 ---
+    # --- TRUE-DATA METRICS FOR 05, 13, 15, 21, 25 ---
     day_05 = filter_by_focus_date(df_05_parsed, selected_day_variants)
     if not day_05.empty:
-        food_col = next((c for c in ["Food", "Item", "Description", "Dish"] if c in day_05.columns), None)
-        foods = day_05[food_col].dropna().unique().tolist() if food_col else []
-        stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Cooled: {", ".join(str(f) for f in foods) if foods else f"{len(day_05)} items logged"}</span>'
+        stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {len(day_05)} items cooled</span>'
     else:
         stat_05 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Cooling Logged</span>'
 
@@ -422,10 +420,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     day_15 = filter_by_focus_date(df_15_parsed, selected_day_variants)
     if not day_15.empty:
         areas_15 = day_15["Areas_Treated"].dropna().unique().tolist() if "Areas_Treated" in day_15.columns else []
-        if areas_15:
-            stat_15 = f'<span style="color: #4ade80; font-weight: 600;">Treated: {", ".join(str(a) for a in areas_15[:3])}{"..." if len(areas_15) > 3 else ""}</span>'
-        else:
-            stat_15 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {len(day_15)} entries logged</span>'
+        stat_15 = f'<span style="color: #4ade80; font-weight: 600;">Completed: {", ".join(str(a) for a in areas_15[:3])}{"..." if len(areas_15) > 3 else ""}</span>'
     else:
         stat_15 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Pesticide Logged</span>'
     
