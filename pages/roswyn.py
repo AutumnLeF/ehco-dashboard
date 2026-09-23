@@ -333,6 +333,10 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
 
+    # Ensure Timestamp_DT is datetime-typed before using .dt accessors
+    if not df_03_parsed.empty and "Timestamp_DT" in df_03_parsed.columns:
+        df_03_parsed["Timestamp_DT"] = pd.to_datetime(df_03_parsed["Timestamp_DT"], errors="coerce")
+
     day_03 = df_03_parsed[
         (df_03_parsed["Date_Obj"] == target_date_obj) |
         ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
