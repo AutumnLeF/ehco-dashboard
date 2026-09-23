@@ -432,7 +432,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
     else:
         st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
-        st.write("Department-wise overview for Fairmont Mumbai based on operational roles.")
+        st.write("Department-wise overview for Fairmont Mumbai")
 
         dept_cols = st.columns(3)
         
@@ -487,13 +487,13 @@ else:
     with hdr_cols[0]:
         selected_site_sub = st.selectbox(
             "Select Site Portal",
-            options=["🏰 Fairmont Mumbai (Site 2)", "🏨 Roswyn (Site 1)"],
+            options=["🏰 Fairmont Mumbai", "🏨 Roswyn Mumbai"],
             index=0,
             label_visibility="collapsed",
             key="global_site_switcher_select_sub_fairmont"
         )
         if selected_site_sub.startswith("🏨"):
-            st.switch_page("pages/ros_overview.py")
+            st.switch_page("pages/roswyn.py")
 
     with hdr_cols[1]:
         st.markdown(f'<div class="serif-title" style="font-size:1.4rem;">{st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
