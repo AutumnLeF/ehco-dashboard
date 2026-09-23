@@ -437,7 +437,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
     else:
         st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
-        st.write("Department-wise overview for Roswyn based on operational roles.")
+        st.write("Department-wise overview for Roswyn")
 
         dept_cols = st.columns(3)
         def render_dept_card(col, dept_name, rec_tuples):
@@ -468,7 +468,7 @@ else:
     with hdr_cols[0]:
         selected_site_sub = st.selectbox(
             "Select Site Portal",
-            options=["🏨 Roswyn (Site 1)", "🏰 Fairmont Mumbai (Site 2)"],
+            options=["🏨 Roswyn Mumbai", "🏰 Fairmont Mumbai"],
             index=0,
             label_visibility="collapsed",
             key="global_site_switcher_select_sub"
