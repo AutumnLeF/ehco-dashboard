@@ -396,7 +396,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     html_04 = "<br>".join(r04_status_lines)
     is_04_complete = (r04_completed_shifts >= r04_total_shifts)
 
-    # --- RECORDS 05, 06, 13, 15, 21, 25 STRICTLY FILTERED TO FOCUS DAY ---
+    # --- STRICT FOCUS-DAY FILTERED METRICS FOR 05, 13, 15, 21, 25 ---
     day_05 = filter_by_focus_date(df_05_parsed, selected_day_variants)
     stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
 
@@ -461,19 +461,12 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             """, unsafe_allow_html=True)
             col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
 
-        # --- 3-2-3 GRID LAYOUT STRUCTURE ---
-        # Top Row (3 Cards): Record 03, Record 05, Record 13
+        # --- EXACT 3-CARD ROW LAYOUT ---
+        # Top Row (3 Cards): Record 03, Record 04, Record 05
         col1, col2, col3 = st.columns(3)
         with col1:
             render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
         with col2:
-            render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
-        with col3:
-            render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
-
-        # Mid Row (2 Cards): Record 04 (Centremost with timestamp visual) and Record 06
-        col4, col5 = st.columns(2)
-        with col4:
             latest_04_time = "No timestamp"
             if not day_04.empty and "Timestamp_DT" in day_04.columns:
                 try:
@@ -484,20 +477,36 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                         latest_04_time = valid_dt.max().strftime('%d/%m/%Y %I:%M %p')
                 except Exception:
                     pass
-
             r04_badge = f"✓ Completed on {latest_04_time}" if is_04_complete else f"⏳ Last Activity: {latest_04_time}"
-            render_theme_card(col4, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04", center_badge=r04_badge)
+            render_theme_card(col2, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04", center_badge=r04_badge)
+        with col3:
+            render_theme_card(col3, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
+
+        # Middle Row (3 Cards): Record 06, Completion Card (Record 04 status visual), Record 13
+        col4, col5, col6 = st.columns(3)
+        with col4:
+            render_theme_card(col4, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
         with col5:
-            render_theme_card(col5, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
+            comp_badge = f"✓ Logged at {latest_04_time}" if is_04_complete else "⏳ Shift Pending Completion"
+            col5.markdown(f"""
+            <div class="kpi-card" style="border: 2px dashed #38bdf8; background: #071120;">
+                <div style="font-size: 0.85rem; font-weight: 700; color: #38bdf8; margin-bottom: 4px;">🏁 DAILY SHIFT COMPLETION</div>
+                <div style="font-size: 0.78rem; color: #ffffff; font-weight: 500;">Status: {comp_badge}</div>
+                <div style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; margin-top: 6px; font-weight: 600; text-align: center;">Focus Date: {selected_day_str}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            col5.write("") # spacer to align button height
+        with col6:
+            render_theme_card(col6, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
 
         # Last Row (3 Cards): Record 15, Record 21, Record 25
-        col6, col7, col8 = st.columns(3)
-        with col6:
-            render_theme_card(col6, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
+        col7, col8, col9 = st.columns(3)
         with col7:
-            render_theme_card(col7, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "card_r21")
+            render_theme_card(col7, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
         with col8:
-            render_theme_card(col8, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
+            render_theme_card(col8, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "card_r21")
+        with col9:
+            render_theme_card(col9, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
             
     else:
         st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
