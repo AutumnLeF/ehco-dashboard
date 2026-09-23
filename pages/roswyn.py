@@ -280,7 +280,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     with hdr_cols[0]:
         selected_site = st.selectbox(
             "Select Site Portal",
-            options=["🏨 Roswyn (Site 1)", "🏰 Fairmont Mumbai (Site 2)"],
+            options=["🏨 Roswyn Mumbai", "🏰 Fairmont Mumbai"],
             index=0,
             label_visibility="collapsed",
             key="global_site_switcher_select"
