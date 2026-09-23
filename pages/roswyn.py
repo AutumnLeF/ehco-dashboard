@@ -398,14 +398,11 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     # --- TRUE-DATA METRICS FOR 05, 13, 15, 21, 25 (STRICTLY FOCUS DAY) ---
     # --- STRICT FOCUS-DAY FILTERED METRICS FOR RECORD 05 ---
+    # --- RECORD 05: COOLING OF FOOD RECORD (FOCUS DAY ONLY) ---
     day_05 = filter_by_focus_date(df_05_parsed, selected_day_variants)
-    
     if not day_05.empty:
-        # Extract exact food items cooled strictly on the focus date
-        food_col = next((c for c in ["Food", "Item", "Name_of_Food", "Dish"] if c in day_05.columns), None)
-        foods_logged = day_05[food_col].dropna().tolist() if food_col else []
-        item_count = len(day_05)
-        stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {item_count} items cooled</span>'
+        item_count_05 = len(day_05)
+        stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {item_count_05} items cooled</span>'
     else:
         stat_05 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Cooling Logged</span>'
 
@@ -423,6 +420,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     else:
         stat_13 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0/11</span>'
     
+    # --- RECORD 15: PESTICIDE USAGE RECORD (COMPLETED / PENDING ONLY) ---
     day_15 = filter_by_focus_date(df_15_parsed, selected_day_variants)
     if not day_15.empty:
         stat_15 = '<span style="color: #4ade80; font-weight: 600;">Completed</span>'
