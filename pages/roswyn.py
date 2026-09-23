@@ -32,7 +32,7 @@ st.markdown("""
         padding: 16px;
         color: white;
         margin-bottom: 6px;
-        min-height: 115px;
+        min-height: 125px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -274,7 +274,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     if "dashboard_view_mode" not in st.session_state:
         st.session_state.dashboard_view_mode = "📊 Overview Cards"
 
-    # --- TOP HEADER: SITE DROPDOWN (LEFT), TITLE (MID), CLOCK (RIGHT) ---
+    # --- TOP HEADER ---
     hdr_cols = st.columns([3, 4, 3])
     with hdr_cols[0]:
         selected_site = st.selectbox(
@@ -320,14 +320,21 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     raw_03 = fetch_incremental_persistent_data(api_url, clean_token, 31373)
     raw_04 = fetch_incremental_persistent_data(api_url, clean_token, 31374)
+    raw_05 = fetch_incremental_persistent_data(api_url, clean_token, 31375)
+    raw_06 = fetch_incremental_persistent_data(api_url, clean_token, 31376)
+    raw_13 = fetch_incremental_persistent_data(api_url, clean_token, 31382)
+    raw_15 = fetch_incremental_persistent_data(api_url, clean_token, 31384)
+    raw_21 = fetch_incremental_persistent_data(api_url, clean_token, 31390)
+    raw_25 = fetch_incremental_persistent_data(api_url, clean_token, 31393)
+
     df_03_parsed = parse_record_03_submissions(raw_03)
     df_04_parsed = parse_all_record_04_dishes(raw_04)
-    df_05 = parse_record_05_submissions(fetch_incremental_persistent_data(api_url, clean_token, 31375))
-    df_06 = parse_record_06_submissions(fetch_incremental_persistent_data(api_url, clean_token, 31376))
-    df_13 = parse_record_13_submissions(fetch_incremental_persistent_data(api_url, clean_token, 31382))
-    df_21 = parse_record_21_submissions(fetch_incremental_persistent_data(api_url, clean_token, 31390))
-    df_25 = parse_record_25_submissions(fetch_incremental_persistent_data(api_url, clean_token, 31393))
-    df_15 = parse_record_15_submissions(fetch_incremental_persistent_data(api_url, clean_token, 31384))
+    df_05_parsed = parse_record_05_submissions(raw_05)
+    df_06_parsed = parse_record_06_submissions(raw_06)
+    df_13_parsed = parse_record_13_submissions(raw_13)
+    df_15_parsed = parse_record_15_submissions(raw_15)
+    df_21_parsed = parse_record_21_submissions(raw_21)
+    df_25_parsed = parse_record_25_submissions(raw_25)
 
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
@@ -389,29 +396,32 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     html_04 = "<br>".join(r04_status_lines)
     is_04_complete = (r04_completed_shifts >= r04_total_shifts)
 
-    # --- RECORDS 05, 15, 21 FIXED TO FOCUS DAY ---
-    day_05 = filter_by_focus_date(df_05, selected_day_variants)
+    # --- RECORDS 05, 06, 13, 15, 21, 25 STRICTLY FILTERED TO FOCUS DAY ---
+    day_05 = filter_by_focus_date(df_05_parsed, selected_day_variants)
     stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
 
-    day_06 = filter_by_focus_date(df_06, selected_day_variants)
+    day_06 = filter_by_focus_date(df_06_parsed, selected_day_variants)
     is_06_complete = not day_06.empty
     stat_06 = f'<span style="color: {"#4ade80" if is_06_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_06_complete else "Pending"} - {1 if is_06_complete else 0}/1</span>'
     
-    day_13 = filter_by_focus_date(df_13, selected_day_variants)
+    day_13 = filter_by_focus_date(df_13_parsed, selected_day_variants)
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11</span>'
     
-    day_15 = filter_by_focus_date(df_15, selected_day_variants)
+    day_15 = filter_by_focus_date(df_15_parsed, selected_day_variants)
     logged_15 = len(day_15) if not day_15.empty else 0
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15} entries</span>'
     
-    day_21 = filter_by_focus_date(df_21, selected_day_variants)
+    day_21 = filter_by_focus_date(df_21_parsed, selected_day_variants)
     stat_21 = f'<span style="color: {"#4ade80" if not day_21.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_21.empty else "Pending"} - {len(day_21)} batches</span>'
     
-    day_25 = filter_by_focus_date(df_25, selected_day_variants)
-    logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
-    stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
+    day_25 = filter_by_focus_date(df_25_parsed, selected_day_variants)
+    if not day_25.empty and "Clean_Unit" in day_25.columns:
+        cleaned_machines = day_25["Clean_Unit"].dropna().unique().tolist()
+        stat_25 = f'<span style="color: #4ade80; font-weight: 600;">Cleaned: {", ".join(str(m) for m in cleaned_machines)}</span>'
+    else:
+        stat_25 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Ice Machine Logged</span>'
 
     completed_cats = sum([
         1 if is_op_complete and is_cl_complete else 0,
@@ -421,7 +431,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         1 if is_13_complete else 0,
         1 if logged_15 > 0 else 0,
         1 if not day_21.empty else 0,
-        1 if logged_25 > 0 else 0
+        1 if not day_25.empty else 0
     ])
     total_cats = 8
     progress_pct = int((completed_cats / total_cats) * 100)
@@ -440,27 +450,43 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         </div>
         """, unsafe_allow_html=True)
 
-        col1, col2, col3 = st.columns(3)
-        def render_theme_card(col, title, status_html, target_nav, unique_key):
+        def render_theme_card(col, title, status_html, target_nav, unique_key, center_badge=""):
+            badge_html = f'<div style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 0.72rem; padding: 3px 8px; border-radius: 6px; margin-top: 6px; font-weight: 600;">{center_badge}</div>' if center_badge else ''
             col.markdown(f"""
             <div class="kpi-card">
-                <div style="font-size: 0.85rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px;">{title}</div>
+                <div style="font-size: 0.85rem; font-weight: 600; line-height: 1.3; margin-bottom: 4px;">{title}</div>
                 <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
+                {badge_html}
             </div>
             """, unsafe_allow_html=True)
             col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
 
+        # --- REARRANGED 3-2-3 GRID LAYOUT ---
+        col1, col2, col3 = st.columns(3)
         with col1:
             render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
-            render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04")
         with col2:
             render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
-            render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
         with col3:
             render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
-            render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
-            render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "card_r21")
-            render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
+
+        col4, col5 = st.columns(2)
+        with col4:
+            # Centremost Card 04 with Completion Visual & Timestamp badge
+            latest_04_time = day_04["Timestamp_DT"].max().strftime('%d/%m/%Y %I:%M %p') if not day_04.empty and "Timestamp_DT" in day_04.columns else "No timestamp"
+            r04_badge = f"✓ Completed on {latest_04_time}" if is_04_complete else f"⏳ Last Activity: {latest_04_time if not day_04.empty else 'Pending'}"
+            render_theme_card(col4, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04", center_badge=r04_badge)
+        with col5:
+            render_theme_card(col5, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
+
+        col6, col7, col8 = st.columns(3)
+        with col6:
+            render_theme_card(col6, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
+        with col7:
+            render_theme_card(col7, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "card_r21")
+        with col8:
+            render_theme_card(col8, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
+            
     else:
         st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
         st.write("Department-wise overview for Roswyn")
