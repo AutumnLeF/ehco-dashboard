@@ -109,18 +109,6 @@ selected_day_str = st.sidebar.selectbox(
     "Focus Day for Drill-down", options=list(reversed(day_options)), key="sb_day_focus_select"
 )
 
-def get_date_variants(d_str):
-    variants = {d_str, d_str.replace("/", "-")}
-    try:
-        d_obj = datetime.strptime(d_str, "%d/%m/%Y")
-        variants.add(d_obj.strftime("%Y-%m-%d"))
-        variants.add(d_obj.strftime("%d-%m-%Y"))
-    except Exception:
-        pass
-    return list(variants)
-
-selected_day_variants = get_date_variants(selected_day_str)
-
 DEFAULT_TOKEN = st.secrets.get("auth_token", "").strip()
 if not DEFAULT_TOKEN:
     DEFAULT_TOKEN = "PASTE_FALLBACK_TOKEN_HERE"
@@ -254,21 +242,39 @@ if force_refresh:
 raw_records_df = fetch_incremental_persistent_data(api_url, clean_token, active_form_id) if active_form_id != 0 else pd.DataFrame()
 last_sync_display = st.session_state[cache_key_time]
 
-def filter_by_focus_date(df, date_variants):
+def filter_by_focus_date(df, selected_day_str):
     if df is None or df.empty:
         return pd.DataFrame()
-    for col in ["Date_Str", "Date", "Audit_Date", "submissionDate", "Date_Display"]:
-        if col in df.columns:
-            m = df[df[col].astype(str).isin(date_variants)]
-            if not m.empty:
-                return m
+
+    date_col = next(
+        (c for c in ["Date_Str", "Date", "date", "Audit_Date", "submissionDate", "Date_Display", "Timestamp_DT", "createdAt", "dateTimeSubmitted"]
+         if c in df.columns),
+        None
+    )
+
+    if date_col is None:
+        return df.iloc[0:0]
+
+    df_filtered = df.copy()
+    
+    df_filtered["_filter_date"] = pd.to_datetime(
+        df_filtered[date_col],
+        errors="coerce",
+        dayfirst=True
+    ).dt.date
+
     try:
-        m = df[df.apply(lambda r: any(v in str(r.to_dict()) for v in date_variants), axis=1)]
-        if not m.empty:
-            return m
+        focus_date = pd.to_datetime(selected_day_str, format="%d/%m/%Y", errors="coerce").date()
+        if pd.isna(focus_date):
+            focus_date = pd.to_datetime(selected_day_str, errors="coerce").date()
     except Exception:
-        pass
-    return pd.DataFrame()
+        focus_date = pd.to_datetime(selected_day_str, errors="coerce").date()
+
+    if pd.isna(focus_date):
+        return df.iloc[0:0]
+
+    result = df_filtered[df_filtered["_filter_date"] == focus_date].copy()
+    return result.drop(columns=["_filter_date"])
 
 if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     if "dashboard_view_mode" not in st.session_state:
@@ -345,7 +351,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     day_03 = df_03_parsed[
         (df_03_parsed["Date_Obj"] == target_date_obj) |
         ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
-    ] if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns else filter_by_focus_date(df_03_parsed, selected_day_variants)
+    ] if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns else filter_by_focus_date(df_03_parsed, selected_day_str)
 
     # --- RECORD 03 STATS ---
     global_opening_logged = 0
@@ -378,7 +384,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         "Black Lacquer Kitchen": ["Dinner"]
     }
     
-    day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
+    day_04 = filter_by_focus_date(df_04_parsed, selected_day_str)
     r04_completed_shifts = 0
     r04_total_shifts = 4
     r04_status_lines = []
@@ -397,20 +403,17 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_04_complete = (r04_completed_shifts >= r04_total_shifts)
 
     # --- TRUE-DATA METRICS FOR 05, 13, 15, 21, 25 (STRICTLY FOCUS DAY) ---
-    # --- STRICT FOCUS-DAY FILTERED METRICS FOR RECORD 05 ---
-    # --- RECORD 05: COOLING OF FOOD RECORD (FOCUS DAY ONLY) ---
-    day_05 = filter_by_focus_date(df_05_parsed, selected_day_variants)
+    day_05 = filter_by_focus_date(df_05_parsed, selected_day_str)
     if not day_05.empty:
-        item_count_05 = len(day_05)
-        stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {item_count_05} items cooled</span>'
+        stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {len(day_05)} items cooled</span>'
     else:
         stat_05 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Cooling Logged</span>'
 
-    day_06 = filter_by_focus_date(df_06_parsed, selected_day_variants)
+    day_06 = filter_by_focus_date(df_06_parsed, selected_day_str)
     is_06_complete = not day_06.empty
     stat_06 = f'<span style="color: {"#4ade80" if is_06_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_06_complete else "Pending"} - {1 if is_06_complete else 0}/1</span>'
     
-    day_13 = filter_by_focus_date(df_13_parsed, selected_day_variants)
+    day_13 = filter_by_focus_date(df_13_parsed, selected_day_str)
     if not day_13.empty:
         unit_col = next((c for c in ["Unit_ID", "Machine_Name", "Equipment", "Name"] if c in day_13.columns), None)
         units_logged = day_13[unit_col].dropna().unique().tolist() if unit_col else []
@@ -420,14 +423,13 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     else:
         stat_13 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0/11</span>'
     
-    # --- RECORD 15: PESTICIDE USAGE RECORD (COMPLETED / PENDING ONLY) ---
-    day_15 = filter_by_focus_date(df_15_parsed, selected_day_variants)
+    day_15 = filter_by_focus_date(df_15_parsed, selected_day_str)
     if not day_15.empty:
         stat_15 = '<span style="color: #4ade80; font-weight: 600;">Completed</span>'
     else:
         stat_15 = '<span style="color: #fbbf24; font-weight: 600;">Pending</span>'
     
-    day_21 = filter_by_focus_date(df_21_parsed, selected_day_variants)
+    day_21 = filter_by_focus_date(df_21_parsed, selected_day_str)
     if not day_21.empty:
         wash_col = next((c for c in ["Location", "Area", "Food", "Item"] if c in day_21.columns), None)
         washes = day_21[wash_col].dropna().unique().tolist() if wash_col else []
@@ -435,7 +437,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     else:
         stat_21 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Food Wash Logged</span>'
     
-    day_25 = filter_by_focus_date(df_25_parsed, selected_day_variants)
+    day_25 = filter_by_focus_date(df_25_parsed, selected_day_str)
     if not day_25.empty:
         raw_name_col = next((c for c in ["Machine_Name", "Ice_Machine", "Equipment", "Unit_Name", "Name"] if c in day_25.columns), None)
         if raw_name_col:
@@ -516,7 +518,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                 <div style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; margin-top: 4px; font-weight: 600; text-align: center;">Focus Date: {selected_day_str}</div>
             </div>
             """, unsafe_allow_html=True)
-            col5.write("") # placeholder space for grid alignment
+            col5.write("")
         with col6:
             render_theme_card(col6, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
 
