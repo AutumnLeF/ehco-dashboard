@@ -249,7 +249,6 @@ def fetch_incremental_persistent_data(url, token, form_id):
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 if force_refresh:
-    # Clear cache for current form to trigger full sync
     st.session_state[cache_key_df] = pd.DataFrame()
 
 raw_records_df = fetch_incremental_persistent_data(api_url, clean_token, active_form_id) if active_form_id != 0 else pd.DataFrame()
@@ -333,7 +332,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
 
-    # Ensure Timestamp_DT is datetime-typed before using .dt accessors
     if not df_03_parsed.empty and "Timestamp_DT" in df_03_parsed.columns:
         df_03_parsed["Timestamp_DT"] = pd.to_datetime(df_03_parsed["Timestamp_DT"], errors="coerce")
 
@@ -342,6 +340,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
     ] if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns else filter_by_focus_date(df_03_parsed, selected_day_variants)
 
+    # --- RECORD 03 STATS ---
     global_opening_logged = 0
     global_closing_logged = 0
     global_total_units = 0
@@ -366,8 +365,31 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending - {global_closing_logged}/{global_total_units}"
     html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    html_04 = f'Breakfast: <span style="color: #4ade80; font-weight: 600;">Completed - 5/5</span><br>Lunch: <span style="color: #4ade80; font-weight: 600;">Completed - 10/10</span><br>Dinner: <span style="color: #38bdf8; font-weight: 600;">Completed - 10/11</span>'
+    # --- RECORD 04 EXACT RULES (Filia: B, L, D | Black Lacquer: D) ---
+    ROSWYN_KITCHEN_RULES = {
+        "Filia Kitchen": ["Breakfast", "Lunch", "Dinner"],
+        "Black Lacquer Kitchen": ["Dinner"]
+    }
+    
+    day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
+    r04_completed_shifts = 0
+    r04_total_shifts = 4
+    r04_status_lines = []
 
+    for kitchen, meals in ROSWYN_KITCHEN_RULES.items():
+        k_df = day_04[day_04["Location"].str.strip().str.lower() == kitchen.lower()] if not day_04.empty else pd.DataFrame()
+        for meal in meals:
+            m_df = k_df[k_df["Meal_Service"].str.strip().str.lower() == meal.lower()] if not k_df.empty else pd.DataFrame()
+            if not m_df.empty:
+                r04_completed_shifts += 1
+                r04_status_lines.append(f'{meal} ({kitchen.split()[0]}): <span style="color: #4ade80; font-weight: 600;">Completed</span>')
+            else:
+                r04_status_lines.append(f'{meal} ({kitchen.split()[0]}): <span style="color: #fbbf24; font-weight: 600;">Pending</span>')
+
+    html_04 = "<br>".join(r04_status_lines)
+    is_04_complete = (r04_completed_shifts >= r04_total_shifts)
+
+    # --- RECORDS 05, 15, 21 FIXED TO FOCUS DAY ---
     day_05 = filter_by_focus_date(df_05, selected_day_variants)
     stat_05 = f'<span style="color: {"#4ade80" if not day_05.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_05.empty else "Pending"} - {len(day_05)} batches</span>'
 
@@ -393,7 +415,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     completed_cats = sum([
         1 if is_op_complete and is_cl_complete else 0,
-        1,
+        1 if is_04_complete else 0,
         1 if not day_05.empty else 0,
         1 if is_06_complete else 0,
         1 if is_13_complete else 0,
