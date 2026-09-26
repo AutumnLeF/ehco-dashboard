@@ -300,8 +300,8 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             st.session_state.fairmont_dashboard_view_mode = view_choice
             st.rerun()
 
-    # --- SESSION CACHING FOR INSTANT LOAD SPEED ---
-    if "parsed_cache_all" not in st.session_state:
+    # --- BULLETPROOF SESSION CACHING FOR INSTANT LOAD SPEED ---
+    if "parsed_cache_all" not in st.session_state or 23727 not in st.session_state.get("parsed_cache_all", {}):
         st.session_state.parsed_cache_all = {
             23703: parse_record_02_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23703)),
             23705: parse_record_03_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23705)),
@@ -316,16 +316,16 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         }
 
     cache = st.session_state.parsed_cache_all
-    df_02_parsed = cache[23703]
-    df_03_parsed = cache[23705]
-    df_04_parsed = cache[23706]
-    df_05_parsed = cache[23707]
-    df_06_parsed = cache[23708]
-    df_12_parsed = cache[23714]
-    df_13_parsed = cache[23715]
-    df_15_parsed = cache[23717]
-    df_21_parsed = cache[23723]
-    df_25_parsed = cache[23727]
+    df_02_parsed = cache.get(23703, pd.DataFrame())
+    df_03_parsed = cache.get(23705, pd.DataFrame())
+    df_04_parsed = cache.get(23706, pd.DataFrame())
+    df_05_parsed = cache.get(23707, pd.DataFrame())
+    df_06_parsed = cache.get(23708, pd.DataFrame())
+    df_12_parsed = cache.get(23714, pd.DataFrame())
+    df_13_parsed = cache.get(23715, pd.DataFrame())
+    df_15_parsed = cache.get(23717, pd.DataFrame())
+    df_21_parsed = cache.get(23723, pd.DataFrame())
+    df_25_parsed = cache.get(23727, pd.DataFrame())
 
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
