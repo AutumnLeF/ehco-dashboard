@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 import pandas as pd
 import streamlit as st
 
-MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge <= 4.0°C
+MAX_FRIDGE_TEMP = 4.0      # Coolroom / Fridge <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer <= -18.0°C
 RECORD_03_FORM_ID = 23705
 
@@ -504,7 +504,8 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         clean_target = clean_unit_token(u_id)
         unit_logs = day_df[day_df["Clean_Unit"] == clean_target] if not day_df.empty else pd.DataFrame()
         
-        if any(unit_logs["Has_Breach"]):
+        # Safe check for breaches avoiding KeyError on empty subsets
+        if not unit_logs.empty and "Has_Breach" in unit_logs.columns and any(unit_logs["Has_Breach"]):
           loc_breaches += 1
           total_breaches += 1
 
@@ -567,7 +568,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
     </div>
     """, unsafe_allow_html=True)
 
-    # Sort location summary data: Pending first, Completed at bottom
     sorted_loc_summary_op = sorted(
         loc_summary_data,
         key=lambda x: (0 if x["op_count"] < x["total_u"] else 1, x["loc_name"])
@@ -633,7 +633,6 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
     st.markdown(f"<h4 style='color:#0f172a; margin-top:1.5rem;'>🏢 Location Summary Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
     st.caption("Each location summary block tracks Opening & Closing logs and displays pending units.")
 
-    # 4-Card Grid Layout using st.columns(4)
     loc_cols = st.columns(4)
     for idx, item in enumerate(loc_summary_data):
       col_target = loc_cols[idx % 4]
