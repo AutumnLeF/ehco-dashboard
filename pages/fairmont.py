@@ -9,10 +9,10 @@ from records_fairmont.record_03 import render_record_03_view, parse_record_03_su
 from records_fairmont.record_04 import render_record_04_view, parse_all_record_04_dishes, KITCHEN_MEAL_RULES as KITCHEN_MEAL_RULES_04
 from records_fairmont.record_05 import render_record_05_view, parse_record_05_submissions, RECORD_05_KITCHENS
 from records_fairmont.record_06 import render_record_06_view, parse_record_06_submissions, RECORD_06_MEAL_RULES
-from records_fairmont.record_12 import render_record_12_view, parse_record_12_submissions
+from records_fairmont.record_12 import render_record_12_view, parse_record_12_submissions, RECORD_12_AREAS
 from records_fairmont.record_13 import render_record_13_view, parse_record_13_submissions
 from records_fairmont.record_15 import render_record_15_view, parse_record_15_submissions
-from records_fairmont.record_21 import render_record_21_view, parse_record_21_submissions
+from records_fairmont.record_21 import render_record_21_view, parse_record_21_submissions, RECORD_21_AREAS
 from records_fairmont.record_25 import render_record_25_view, parse_record_25_submissions
 
 st.set_page_config(
@@ -29,7 +29,6 @@ st.markdown("""
     .sub-head { font-size: 0.82rem; color: #475569; font-weight: 600; text-align: center; }
     .record-header-box { background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 1.6rem; font-weight: 700; }
     
-    /* Hides default Streamlit multi-page navigation links in the sidebar */
     [data-testid="stSidebarNav"] {
         display: none;
     }
@@ -61,7 +60,6 @@ def go_to_overview():
     st.session_state.fairmont_nav_choice = "🏠 Fairmont Mumbai - EHCO Status Overview"
     st.session_state.fairmont_nav_selectbox = "🏠 Fairmont Mumbai - EHCO Status Overview"
 
-# --- CLEANED SIDEBAR: INSPECTION CONTROLS ONLY ---
 st.sidebar.title("⚙️ Inspection Controls")
 
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
@@ -143,7 +141,6 @@ if selected_record != st.session_state.fairmont_nav_choice:
 
 active_form_id = FORM_MAPPING[st.session_state.fairmont_nav_choice]
 
-# --- PERSISTENT SESSION STATE INITIALIZATION ---
 cache_key_df = f"fairmont_persistent_records_df_{active_form_id}"
 cache_key_time = f"fairmont_last_sync_timestamp_{active_form_id}"
 
@@ -155,7 +152,6 @@ if cache_key_time not in st.session_state:
 
 def fetch_incremental_persistent_data(url, token, form_id):
     existing_df = st.session_state[cache_key_df]
-    
     newest_dt = None
     if not existing_df.empty:
         for col in ["dateTimeSubmitted", "CreatedAt", "submissionDate"]:
@@ -176,7 +172,6 @@ def fetch_incremental_persistent_data(url, token, form_id):
 
     if not token or token == "PASTE_FALLBACK_TOKEN_HERE":
         if not existing_df.empty:
-            st.toast("⚠️ Using cached offline data (Bearer token expired or missing).", icon="🔒")
             return existing_df
 
     new_rows = []
@@ -223,7 +218,6 @@ def fetch_incremental_persistent_data(url, token, form_id):
         
         current_time_str = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%d/%m/%Y %I:%M:%S %p")
         st.session_state[cache_key_time] = current_time_str
-        st.toast(f"📥 Appended {len(new_rows)} new entries successfully!", icon="🚀")
     elif existing_df.empty:
         st.session_state[cache_key_df] = pd.DataFrame()
 
@@ -232,6 +226,10 @@ def fetch_incremental_persistent_data(url, token, form_id):
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_fairmont_live_feed_btn", use_container_width=True)
 if force_refresh:
     st.session_state[cache_key_df] = pd.DataFrame()
+    # Clear parsed cache dictionary on manual sync
+    for k in list(st.session_state.keys()):
+        if k.startswith("parsed_cache_"):
+            st.session_state.pop(k, None)
 
 raw_records_df = fetch_incremental_persistent_data(api_url, clean_token, active_form_id) if active_form_id != 0 else pd.DataFrame()
 last_sync_display = st.session_state[cache_key_time]
@@ -244,19 +242,18 @@ def filter_by_focus_date(df, date_variants):
             m = df[df[col].astype(str).isin(date_variants)]
             if not m.empty:
                 return m
-    try:
-        m = df[df.apply(lambda r: any(v in str(r.to_dict()) for v in date_variants), axis=1)]
-        if not m.empty:
-            return m
-    except Exception:
-        pass
+    for col in ["Timestamp_DT", "dateTimeSubmitted", "CreatedAt"]:
+        if col in df.columns:
+            parsed_ts = pd.to_datetime(df[col], errors="coerce")
+            matched = df[parsed_ts.dt.strftime("%d/%m/%Y").isin(date_variants)]
+            if not matched.empty:
+                return matched
     return pd.DataFrame()
 
 if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status Overview":
     if "fairmont_dashboard_view_mode" not in st.session_state:
         st.session_state.fairmont_dashboard_view_mode = "📊 Overview Cards"
 
-    # --- TOP HEADER ---
     hdr_cols = st.columns([3, 4, 3])
     with hdr_cols[0]:
         selected_site = st.selectbox(
@@ -300,28 +297,32 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             st.session_state.fairmont_dashboard_view_mode = view_choice
             st.rerun()
 
-    # Fetch and parse raw datasets for all required records dynamically
-    raw_02 = fetch_incremental_persistent_data(api_url, clean_token, 23703)
-    raw_03 = fetch_incremental_persistent_data(api_url, clean_token, 23705)
-    raw_04 = fetch_incremental_persistent_data(api_url, clean_token, 23706)
-    raw_05 = fetch_incremental_persistent_data(api_url, clean_token, 23707)
-    raw_06 = fetch_incremental_persistent_data(api_url, clean_token, 23708)
-    raw_12 = fetch_incremental_persistent_data(api_url, clean_token, 23714)
-    raw_13 = fetch_incremental_persistent_data(api_url, clean_token, 23715)
-    raw_15 = fetch_incremental_persistent_data(api_url, clean_token, 23717)
-    raw_21 = fetch_incremental_persistent_data(api_url, clean_token, 23723)
-    raw_25 = fetch_incremental_persistent_data(api_url, clean_token, 23727)
+    # --- SESSION CACHING FOR INSTANT LOAD SPEED ---
+    if "parsed_cache_all" not in st.session_state:
+        st.session_state.parsed_cache_all = {
+            23703: parse_record_02_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23703)),
+            23705: parse_record_03_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23705)),
+            23706: parse_all_record_04_dishes(fetch_incremental_persistent_data(api_url, clean_token, 23706)),
+            23707: parse_record_05_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23707)),
+            23708: parse_record_06_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23708)),
+            23714: parse_record_12_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23714)),
+            23715: parse_record_13_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23715)),
+            23717: parse_record_15_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23717)),
+            23723: parse_record_21_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23723)),
+            23725: parse_record_25_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23727)),
+        }
 
-    df_02_parsed = parse_record_02_submissions(raw_02)
-    df_03_parsed = parse_record_03_submissions(raw_03)
-    df_04_parsed = parse_all_record_04_dishes(raw_04)
-    df_05_parsed = parse_record_05_submissions(raw_05)
-    df_06_parsed = parse_record_06_submissions(raw_06)
-    df_12_parsed = parse_record_12_submissions(raw_12)
-    df_13 = parse_record_13_submissions(raw_13)
-    df_21 = parse_record_21_submissions(raw_21)
-    df_25 = parse_record_25_submissions(raw_25)
-    df_15 = parse_record_15_submissions(raw_15)
+    cache = st.session_state.parsed_cache_all
+    df_02_parsed = cache[23703]
+    df_03_parsed = cache[23705]
+    df_04_parsed = cache[23706]
+    df_05_parsed = cache[23707]
+    df_06_parsed = cache[23708]
+    df_12_parsed = cache[23714]
+    df_13_parsed = cache[23715]
+    df_15_parsed = cache[23717]
+    df_21_parsed = cache[23723]
+    df_25_parsed = cache[23725]
 
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
@@ -337,7 +338,6 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             night_owl_mask = (df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5)
         else:
             night_owl_mask = False
-            
         day_03 = df_03_parsed[
             (df_03_parsed["Date_Obj"] == target_date_obj) | night_owl_mask
         ]
@@ -368,7 +368,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending - {global_closing_logged}/{global_total_units}"
     html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # --- RECORD 04 METRICS (DYNAMIC) ---
+    # --- RECORD 04 METRICS ---
     day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
     shift_totals_04 = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
 
@@ -391,7 +391,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         f'Dinner: <span style="color: {"#4ade80" if d_req_04 > 0 and d_done_04 >= d_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_04 > 0 and d_done_04 >= d_req_04 else "Pending"} - {d_done_04}/{d_req_04}</span>'
     )
 
-    # --- RECORD 05 METRICS (DYNAMIC) ---
+    # --- RECORD 05 METRICS ---
     day_05 = filter_by_focus_date(df_05_parsed, selected_day_variants)
     completed_kitchens_05 = 0
     for kitchen in RECORD_05_KITCHENS:
@@ -403,7 +403,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     is_05_complete = (completed_kitchens_05 >= total_kitchens_05)
     stat_05 = f'<span style="color: {"#4ade80" if is_05_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_05_complete else "Pending"} - {completed_kitchens_05}/{total_kitchens_05} kitchens</span>'
 
-    # --- RECORD 06 METRICS (DYNAMIC) ---
+    # --- RECORD 06 METRICS ---
     day_06 = filter_by_focus_date(df_06_parsed, selected_day_variants)
     shift_totals_06 = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
 
@@ -426,24 +426,41 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         f'Dinner: <span style="color: {"#4ade80" if d_req_06 > 0 and d_done_06 >= d_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_06 > 0 and d_done_06 >= d_req_06 else "Pending"} - {d_done_06}/{d_req_06}</span>'
     )
 
-    # --- OTHER RECORDS METRICS ---
+    # --- RECORD 12 METRICS (Strict Focus Day Check) ---
     day_12 = filter_by_focus_date(df_12_parsed, selected_day_variants)
-    stat_12 = f'<span style="color: {"#4ade80" if not day_12.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_12.empty else "Pending"} - {len(day_12)} entries</span>'
+    completed_areas_12 = 0
+    for area in RECORD_12_AREAS:
+        a_df = day_12[day_12["Location"].str.strip().str.lower() == area.lower()] if not day_12.empty else pd.DataFrame()
+        if not a_df.empty:
+            completed_areas_12 += 1
+    total_areas_12 = len(RECORD_12_AREAS)
+    is_12_complete = (completed_areas_12 >= total_areas_12)
+    stat_12 = f'<span style="color: {"#4ade80" if is_12_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_12_complete else "Pending"} - {completed_areas_12}/{total_areas_12} areas</span>'
 
-    day_13 = filter_by_focus_date(df_13, selected_day_variants)
+    # --- RECORD 13 METRICS ---
+    day_13 = filter_by_focus_date(df_13_parsed, selected_day_variants)
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11 machines</span>'
     
-    day_15 = filter_by_focus_date(df_15, selected_day_variants)
+    # --- RECORD 15 METRICS ---
+    day_15 = filter_by_focus_date(df_15_parsed, selected_day_variants)
     logged_15 = len(day_15) if not day_15.empty else 0
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15} entries</span>'
     
-    day_21 = filter_by_focus_date(df_21, selected_day_variants)
-    logged_21 = len(day_21["Location"].dropna().unique()) if (not day_21.empty and "Location" in day_21.columns) else (1 if not day_21.empty else 0)
-    stat_21 = f'<span style="color: {"#4ade80" if logged_21 >= 2 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_21 >= 2 else "Pending"} - {logged_21}/2 areas</span>'
+    # --- RECORD 21 METRICS (Strict Focus Day Check) ---
+    day_21 = filter_by_focus_date(df_21_parsed, selected_day_variants)
+    completed_areas_21 = 0
+    for area in RECORD_21_AREAS:
+        a_df = day_21[day_21["Location"].str.strip().str.lower() == area.lower()] if not day_21.empty else pd.DataFrame()
+        if not a_df.empty:
+            completed_areas_21 += 1
+    total_areas_21 = len(RECORD_21_AREAS)
+    is_21_complete = (completed_areas_21 >= total_areas_21)
+    stat_21 = f'<span style="color: {"#4ade80" if is_21_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_21_complete else "Pending"} - {completed_areas_21}/{total_areas_21} areas</span>'
     
-    day_25 = filter_by_focus_date(df_25, selected_day_variants)
+    # --- RECORD 25 METRICS ---
+    day_25 = filter_by_focus_date(df_25_parsed, selected_day_variants)
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
@@ -453,10 +470,10 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         1 if b_req_04 > 0 and b_done_04 >= b_req_04 and l_done_04 >= l_req_04 and d_done_04 >= d_req_04 else 0,
         1 if is_05_complete else 0,
         1 if b_req_06 > 0 and b_done_06 >= b_req_06 and l_done_06 >= l_req_06 and d_done_06 >= d_req_06 else 0,
-        1 if not day_12.empty else 0,
+        1 if is_12_complete else 0,
         1 if is_13_complete else 0,
         1 if logged_15 > 0 else 0,
-        1 if logged_21 >= 2 else 0,
+        1 if is_21_complete else 0,
         1 if logged_25 > 0 else 0
     ])
     total_cats = 10
@@ -521,36 +538,12 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             """, unsafe_allow_html=True)
 
         with dept_cols[0]:
-            render_dept_card(
-                dept_cols[0],
-                "Purchase",
-                [
-                    ("RECORD 02 - FOOD DELIVERY", stat_02),
-                    ("RECORD 03 - TEMPERATURE RECORD", html_03.replace("<br>", " | "))
-                ]
-            )
-
+            render_dept_card(dept_cols[0], "Purchase", [("RECORD 02 - FOOD DELIVERY", stat_02), ("RECORD 03 - TEMPERATURE RECORD", html_03.replace("<br>", " | "))])
         with dept_cols[1]:
-            render_dept_card(
-                dept_cols[1],
-                "Stewarding",
-                [
-                    ("RECORD 13 - DISHWASHER", stat_13),
-                    ("RECORD 25 - ICE MACHINE", stat_25)
-                ]
-            )
-
+            render_dept_card(dept_cols[1], "Stewarding", [("RECORD 13 - DISHWASHER", stat_13), ("RECORD 25 - ICE MACHINE", stat_25)])
         with dept_cols[2]:
-            render_dept_card(
-                dept_cols[2],
-                "Housekeeping",
-                [
-                    ("RECORD 13 - DISHWASHER", stat_13),
-                    ("RECORD 15 - PESTICIDE USAGE", stat_15)
-                ]
-            )
+            render_dept_card(dept_cols[2], "Housekeeping", [("RECORD 13 - DISHWASHER", stat_13), ("RECORD 15 - PESTICIDE USAGE", stat_15)])
 else:
-    # --- DRILL-DOWN VIEWS HEADER ---
     hdr_cols = st.columns([3, 4, 3])
     with hdr_cols[0]:
         selected_site_sub = st.selectbox(
