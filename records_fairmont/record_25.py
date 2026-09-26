@@ -27,9 +27,9 @@ ICE_MACHINE_CATALOG = {
         {"Unit_ID": "Ice flake-FM/ICM/THP 09-53kg", "Name": "THP 09-53kg"},
     ],
     "The Merchants": [
-        {"Unit_ID": "Ice Cube-FM/ICM/MDP 06-100kg", "Name": "Merchants Cube 06"},
-        {"Unit_ID": "Ice cube-FM/ICM/TM 12-580kg", "Name": "TM 12-580kg"},
+        {"Unit_ID": "Ice Cube-FM/ICM/TM 12-580kg", "Name": "TM 12-580kg"},
         {"Unit_ID": "Ice flake-FM/ICM/TM 13-290kg", "Name": "TM 13-290kg"},
+        {"Unit_ID": "Ice Cube-FM/ICM/TM 14-100kg", "Name": "TM 14-100kg"},
     ],
     "Madeleine De Proust Pantry": [
         {"Unit_ID": "Ice Cube-FM/ICM/MDP 06-100kg", "Name": "MDP Cube 06"},
@@ -204,28 +204,38 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
     for sch in all_units_flat:
       u_id = sch["Unit_ID"]
       u_token = clean_str(u_id)
+      u_loc = sch["Location"]
       
       today_log = pd.DataFrame()
       if not day_df.empty and "Clean_Unit" in day_df.columns:
-        today_log = day_df[day_df["Clean_Unit"] == u_token]
+        today_log = day_df[(day_df["Clean_Unit"] == u_token) & (day_df["Location"].str.strip().str.lower() == u_loc.lower())]
+        if today_log.empty:
+          today_log = day_df[day_df["Clean_Unit"] == u_token]
 
       if not today_log.empty:
         cleaned_count += 1
-        unit_status_list.append({"Unit": sch, "Status": "Cleaned", "Log": today_log.iloc[-1]})
+        unit_status_list.append({"Unit": sch, "Status": "Cleaned", "Log": today_log.iloc[-1], "Days_Since": 0})
       else:
         recent_logs = pd.DataFrame()
+        unit_history = pd.DataFrame()
         if not history_df.empty and "Date_Obj" in history_df.columns:
-          recent_logs = history_df[
-              (history_df["Clean_Unit"] == u_token)
-              & (history_df["Date_Obj"] >= window_start_dt)
-              & (history_df["Date_Obj"] <= selected_dt)
+          unit_history = history_df[history_df["Clean_Unit"] == u_token]
+          recent_logs = unit_history[
+              (unit_history["Date_Obj"] >= window_start_dt)
+              & (unit_history["Date_Obj"] <= selected_dt)
           ]
 
         if recent_logs.empty:
           pending_count += 1
-          unit_status_list.append({"Unit": sch, "Status": "Pending", "Log": None})
+          # Calculate exact days since last clean
+          days_since = None
+          if not unit_history.empty and "Date_Obj" in unit_history.columns:
+            last_clean_date = unit_history["Date_Obj"].max()
+            if pd.notna(last_clean_date):
+              days_since = (selected_dt - last_clean_date).days
+          unit_status_list.append({"Unit": sch, "Status": "Pending", "Log": None, "Days_Since": days_since})
         else:
-          unit_status_list.append({"Unit": sch, "Status": "Recent", "Log": recent_logs.iloc[-1]})
+          unit_status_list.append({"Unit": sch, "Status": "Recent", "Log": recent_logs.iloc[-1], "Days_Since": 0})
 
     k1, k2, k3 = st.columns(3)
     with k1:
@@ -238,7 +248,7 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
     st.write("")
     day_name = selected_dt.strftime("%A")
     st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>🧊 Ice Machine Cleaning Audit ({day_name} — {selected_day_str})</h4>", unsafe_allow_html=True)
-    st.caption("Mandatory compliance: Machines not cleaned in the last 6 days are flagged as pending/overdue.")
+    st.caption("Mandatory compliance: Machines not cleaned in the last 6 days are flagged as pending/overdue with exact days elapsed.")
 
     col_left, col_right = st.columns(2)
 
@@ -249,7 +259,13 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
         for item in unit_status_list:
           if item["Status"] == "Pending":
             sch = item["Unit"]
-            st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:12px; border-radius:6px; margin-bottom:8px;"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">🧊 {sch["Unit_ID"]}</div><div style="font-size:0.8rem; color:#dc2626; font-weight:700; margin-top:2px;">📍 {sch["Location"]}</div><div style="font-size:0.75rem; color:#dc2626; margin-top:2px; font-style:italic;">Not cleaned in the last 6 days. Overdue!</div></div>', unsafe_allow_html=True)
+            days_val = item["Days_Since"]
+            if days_val is not None:
+              overdue_str = f"Not cleaned for **{days_val} days** (Overdue!)"
+            else:
+              overdue_str = "No prior cleaning record found (Overdue!)"
+
+            st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #dc2626; padding:12px; border-radius:6px; margin-bottom:8px;"><div style="font-weight:700; font-size:0.95rem; color:#0f172a;">🧊 {sch["Unit_ID"]}</div><div style="font-size:0.8rem; color:#dc2626; font-weight:700; margin-top:2px;">📍 {sch["Location"]}</div><div style="font-size:0.75rem; color:#dc2626; margin-top:4px; font-style:italic;">{overdue_str}</div></div>', unsafe_allow_html=True)
       else:
         st.markdown('<div style="background:#ffffff; border:1px solid #cbd5e1; padding:14px; border-radius:6px; color:#16a34a; font-size:0.85rem; text-align:center;">✓ No overdue ice machines! All units have been cleaned within the 6-day window.</div>', unsafe_allow_html=True)
 
@@ -307,7 +323,6 @@ def render_record_25_view(raw_df, selected_day_str, start_date, end_date):
 
     st.write("")
 
-    # Render highly distinct kitchen-wise card containers
     for kitchen_name, units in ICE_MACHINE_CATALOG.items():
       st.markdown(f"""
           <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #ffffff; padding: 10px 16px; border-radius: 8px; font-weight: 700; font-size: 0.98rem; margin-top: 1.5rem; margin-bottom: 0.8rem; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
