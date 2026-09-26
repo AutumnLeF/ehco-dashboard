@@ -11,11 +11,15 @@ ICE_MACHINE_CATALOG = {
     ],
     "Banquet Support Kitchen": [
         {"Unit_ID": "Ice Cube-FM/ICM/BSK 02-580kg", "Name": "Ice Cube 02"},
+        {"Unit_ID": "Ice Cube-FM/ICM/IPA03-580kg", "Name": "Ice Cube 03"},
         {"Unit_ID": "Ice Flake-FM/ICM/BSK 04-290kg", "Name": "Ice Flake 04"},
     ],
     "IRD": [
         {"Unit_ID": "Ice cube-FM/ICM/IRD24", "Name": "IRD Ice Cube 24"},
         {"Unit_ID": "Ice cube-FM/ICM/IRD25", "Name": "IRD Ice Cube 25"},
+    ],
+    "Oryn Pantry": [
+        {"Unit_ID": "Undercounter ice cube-FM/ICM/OP 07-28kg", "Name": "Oryn Ice Cube 20"},
     ],
     "The Hedonist Pantry": [
         {"Unit_ID": "Undercounter ice cube-FM/ICM/THP 10-28kg", "Name": "THP 10-28kg"},
