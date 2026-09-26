@@ -226,7 +226,6 @@ def fetch_incremental_persistent_data(url, token, form_id):
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_fairmont_live_feed_btn", use_container_width=True)
 if force_refresh:
     st.session_state[cache_key_df] = pd.DataFrame()
-    # Clear parsed cache dictionary on manual sync
     for k in list(st.session_state.keys()):
         if k.startswith("parsed_cache_"):
             st.session_state.pop(k, None)
@@ -234,7 +233,7 @@ if force_refresh:
 raw_records_df = fetch_incremental_persistent_data(api_url, clean_token, active_form_id) if active_form_id != 0 else pd.DataFrame()
 last_sync_display = st.session_state[cache_key_time]
 
-def filter_by_focus_date(df, date_variants):
+def get_day_df(df, date_variants, target_date_obj):
     if df is None or df.empty:
         return pd.DataFrame()
     for col in ["Date_Str", "Date", "Audit_Date", "submissionDate", "Date_Display"]:
@@ -242,10 +241,14 @@ def filter_by_focus_date(df, date_variants):
             m = df[df[col].astype(str).isin(date_variants)]
             if not m.empty:
                 return m
+    if "Date_Obj" in df.columns:
+        m = df[df["Date_Obj"] == target_date_obj]
+        if not m.empty:
+            return m
     for col in ["Timestamp_DT", "dateTimeSubmitted", "CreatedAt"]:
         if col in df.columns:
             parsed_ts = pd.to_datetime(df[col], errors="coerce")
-            matched = df[parsed_ts.dt.strftime("%d/%m/%Y").isin(date_variants)]
+            matched = df[parsed_ts.dt.date == target_date_obj]
             if not matched.empty:
                 return matched
     return pd.DataFrame()
@@ -309,7 +312,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             23715: parse_record_13_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23715)),
             23717: parse_record_15_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23717)),
             23723: parse_record_21_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23723)),
-            23725: parse_record_25_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23727)),
+            23727: parse_record_25_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23727)),
         }
 
     cache = st.session_state.parsed_cache_all
@@ -322,13 +325,13 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     df_13_parsed = cache[23715]
     df_15_parsed = cache[23717]
     df_21_parsed = cache[23723]
-    df_25_parsed = cache[23725]
+    df_25_parsed = cache[23727]
 
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
 
     # --- RECORD 02 METRICS ---
-    day_02 = filter_by_focus_date(df_02_parsed, selected_day_variants)
+    day_02 = get_day_df(df_02_parsed, selected_day_variants, target_date_obj)
     stat_02 = f'<span style="color: {"#4ade80" if not day_02.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_02.empty else "Pending"} - {len(day_02)} entries</span>'
 
     # --- RECORD 03 METRICS ---
@@ -342,7 +345,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             (df_03_parsed["Date_Obj"] == target_date_obj) | night_owl_mask
         ]
     else:
-        day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
+        day_03 = get_day_df(df_03_parsed, selected_day_variants, target_date_obj)
 
     global_opening_logged = 0
     global_closing_logged = 0
@@ -369,7 +372,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
     # --- RECORD 04 METRICS ---
-    day_04 = filter_by_focus_date(df_04_parsed, selected_day_variants)
+    day_04 = get_day_df(df_04_parsed, selected_day_variants, target_date_obj)
     shift_totals_04 = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
 
     for kitchen, meals in KITCHEN_MEAL_RULES_04.items():
@@ -392,19 +395,19 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     )
 
     # --- RECORD 05 METRICS ---
-    day_05 = filter_by_focus_date(df_05_parsed, selected_day_variants)
+    day_05 = get_day_df(df_05_parsed, selected_day_variants, target_date_obj)
     completed_kitchens_05 = 0
-    for kitchen in RECORD_05_KITCHENS:
-        k_df = day_05[day_05["Location"].str.strip().str.lower() == kitchen.lower()] if not day_05.empty else pd.DataFrame()
-        if not k_df.empty:
-            completed_kitchens_05 += 1
-
+    if not day_05.empty and "Location" in day_05.columns:
+        logged_locs_05 = day_05["Location"].str.strip().str.lower().unique()
+        for kitchen in RECORD_05_KITCHENS:
+            if kitchen.lower() in logged_locs_05:
+                completed_kitchens_05 += 1
     total_kitchens_05 = len(RECORD_05_KITCHENS)
     is_05_complete = (completed_kitchens_05 >= total_kitchens_05)
     stat_05 = f'<span style="color: {"#4ade80" if is_05_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_05_complete else "Pending"} - {completed_kitchens_05}/{total_kitchens_05} kitchens</span>'
 
     # --- RECORD 06 METRICS ---
-    day_06 = filter_by_focus_date(df_06_parsed, selected_day_variants)
+    day_06 = get_day_df(df_06_parsed, selected_day_variants, target_date_obj)
     shift_totals_06 = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
 
     for kitchen, meals in RECORD_06_MEAL_RULES.items():
@@ -426,41 +429,43 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         f'Dinner: <span style="color: {"#4ade80" if d_req_06 > 0 and d_done_06 >= d_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_06 > 0 and d_done_06 >= d_req_06 else "Pending"} - {d_done_06}/{d_req_06}</span>'
     )
 
-    # --- RECORD 12 METRICS (Strict Focus Day Check) ---
-    day_12 = filter_by_focus_date(df_12_parsed, selected_day_variants)
+    # --- RECORD 12 METRICS ---
+    day_12 = get_day_df(df_12_parsed, selected_day_variants, target_date_obj)
     completed_areas_12 = 0
-    for area in RECORD_12_AREAS:
-        a_df = day_12[day_12["Location"].str.strip().str.lower() == area.lower()] if not day_12.empty else pd.DataFrame()
-        if not a_df.empty:
-            completed_areas_12 += 1
+    if not day_12.empty and "Location" in day_12.columns:
+        logged_locs_12 = day_12["Location"].str.strip().str.lower().unique()
+        for area in RECORD_12_AREAS:
+            if area.lower() in logged_locs_12:
+                completed_areas_12 += 1
     total_areas_12 = len(RECORD_12_AREAS)
     is_12_complete = (completed_areas_12 >= total_areas_12)
     stat_12 = f'<span style="color: {"#4ade80" if is_12_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_12_complete else "Pending"} - {completed_areas_12}/{total_areas_12} areas</span>'
 
     # --- RECORD 13 METRICS ---
-    day_13 = filter_by_focus_date(df_13_parsed, selected_day_variants)
+    day_13 = get_day_df(df_13_parsed, selected_day_variants, target_date_obj)
     logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
     is_13_complete = (logged_13 >= 11)
     stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11 machines</span>'
     
     # --- RECORD 15 METRICS ---
-    day_15 = filter_by_focus_date(df_15_parsed, selected_day_variants)
+    day_15 = get_day_df(df_15_parsed, selected_day_variants, target_date_obj)
     logged_15 = len(day_15) if not day_15.empty else 0
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15} entries</span>'
     
-    # --- RECORD 21 METRICS (Strict Focus Day Check) ---
-    day_21 = filter_by_focus_date(df_21_parsed, selected_day_variants)
+    # --- RECORD 21 METRICS ---
+    day_21 = get_day_df(df_21_parsed, selected_day_variants, target_date_obj)
     completed_areas_21 = 0
-    for area in RECORD_21_AREAS:
-        a_df = day_21[day_21["Location"].str.strip().str.lower() == area.lower()] if not day_21.empty else pd.DataFrame()
-        if not a_df.empty:
-            completed_areas_21 += 1
+    if not day_21.empty and "Location" in day_21.columns:
+        logged_locs_21 = day_21["Location"].str.strip().str.lower().unique()
+        for area in RECORD_21_AREAS:
+            if area.lower() in logged_locs_21:
+                completed_areas_21 += 1
     total_areas_21 = len(RECORD_21_AREAS)
     is_21_complete = (completed_areas_21 >= total_areas_21)
     stat_21 = f'<span style="color: {"#4ade80" if is_21_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_21_complete else "Pending"} - {completed_areas_21}/{total_areas_21} areas</span>'
     
     # --- RECORD 25 METRICS ---
-    day_25 = filter_by_focus_date(df_25_parsed, selected_day_variants)
+    day_25 = get_day_df(df_25_parsed, selected_day_variants, target_date_obj)
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
