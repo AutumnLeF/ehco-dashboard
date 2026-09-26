@@ -99,6 +99,13 @@ def parse_all_record_04_dishes(raw_df):
         or rec.get("Entry")
         or []
     )
+
+    # Safe handling if entries resolves to a boolean or non-iterable type
+    if isinstance(entries, bool) or not isinstance(entries, (list, dict)):
+      entries = [sub] if isinstance(sub, dict) else []
+    elif isinstance(entries, dict):
+      entries = [entries]
+        
     if isinstance(entries, dict):
       entries = [entries]
     if not entries and isinstance(sub, dict):
