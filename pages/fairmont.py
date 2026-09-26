@@ -331,10 +331,18 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     stat_02 = f'<span style="color: {"#4ade80" if not day_02.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_02.empty else "Pending"} - {len(day_02)} entries</span>'
 
     # --- RECORD 03 METRICS ---
-    day_03 = df_03_parsed[
-        (df_03_parsed["Date_Obj"] == target_date_obj) |
-        ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
-    ] if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns else filter_by_focus_date(df_03_parsed, selected_day_variants)
+    if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns:
+        if "Timestamp_DT" in df_03_parsed.columns:
+            df_03_parsed["Timestamp_DT"] = pd.to_datetime(df_03_parsed["Timestamp_DT"], errors="coerce")
+            night_owl_mask = (df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5)
+        else:
+            night_owl_mask = False
+            
+        day_03 = df_03_parsed[
+            (df_03_parsed["Date_Obj"] == target_date_obj) | night_owl_mask
+        ]
+    else:
+        day_03 = filter_by_focus_date(df_03_parsed, selected_day_variants)
 
     global_opening_logged = 0
     global_closing_logged = 0
