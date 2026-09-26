@@ -29,7 +29,7 @@ def parse_record_21_submissions(raw_df):
 
   rows = []
   for _, record in df.iterrows():
-    rec = record.get("raw_record") if "raw_record" in raw_df.columns else record.to_dict()
+    rec = record.get("raw_record") if "raw_record" in record.to_dict() else record.to_dict()
     if not isinstance(rec, dict):
       rec = record.to_dict()
 
@@ -186,9 +186,6 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
       "📈 7-Day Matrix",
   ])
 
-  # -------------------------------------------------------------
-  # TAB 1: DAILY DRILLDOWN
-  # -------------------------------------------------------------
   with tab_day:
     day_df = (
         range_df[range_df["Date_Str"] == selected_day_str]
@@ -269,7 +266,6 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
 
     st.write("")
 
-    # --- SECTION 1: PENDING AREAS (TOP) ---
     st.markdown(
         "<h4 style='color:#b45309; margin-top:1.5rem; margin-bottom:1rem;'>⏳"
         f" Pending / Incomplete Kitchen Areas ({selected_day_str})</h4>",
@@ -295,7 +291,6 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
 
     st.write("")
 
-    # --- SECTION 2: COMPLETED AREAS (BOTTOM) ---
     st.markdown(
         "<h4 style='color:#16a34a; margin-top:2rem; margin-bottom:1rem;'>✅"
         f" Completed Food Wash Entries ({selected_day_str})</h4>",
@@ -350,7 +345,6 @@ def render_record_21_view(raw_df, selected_day_str, start_date, end_date):
         """).strip()
         col_target.markdown(card_html, unsafe_allow_html=True)
 
-  # --- TAB 2: 7-DAY MATRIX ---
   with tab_matrix:
     st.subheader("7-Day Food Wash Matrix")
 
