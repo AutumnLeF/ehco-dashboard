@@ -29,7 +29,7 @@ ICE_MACHINE_CATALOG = {
     "The Merchants": [
         {"Unit_ID": "Ice Cube-FM/ICM/TM 12-580kg", "Name": "TM 12-580kg"},
         {"Unit_ID": "Ice flake-FM/ICM/TM 13-290kg", "Name": "TM 13-290kg"},
-        {"Unit_ID": "Ice Cube-FM/ICM/TM 14-100kg", "Name": "TM 14-100kg"},
+        {"Unit_ID": "Ice Cube-FM/ICM/TM 11-580kg", "Name": "TM 11-580kg"},
     ],
     "Madeleine De Proust Pantry": [
         {"Unit_ID": "Ice Cube-FM/ICM/MDP 06-100kg", "Name": "MDP Cube 06"},
