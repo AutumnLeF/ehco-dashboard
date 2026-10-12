@@ -5,9 +5,9 @@ import streamlit as st
 
 RECORD_CM01_FORM_ID = 24144
 
-# Catalog with exact required unit counts per location
+# Updated location rules (Banquet set to 2 units, rest 1 unit)
 CM01_LOCATION_RULES = {
-    "Banquet": 3,
+    "Banquet": 2,
     "Bombay Café": 2,
     "Merchants": 3,
     "Gold Lounge": 1,
@@ -44,7 +44,7 @@ def parse_record_cm01_submissions(raw_df):
       rec = record.to_dict()
 
     sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
-    loc_parent = sub.get("Locations") if isinstance(sub.get("Locations"), dict) else {}
+    loc_parent = sub.get("Locations") if isinstance(sub.get("Locations"), dict) else sub
 
     raw_date = (
         sub.get("Date")
@@ -89,6 +89,20 @@ def parse_record_cm01_submissions(raw_df):
         or "Banquet"
     ).strip()
 
+    # Capture sub-location if multi-unit location; leave blank if single-unit
+    raw_sub_loc = str(
+        loc_parent.get("Location_B")
+        or loc_parent.get("Location_B_copy")
+        or loc_parent.get("Location_M")
+        or sub.get("Location_B")
+        or sub.get("Location_B_copy")
+        or sub.get("Location_M")
+        or ""
+    ).strip()
+
+    expected_count = CM01_LOCATION_RULES.get(location, 1)
+    sub_loc = raw_sub_loc if expected_count > 1 and raw_sub_loc else ""
+
     shift_raw = str(sub.get("Shift") or sub.get("Shift_Name") or "Shift AM").strip()
     if "pm" in shift_raw.lower() or "2" in shift_raw.lower():
       shift = "PM"
@@ -97,33 +111,20 @@ def parse_record_cm01_submissions(raw_df):
 
     sign = str(sub.get("Sign_initial") or sub.get("Sign") or rec.get("user.email") or "Staff").strip()
 
-    bean_dispenser = str(loc_parent.get("Coffee_bean_dispenser") or "No")
-    refrigerator = str(loc_parent.get("Refrigerator_unit") or "No")
-    sink_tray = str(loc_parent.get("Sink_tray") or "No")
-    steam_pipe = str(loc_parent.get("Steam_pipe_sanitation") or "No")
-    suma_vend = str(loc_parent.get("Suma_vend_tab") or "No")
-    waste_col = str(loc_parent.get("Waste_collector") or "No")
-    chemical = str(loc_parent.get("Name_of_Chemical_") or "Cafetto")
-
     rows.append({
         "Date_Str": date_str,
         "Date_Obj": date_obj,
         "Time": time_str,
         "Location": location,
+        "Sub_Location": sub_loc,
         "Shift": shift,
         "Sign": sign,
-        "Chemical": chemical,
-        "Bean_Dispenser": bean_dispenser,
-        "Refrigerator": refrigerator,
-        "Sink_Tray": sink_tray,
-        "Steam_Pipe": steam_pipe,
-        "Suma_Vend": suma_vend,
-        "Waste_Collector": waste_col,
+        "Chemical": str(loc_parent.get("Name_of_Chemical_") or "Cafetto"),
     })
 
   df_out = pd.DataFrame(rows)
   if not df_out.empty:
-    df_out = df_out.drop_duplicates(subset=["Date_Str", "Time", "Location", "Shift", "Sign"], keep="first")
+    df_out = df_out.drop_duplicates(subset=["Date_Str", "Time", "Location", "Sub_Location", "Shift"], keep="first")
   return df_out
 
 
@@ -174,7 +175,7 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
 
   tab_day, tab_matrix = st.tabs([
       f"📅 Daily Cleaning Audit ({selected_day_str})",
-      "📈 7-Day Matrix",
+      "📈 7-Day Shift Matrix",
   ])
 
   with tab_day:
@@ -184,25 +185,33 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
         else pd.DataFrame()
     )
 
-    completed_shifts_count = len(day_df)
-    
-    # Evaluate AM / PM compliance per location unit requirement
-    loc_status_summary = []
-    total_required_logs = 0
+    total_logs = len(day_df)
+    completed_locations = 0
+    total_locations = len(CM01_LOCATION_RULES)
 
-    for loc_name, required_units in CM01_LOCATION_RULES.items():
-      total_required_logs += (required_units * 2) # AM and PM for each required unit
+    location_cards = []
+
+    for loc_name, required_count in CM01_LOCATION_RULES.items():
       loc_logs = day_df[day_df["Location"].str.strip().str.lower() == loc_name.lower()] if not day_df.empty else pd.DataFrame()
       
-      am_logs = loc_logs[loc_logs["Shift"] == "AM"]
-      pm_logs = loc_logs[loc_logs["Shift"] == "PM"]
+      if required_count > 1:
+        am_units = loc_logs[loc_logs["Shift"] == "AM"]["Sub_Location"].nunique()
+        pm_units = loc_logs[loc_logs["Shift"] == "PM"]["Sub_Location"].nunique()
+      else:
+        am_units = len(loc_logs[loc_logs["Shift"] == "AM"])
+        pm_units = len(loc_logs[loc_logs["Shift"] == "PM"])
 
-      loc_status_summary.append({
+      is_loc_complete = am_units >= required_count and pm_units >= required_count
+      if is_loc_complete:
+        completed_locations += 1
+
+      location_cards.append({
           "Location": loc_name,
-          "Required_Units": required_units,
-          "AM_Count": len(am_logs),
-          "PM_Count": len(pm_logs),
+          "Required": required_count,
+          "AM_Logged": am_units,
+          "PM_Logged": pm_units,
           "Logs": loc_logs.to_dict("records"),
+          "Complete": is_loc_complete,
       })
 
     k1, k2, k3 = st.columns(3)
@@ -210,8 +219,8 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
       st.markdown(
           f"""
             <div class="kpi-container" style="border-top-color: #16a34a;">
-                <div class="kpi-num" style="color:#16a34a;">{completed_shifts_count}</div>
-                <div class="kpi-lbl">Total Shift Logs Submitted</div>
+                <div class="kpi-num" style="color:#16a34a;">{completed_locations}/{total_locations}</div>
+                <div class="kpi-lbl">Fully Compliant Locations</div>
             </div>
             """,
           unsafe_allow_html=True,
@@ -220,8 +229,8 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
       st.markdown(
           f"""
             <div class="kpi-container" style="border-top-color: #0284c7;">
-                <div class="kpi-num" style="color:#0284c7;">{total_required_logs}</div>
-                <div class="kpi-lbl">Total Required Shift Logs</div>
+                <div class="kpi-num" style="color:#0284c7;">{total_logs}</div>
+                <div class="kpi-lbl">Total Shift Logs Submitted</div>
             </div>
             """,
           unsafe_allow_html=True,
@@ -230,8 +239,8 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
       st.markdown(
           f"""
             <div class="kpi-container" style="border-top-color: #0f172a;">
-                <div class="kpi-num" style="color:#0f172a;">{len(CM01_LOCATION_RULES)}</div>
-                <div class="kpi-lbl">Active Locations</div>
+                <div class="kpi-num" style="color:#0f172a;">{total_locations}</div>
+                <div class="kpi-lbl">Active F&B Areas</div>
             </div>
             """,
           unsafe_allow_html=True,
@@ -239,36 +248,83 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
 
     st.write("")
     st.markdown(
-        "<h4 style='color:#0f172a; margin-top:1.5rem; margin-bottom:1rem;'>🏢"
-        f" Location Shift Status ({selected_day_str})</h4>",
+        "<h4 style='color:#0f172a; margin-top:1.5rem; margin-bottom:1rem;'>📍"
+        f" Coffee Machine Cleaning Status ({selected_day_str})</h4>",
         unsafe_allow_html=True,
     )
 
-    col_left, col_right = st.columns(2)
+    grid_cols = st.columns(3, gap="small")
+    for idx, card in enumerate(location_cards):
+      col_target = grid_cols[idx % 3]
+      status_color = "#16a34a" if card["Complete"] else "#d97706"
+      status_text = "✓ Fully Completed" if card["Complete"] else "⏳ Pending Shifts"
 
-    with col_left:
-      st.markdown('<div style="background:#f0fdf4; border:1px solid #bbf7d0; border-left:5px solid #16a34a; padding:10px 14px; border-radius:6px; margin-bottom:12px;"><b style="color:#15803d; font-size:0.98rem;">🟢 Completed Locations</b></div>', unsafe_allow_html=True)
-      completed_locs = [l for l in loc_status_summary if l["AM_Count"] >= l["Required_Units"] and l["PM_Count"] >= l["Required_Units"]]
-      
-      if completed_locs:
-        for loc in completed_locs:
-          st.markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-left:4px solid #16a34a; padding:10px; border-radius:6px; margin-bottom:8px;"><div style="font-weight:700; color:#0f172a;">📍 {loc["Location"]}</div><div style="font-size:0.75rem; color:#15803d; margin-top:2px;">AM Logs: {loc["AM_Count"]}/{loc["Required_Units"]} | PM Logs: {loc["PM_Count"]}/{loc["Required_Units"]} (Fully Compliant)</div></div>', unsafe_allow_html=True)
+      logs_html = ""
+      if card["Logs"]:
+        for l in card["Logs"]:
+          unit_display = f" ({l['Sub_Location']})" if l["Sub_Location"] else ""
+          logs_html += f'<div style="font-size:0.73rem; border-top:1px solid #e2e8f0; padding:3px 0; display:flex; justify-content:space-between;"><span><b>Shift {l["Shift"]}</b>{unit_display}</span><span style="color:#0284c7;">{l["Time"]}</span></div>'
       else:
-        st.info("No fully completed locations for both shifts yet.")
+        logs_html = '<div style="font-size:0.72rem; color:#b45309; font-style:italic;">No logs submitted today.</div>'
 
-    with col_right:
-      st.markdown('<div style="background:#fffbeb; border:1px solid #fde68a; border-left:5px solid #d97706; padding:10px 14px; border-radius:6px; margin-bottom:12px;"><b style="color:#b45309; font-size:0.98rem;">⏳ Pending / Incomplete Shifts</b></div>', unsafe_allow_html=True)
-      pending_locs = [l for l in loc_status_summary if l["AM_Count"] < l["Required_Units"] or l["PM_Count"] < l["Required_Units"]]
-
-      if pending_locs:
-        for loc in pending_locs:
-          st.markdown(f'<div style="background:#ffffff; border:1px solid #fca5a5; border-left:4px solid #d97706; padding:10px; border-radius:6px; margin-bottom:8px;"><div style="font-weight:700; color:#0f172a;">📍 {loc["Location"]}</div><div style="font-size:0.75rem; color:#b45309; margin-top:2px;">AM Logs: {loc["AM_Count"]}/{loc["Required_Units"]} | PM Logs: {loc["PM_Count"]}/{loc["Required_Units"]} (Pending)</div></div>', unsafe_allow_html=True)
-      else:
-        st.success("🎉 All locations have completed their AM and PM shift logs!")
+      card_html = textwrap.dedent(f"""
+          <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid {status_color}; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+              <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+                  <span style="font-size:0.9rem; font-weight:700; color:#0f172a;">📍 {card["Location"]}</span>
+                  <span style="color:{status_color}; font-weight:700; font-size:0.72rem;">{status_text}</span>
+              </div>
+              <div style="margin-top:6px; font-size:0.75rem; color:#475569;">
+                  <div><b>AM:</b> {card["AM_Logged"]}/{card["Required"]} | <b>PM:</b> {card["PM_Logged"]}/{card["Required"]}</div>
+              </div>
+              <div style="margin-top:6px;">
+                  {logs_html}
+              </div>
+          </div>
+      """).strip()
+      col_target.markdown(card_html, unsafe_allow_html=True)
 
   with tab_matrix:
-    st.subheader("7-Day Coffee Machine Cleaning Matrix")
-    if not range_df.empty:
-      st.dataframe(range_df, use_container_width=True, hide_index=True)
+    st.subheader("7-Day Coffee Machine Cleaning Shift Matrix")
+    st.caption("Overview of cleaning logs across the selected date window.")
+
+    if range_df.empty:
+      st.info("No records found for this date range.")
     else:
-      st.info("No records found in the selected date range.")
+      total_days = max(1, (end_date - start_date).days + 1)
+      matrix_dates = [start_date + timedelta(days=i) for i in range(total_days)]
+
+      for loc_name, req_count in CM01_LOCATION_RULES.items():
+        st.markdown(f"""
+            <div style="background:#0f172a; color:#ffffff; padding:8px 12px; border-radius:6px; margin-top:1.2rem; margin-bottom:0.5rem; font-weight:700; font-size:0.95rem;">
+                📍 {loc_name}
+            </div>
+        """, unsafe_allow_html=True)
+
+        num_dates = len(matrix_dates)
+        col_ratios = [1.2] + [1.0] * num_dates
+        cols = st.columns(col_ratios)
+
+        cols[0].markdown('<div style="font-weight:700; font-size:0.78rem; color:#475569; padding:4px;">Shift</div>', unsafe_allow_html=True)
+        for i, d in enumerate(matrix_dates):
+          cols[i + 1].markdown(f'<div style="background:#f1f5f9; font-weight:700; font-size:0.75rem; text-align:center; padding:4px; border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>', unsafe_allow_html=True)
+
+        for shift in ["AM", "PM"]:
+          row_cols = st.columns(col_ratios)
+          row_cols[0].markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:6px; min-height:50px; display:flex; align-items:center;"><b style="font-size:0.80rem; color:#0f172a;">Shift {shift}</b></div>', unsafe_allow_html=True)
+
+          for i, d in enumerate(matrix_dates):
+            d_str = d.strftime("%d/%m/%Y")
+            matches = range_df[
+                (range_df["Date_Str"] == d_str)
+                & (range_df["Location"].str.strip().str.lower() == loc_name.lower())
+                & (range_df["Shift"] == shift)
+            ]
+
+            if matches.empty:
+              row_cols[i + 1].markdown('<div style="background:#fef2f2; border:1px solid #dc2626; border-radius:4px; padding:6px; min-height:50px; display:flex; justify-content:center; align-items:center;"><span style="color:#dc2626; font-weight:700; font-size:0.7rem;">Pending</span></div>', unsafe_allow_html=True)
+            else:
+              logged_units = ", ".join([u for u in matches["Sub_Location"].dropna().unique() if u])
+              tag_label = f"✓ Done ({logged_units})" if req_count > 1 and logged_units else "✓ Done"
+              row_cols[i + 1].markdown(f'<div style="background:#f0fdf4; border:1.5px solid #16a34a; border-radius:4px; padding:6px; min-height:50px; display:flex; flex-direction:column; justify-content:center; align-items:center;"><span style="color:#16a34a; font-weight:800; font-size:0.7rem;">{tag_label}</span></div>', unsafe_allow_html=True)
+
+        st.write("")
