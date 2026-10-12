@@ -18,6 +18,9 @@ CM01_LOCATION_UNITS = {
     "Samaa": ["Main Unit"],
 }
 
+# Alias for compatibility with overview controller imports
+CM01_LOCATION_RULES = CM01_LOCATION_UNITS
+
 
 def parse_record_cm01_submissions(raw_df):
   """Robustly parses Record CM01 Coffee Machine Cleaning submissions."""
