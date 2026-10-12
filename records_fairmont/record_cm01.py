@@ -203,9 +203,14 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
       loc_fully_complete = True
 
       for u_name in expected_units:
-        u_logs = loc_logs[loc_logs["Sub_Location"].str.strip().str.lower() == u_name.lower()] if not loc_logs.empty else pd.DataFrame()
-        am_done = not u_logs[u_logs["Shift"] == "AM"].empty
-        pm_done = not u_logs[u_logs["Shift"] == "PM"].empty
+        if not loc_logs.empty and "Sub_Location" in loc_logs.columns and "Shift" in loc_logs.columns:
+          u_logs = loc_logs[loc_logs["Sub_Location"].str.strip().str.lower() == u_name.lower()]
+          am_done = not u_logs[u_logs["Shift"] == "AM"].empty
+          pm_done = not u_logs[u_logs["Shift"] == "PM"].empty
+        else:
+          am_done = False
+          pm_done = False
+          u_logs = pd.DataFrame()
         
         if not (am_done and pm_done):
           loc_fully_complete = False
