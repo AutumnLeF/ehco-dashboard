@@ -5,17 +5,17 @@ import streamlit as st
 
 RECORD_CM01_FORM_ID = 24144
 
-# Explicit unit/sub-location names mapped per multi-unit location
-CM01_LOCATION_CATALOG = {
-    "Banquet": ["North", "West"],
-    "Bombay Café": ["Machine 1", "Machine 2"],
-    "Merchants": ["Machine 1", "Machine 2", "Machine 3"],
-    "Gold Lounge": ["Main Unit"],
-    "Grand Terminus": ["Main Unit"],
-    "Hedonist": ["Main Unit"],
-    "IRD": ["Main Unit"],
-    "Madeleine de Proust": ["Main Unit"],
-    "Samaa": ["Main Unit"],
+# Required unit counts per location
+CM01_LOCATION_RULES = {
+    "Banquet": 2,
+    "Bombay Café": 2,
+    "Merchants": 3,
+    "Gold Lounge": 1,
+    "Grand Terminus": 1,
+    "Hedonist": 1,
+    "IRD": 1,
+    "Madeleine de Proust": 1,
+    "Samaa": 1,
 }
 
 
@@ -89,7 +89,7 @@ def parse_record_cm01_submissions(raw_df):
         or "Banquet"
     ).strip()
 
-    # Extract exact unit/sub-location name from schema keys
+    # Flexible extraction of sub-location/machine name
     raw_sub_loc = str(
         loc_parent.get("Location_B")
         or loc_parent.get("Location_B_copy")
@@ -100,11 +100,11 @@ def parse_record_cm01_submissions(raw_df):
         or ""
     ).strip()
 
-    # Normalize unit name to match catalog if needed
-    sub_loc = raw_sub_loc if raw_sub_loc else ("Main Unit" if len(CM01_LOCATION_CATALOG.get(location, [])) == 1 else "Unknown Unit")
+    expected_count = CM01_LOCATION_RULES.get(location, 1)
+    sub_loc = raw_sub_loc if expected_count > 1 and raw_sub_loc else "Unit"
 
     shift_raw = str(sub.get("Shift") or sub.get("Shift_Name") or "Shift AM").strip()
-    if "pm" in shift_raw.lower() or "2" in shift_raw.lower():
+    if "pm" in shift_raw.lower() or "2" in shift_raw.lower() or "shift 2" in shift_raw.lower():
       shift = "PM"
     else:
       shift = "AM"
@@ -187,31 +187,29 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
 
     total_logs = len(day_df)
     completed_locations = 0
-    total_locations = len(CM01_LOCATION_CATALOG)
+    total_locations = len(CM01_LOCATION_RULES)
 
     location_cards = []
 
-    for loc_name, expected_units in CM01_LOCATION_CATALOG.items():
+    for loc_name, required_count in CM01_LOCATION_RULES.items():
       loc_logs = day_df[day_df["Location"].str.strip().str.lower() == loc_name.lower()] if not day_df.empty else pd.DataFrame()
       
-      logged_am_units = loc_logs[loc_logs["Shift"] == "AM"]["Sub_Location"].str.strip().str.lower().tolist()
-      logged_pm_units = loc_logs[loc_logs["Shift"] == "PM"]["Sub_Location"].str.strip().str.lower().tolist()
+      # Count unique entries or distinct sub-locations logged per shift
+      am_logs = loc_logs[loc_logs["Shift"] == "AM"]
+      pm_logs = loc_logs[loc_logs["Shift"] == "PM"]
 
-      expected_lower = [str(u).strip().lower() for u in expected_units]
+      am_count = len(am_logs) if required_count == 1 else am_logs["Sub_Location"].nunique()
+      pm_count = len(pm_logs) if required_count == 1 else pm_logs["Sub_Location"].nunique()
 
-      # Check if all expected units for this location have logs in AM and PM
-      am_complete = all(any(eu in lu for lu in logged_am_units) for eu in expected_lower)
-      pm_complete = all(any(eu in lu for lu in logged_pm_units) for eu in expected_lower)
-
-      is_loc_complete = am_complete and pm_complete
+      is_loc_complete = am_count >= required_count and pm_count >= required_count
       if is_loc_complete:
         completed_locations += 1
 
       location_cards.append({
           "Location": loc_name,
-          "Expected_Units": expected_units,
-          "AM_Logged": logged_am_units,
-          "PM_Logged": logged_pm_units,
+          "Required": required_count,
+          "AM_Logged": am_count,
+          "PM_Logged": pm_count,
           "Logs": loc_logs.to_dict("records"),
           "Complete": is_loc_complete,
       })
@@ -264,12 +262,10 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
       logs_html = ""
       if card["Logs"]:
         for l in card["Logs"]:
-          unit_display = f" ({l['Sub_Location']})" if len(card["Expected_Units"]) > 1 and l["Sub_Location"] else ""
+          unit_display = f" ({l['Sub_Location']})" if card["Required"] > 1 and l["Sub_Location"] else ""
           logs_html += f'<div style="font-size:0.73rem; border-top:1px solid #e2e8f0; padding:3px 0; display:flex; justify-content:space-between;"><span><b>Shift {l["Shift"]}</b>{unit_display}</span><span style="color:#0284c7;">{l["Time"]}</span></div>'
       else:
         logs_html = '<div style="font-size:0.72rem; color:#b45309; font-style:italic;">No logs submitted today.</div>'
-
-      expected_str = ", ".join(card["Expected_Units"])
 
       card_html = textwrap.dedent(f"""
           <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid {status_color}; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
@@ -277,8 +273,8 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
                   <span style="font-size:0.9rem; font-weight:700; color:#0f172a;">📍 {card["Location"]}</span>
                   <span style="color:{status_color}; font-weight:700; font-size:0.72rem;">{status_text}</span>
               </div>
-              <div style="margin-top:6px; font-size:0.72rem; color:#64748b;">
-                  <b>Required Units:</b> {expected_str}
+              <div style="margin-top:6px; font-size:0.75rem; color:#475569;">
+                  <div><b>AM:</b> {card["AM_Logged"]}/{card["Required"]} | <b>PM:</b> {card["PM_Logged"]}/{card["Required"]}</div>
               </div>
               <div style="margin-top:6px;">
                   {logs_html}
@@ -289,7 +285,7 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
 
   with tab_matrix:
     st.subheader("7-Day Coffee Machine Cleaning Shift Matrix")
-    st.caption("Overview of cleaning logs across the selected date window grouped by unit/sub-location.")
+    st.caption("Overview of cleaning logs across the selected date window.")
 
     if range_df.empty:
       st.info("No records found for this date range.")
@@ -297,7 +293,7 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
       total_days = max(1, (end_date - start_date).days + 1)
       matrix_dates = [start_date + timedelta(days=i) for i in range(total_days)]
 
-      for loc_name, expected_units in CM01_LOCATION_CATALOG.items():
+      for loc_name, req_count in CM01_LOCATION_RULES.items():
         st.markdown(f"""
             <div style="background:#0f172a; color:#ffffff; padding:8px 12px; border-radius:6px; margin-top:1.2rem; margin-bottom:0.5rem; font-weight:700; font-size:0.95rem;">
                 📍 {loc_name}
@@ -305,32 +301,29 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
         """, unsafe_allow_html=True)
 
         num_dates = len(matrix_dates)
-        col_ratios = [1.5] + [1.0] * num_dates
+        col_ratios = [1.2] + [1.0] * num_dates
         cols = st.columns(col_ratios)
 
-        cols[0].markdown('<div style="font-weight:700; font-size:0.78rem; color:#475569; padding:4px;">Unit & Shift</div>', unsafe_allow_html=True)
+        cols[0].markdown('<div style="font-weight:700; font-size:0.78rem; color:#475569; padding:4px;">Shift</div>', unsafe_allow_html=True)
         for i, d in enumerate(matrix_dates):
           cols[i + 1].markdown(f'<div style="background:#f1f5f9; font-weight:700; font-size:0.75rem; text-align:center; padding:4px; border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>', unsafe_allow_html=True)
 
-        for unit_name in expected_units:
-          for shift in ["AM", "PM"]:
-            row_label = f"{unit_name} ({shift})" if len(expected_units) > 1 else f"Shift {shift}"
-            row_cols = st.columns(col_ratios)
-            row_cols[0].markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:6px; min-height:45px; display:flex; align-items:center;"><b style="font-size:0.76rem; color:#0f172a;">{row_label}</b></div>', unsafe_allow_html=True)
+        for shift in ["AM", "PM"]:
+          row_cols = st.columns(col_ratios)
+          row_cols[0].markdown(f'<div style="background:#ffffff; border:1.0px solid #cbd5e1; border-radius:4px; padding:6px; min-height:45px; display:flex; align-items:center;"><b style="font-size:0.80rem; color:#0f172a;">Shift {shift}</b></div>', unsafe_allow_html=True)
 
-            for i, d in enumerate(matrix_dates):
-              d_str = d.strftime("%d/%m/%Y")
-              matches = range_df[
-                  (range_df["Date_Str"] == d_str)
-                  & (range_df["Location"].str.strip().str.lower() == loc_name.lower())
-                  & (range_df["Shift"] == shift)
-              ]
-              if len(expected_units) > 1:
-                matches = matches[matches["Sub_Location"].str.strip().str.lower().str.contains(unit_name.lower(), na=False)]
+          for i, d in enumerate(matrix_dates):
+            d_str = d.strftime("%d/%m/%Y")
+            matches = range_df[
+                (range_df["Date_Str"] == d_str)
+                & (range_df["Location"].str.strip().str.lower() == loc_name.lower())
+                & (range_df["Shift"] == shift)
+            ]
+            logged_count = len(matches) if req_count == 1 else matches["Sub_Location"].nunique()
 
-              if matches.empty:
-                row_cols[i + 1].markdown('<div style="background:#fef2f2; border:1px solid #dc2626; border-radius:4px; padding:4px; min-height:45px; display:flex; justify-content:center; align-items:center;"><span style="color:#dc2626; font-weight:700; font-size:0.65rem;">Pending</span></div>', unsafe_allow_html=True)
-              else:
-                row_cols[i + 1].markdown('<div style="background:#f0fdf4; border:1.5px solid #16a34a; border-radius:4px; padding:4px; min-height:45px; display:flex; justify-content:center; align-items:center;"><span style="color:#16a34a; font-weight:800; font-size:0.68rem;">✓ Done</span></div>', unsafe_allow_html=True)
+            if logged_count < req_count:
+              row_cols[i + 1].markdown(f'<div style="background:#fef2f2; border:1px solid #dc2626; border-radius:4px; padding:4px; min-height:45px; display:flex; justify-content:center; align-items:center;"><span style="color:#dc2626; font-weight:700; font-size:0.7rem;">{logged_count}/{req_count}</span></div>', unsafe_allow_html=True)
+            else:
+              row_cols[i + 1].markdown(f'<div style="background:#f0fdf4; border:1.5px solid #16a34a; border-radius:4px; padding:4px; min-height:45px; display:flex; justify-content:center; align-items:center;"><span style="color:#16a34a; font-weight:800; font-size:0.7rem;">✓ Done ({logged_count}/{req_count})</span></div>', unsafe_allow_html=True)
 
         st.write("")
