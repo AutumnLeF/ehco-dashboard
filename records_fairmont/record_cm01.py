@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import textwrap
 import pandas as pd
 import streamlit as st
@@ -341,6 +341,7 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
     else:
       total_days = max(1, (end_date - start_date).days + 1)
       matrix_dates = [start_date + timedelta(days=i) for i in range(total_days)]
+      current_today = datetime.now(timezone(timedelta(hours=5, minutes=30))).date()
 
       for loc_name, expected_units in CM01_LOCATION_UNITS.items():
         st.markdown(f"""
@@ -374,11 +375,15 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
             am_done = not u_matches[u_matches["Shift"] == "AM"].empty if not u_matches.empty else False
             pm_done = not u_matches[u_matches["Shift"] == "PM"].empty if not u_matches.empty else False
 
-            am_str = '<span style="color:#16a34a; font-weight:700;">✓ AM</span>' if am_done else '<span style="color:#dc2626; font-weight:700;">⏳ AM</span>'
-            pm_str = '<span style="color:#16a34a; font-weight:700;">✓ PM</span>' if pm_done else '<span style="color:#dc2626; font-weight:700;">⏳ PM</span>'
+            is_old = (current_today - d).days > 1  # More than 1 day old (2+ days in the past)
+            pending_icon = "❌" if is_old else "⏳"
 
-            box_bg = "#f0fdf4" if (am_done and pm_done) else "#fef2f2"
-            box_border = "#16a34a" if (am_done and pm_done) else "#dc2626"
+            am_str = '<span style="color:#16a34a; font-weight:700;">✓ AM</span>' if am_done else f'<span style="color:#dc2626; font-weight:700;">{pending_icon} AM</span>'
+            pm_str = '<span style="color:#16a34a; font-weight:700;">✓ PM</span>' if pm_done else f'<span style="color:#dc2626; font-weight:700;">{pending_icon} PM</span>'
+
+            all_done = am_done and pm_done
+            box_bg = "#f0fdf4" if all_done else "#fef2f2"
+            box_border = "#16a34a" if all_done else "#dc2626"
 
             row_cols[i + 1].markdown(
                 f'<div style="background:{box_bg}; border:1.5px solid {box_border}; border-radius:4px; padding:6px; min-height:50px; display:flex; flex-direction:column; justify-content:center; align-items:center; font-size:0.68rem;">'
