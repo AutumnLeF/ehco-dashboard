@@ -14,6 +14,7 @@ from records_fairmont.record_13 import render_record_13_view, parse_record_13_su
 from records_fairmont.record_15 import render_record_15_view, parse_record_15_submissions
 from records_fairmont.record_21 import render_record_21_view, parse_record_21_submissions, RECORD_21_AREAS
 from records_fairmont.record_25 import render_record_25_view, parse_record_25_submissions
+from records_fairmont.record_cm01 import render_record_cm01_view, parse_record_cm01_submissions, CM01_LOCATION_RULES
 
 st.set_page_config(
     page_title="Fairmont Mumbai - EHCO Status",
@@ -47,6 +48,7 @@ FORM_MAPPING = {
     "RECORD 15 - PESTICIDE USAGE RECORD": 23717,
     "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH": 23723,
     "RECORD 25 - ICE MACHINE CLEANING RECORD": 23727,
+    "RECORD CM01 - COFFEE MACHINE CLEANING RECORD": 24144,
 }
 
 if "fairmont_nav_choice" not in st.session_state:
@@ -301,7 +303,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             st.rerun()
 
     # --- BULLETPROOF SESSION CACHING FOR INSTANT LOAD SPEED ---
-    if "parsed_cache_all" not in st.session_state or 23727 not in st.session_state.get("parsed_cache_all", {}):
+    if "parsed_cache_all" not in st.session_state or 24144 not in st.session_state.get("parsed_cache_all", {}):
         st.session_state.parsed_cache_all = {
             23703: parse_record_02_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23703)),
             23705: parse_record_03_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23705)),
@@ -313,6 +315,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             23717: parse_record_15_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23717)),
             23723: parse_record_21_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23723)),
             23727: parse_record_25_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23727)),
+            24144: parse_record_cm01_submissions(fetch_incremental_persistent_data(api_url, clean_token, 24144)),
         }
 
     cache = st.session_state.parsed_cache_all
@@ -326,6 +329,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     df_15_parsed = cache.get(23717, pd.DataFrame())
     df_21_parsed = cache.get(23723, pd.DataFrame())
     df_25_parsed = cache.get(23727, pd.DataFrame())
+    df_cm01_parsed = cache.get(24144, pd.DataFrame())
 
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
@@ -469,6 +473,19 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
+    # --- RECORD CM01 METRICS ---
+    day_cm01 = get_day_df(df_cm01_parsed, selected_day_variants, target_date_obj)
+    cm01_completed_locs = 0
+    for loc_name, req_units in CM01_LOCATION_RULES.items():
+        loc_logs = day_cm01[day_cm01["Location"].str.strip().str.lower() == loc_name.lower()] if not day_cm01.empty else pd.DataFrame()
+        am_count = len(loc_logs[loc_logs["Shift"] == "AM"])
+        pm_count = len(loc_logs[loc_logs["Shift"] == "PM"])
+        if am_count >= req_units and pm_count >= req_units:
+            cm01_completed_locs += 1
+    total_cm01_locs = len(CM01_LOCATION_RULES)
+    is_cm01_complete = (cm01_completed_locs >= total_cm01_locs)
+    stat_cm01 = f'<span style="color: {"#4ade80" if is_cm01_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_cm01_complete else "Pending"} - {cm01_completed_locs}/{total_cm01_locs} locations</span>'
+
     completed_cats = sum([
         1 if not day_02.empty else 0,
         1 if is_op_complete and is_cl_complete else 0,
@@ -479,9 +496,10 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         1 if is_13_complete else 0,
         1 if logged_15 > 0 else 0,
         1 if is_21_complete else 0,
-        1 if logged_25 > 0 else 0
+        1 if logged_25 > 0 else 0,
+        1 if is_cm01_complete else 0
     ])
-    total_cats = 10
+    total_cats = 11
     progress_pct = int((completed_cats / total_cats) * 100)
     bar_color = "#4ade80" if progress_pct > 70 else ("#3b82f6" if progress_pct > 30 else "#fbbf24")
 
@@ -512,6 +530,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             render_theme_card(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "card_r02")
             render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
             render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04")
+            render_theme_card(col1, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", stat_cm01, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", "card_rcm01")
         with col2:
             render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
             render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
@@ -596,3 +615,5 @@ else:
         render_record_21_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.fairmont_nav_choice == "RECORD 25 - ICE MACHINE CLEANING RECORD":
         render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD CM01 - COFFEE MACHINE CLEANING RECORD":
+        render_record_cm01_view(raw_records_df, selected_day_str, start_date, end_date)
