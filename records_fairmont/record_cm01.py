@@ -5,17 +5,17 @@ import streamlit as st
 
 RECORD_CM01_FORM_ID = 24144
 
-# Required unit counts per location
-CM01_LOCATION_RULES = {
-    "Banquet": 2,
-    "Bombay Café": 2,
-    "Merchants": 3,
-    "Gold Lounge": 1,
-    "Grand Terminus": 1,
-    "Hedonist": 1,
-    "IRD": 1,
-    "Madeleine de Proust": 1,
-    "Samaa": 1,
+# Master machine/unit definitions per location
+CM01_LOCATION_UNITS = {
+    "Banquet": ["North", "West"],
+    "Bombay Café": ["Machine 1", "Machine 2"],
+    "Merchants": ["Machine 1", "Machine 2", "Machine 3"],
+    "Gold Lounge": ["Main Unit"],
+    "Grand Terminus": ["Main Unit"],
+    "Hedonist": ["Main Unit"],
+    "IRD": ["Main Unit"],
+    "Madeleine de Proust": ["Main Unit"],
+    "Samaa": ["Main Unit"],
 }
 
 
@@ -89,7 +89,6 @@ def parse_record_cm01_submissions(raw_df):
         or "Banquet"
     ).strip()
 
-    # Flexible extraction of sub-location/machine name
     raw_sub_loc = str(
         loc_parent.get("Location_B")
         or loc_parent.get("Location_B_copy")
@@ -100,11 +99,14 @@ def parse_record_cm01_submissions(raw_df):
         or ""
     ).strip()
 
-    expected_count = CM01_LOCATION_RULES.get(location, 1)
-    sub_loc = raw_sub_loc if expected_count > 1 and raw_sub_loc else "Unit"
+    expected_units = CM01_LOCATION_UNITS.get(location, ["Main Unit"])
+    if len(expected_units) == 1:
+      sub_loc = expected_units[0]
+    else:
+      sub_loc = raw_sub_loc if raw_sub_loc else expected_units[0]
 
     shift_raw = str(sub.get("Shift") or sub.get("Shift_Name") or "Shift AM").strip()
-    if "pm" in shift_raw.lower() or "2" in shift_raw.lower() or "shift 2" in shift_raw.lower():
+    if "pm" in shift_raw.lower() or "2" in shift_raw.lower():
       shift = "PM"
     else:
       shift = "AM"
@@ -187,31 +189,38 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
 
     total_logs = len(day_df)
     completed_locations = 0
-    total_locations = len(CM01_LOCATION_RULES)
+    total_locations = len(CM01_LOCATION_UNITS)
 
     location_cards = []
 
-    for loc_name, required_count in CM01_LOCATION_RULES.items():
+    for loc_name, expected_units in CM01_LOCATION_UNITS.items():
       loc_logs = day_df[day_df["Location"].str.strip().str.lower() == loc_name.lower()] if not day_df.empty else pd.DataFrame()
       
-      # Count unique entries or distinct sub-locations logged per shift
-      am_logs = loc_logs[loc_logs["Shift"] == "AM"]
-      pm_logs = loc_logs[loc_logs["Shift"] == "PM"]
+      unit_statuses = []
+      loc_fully_complete = True
 
-      am_count = len(am_logs) if required_count == 1 else am_logs["Sub_Location"].nunique()
-      pm_count = len(pm_logs) if required_count == 1 else pm_logs["Sub_Location"].nunique()
+      for u_name in expected_units:
+        u_logs = loc_logs[loc_logs["Sub_Location"].str.strip().str.lower() == u_name.lower()] if not loc_logs.empty else pd.DataFrame()
+        am_done = not u_logs[u_logs["Shift"] == "AM"].empty
+        pm_done = not u_logs[u_logs["Shift"] == "PM"].empty
+        
+        if not (am_done and pm_done):
+          loc_fully_complete = False
 
-      is_loc_complete = am_count >= required_count and pm_count >= required_count
-      if is_loc_complete:
+        unit_statuses.append({
+            "Unit_Name": u_name,
+            "AM": am_done,
+            "PM": pm_done,
+            "Logs": u_logs.to_dict("records"),
+        })
+
+      if loc_fully_complete:
         completed_locations += 1
 
       location_cards.append({
           "Location": loc_name,
-          "Required": required_count,
-          "AM_Logged": am_count,
-          "PM_Logged": pm_count,
-          "Logs": loc_logs.to_dict("records"),
-          "Complete": is_loc_complete,
+          "Units": unit_statuses,
+          "Complete": loc_fully_complete,
       })
 
     k1, k2, k3 = st.columns(3)
@@ -247,45 +256,77 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
       )
 
     st.write("")
+
+    pending_cards = [c for c in location_cards if not c["Complete"]]
+    completed_cards = [c for c in location_cards if c["Complete"]]
+
+    # --- SECTION 1: PENDING / INCOMPLETE LOCATIONS ---
     st.markdown(
-        "<h4 style='color:#0f172a; margin-top:1.5rem; margin-bottom:1rem;'>📍"
-        f" Coffee Machine Cleaning Status ({selected_day_str})</h4>",
+        "<h4 style='color:#b45309; margin-top:1.5rem; margin-bottom:1rem;'>⏳"
+        f" Pending / Incomplete Locations ({selected_day_str})</h4>",
         unsafe_allow_html=True,
     )
+    if not pending_cards:
+      st.success("🎉 All locations have completed their AM and PM cleaning shifts!")
+    else:
+      p_cols = st.columns(3, gap="small")
+      for idx, card in enumerate(pending_cards):
+        col_target = p_cols[idx % 3]
+        
+        units_html = ""
+        for u in card["Units"]:
+          am_badge = '<span style="color:#16a34a;">✓ AM</span>' if u["AM"] else '<span style="color:#dc2626;">⏳ AM</span>'
+          pm_badge = '<span style="color:#16a34a;">✓ PM</span>' if u["PM"] else '<span style="color:#dc2626;">⏳ PM</span>'
+          units_html += f'<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:6px; margin-top:4px; font-size:0.75rem; display:flex; justify-content:space-between;"><span><b>{u["Unit_Name"]}</b></span><span>{am_badge} | {pm_badge}</span></div>'
 
-    grid_cols = st.columns(3, gap="small")
-    for idx, card in enumerate(location_cards):
-      col_target = grid_cols[idx % 3]
-      status_color = "#16a34a" if card["Complete"] else "#d97706"
-      status_text = "✓ Fully Completed" if card["Complete"] else "⏳ Pending Shifts/Units"
+        card_html = textwrap.dedent(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #d97706; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+                    <span style="font-size:0.9rem; font-weight:700; color:#0f172a;">📍 {card["Location"]}</span>
+                    <span style="color:#d97706; font-weight:700; font-size:0.72rem;">Pending Shifts</span>
+                </div>
+                <div style="margin-top:6px;">
+                    {units_html}
+                </div>
+            </div>
+        """).strip()
+        col_target.markdown(card_html, unsafe_allow_html=True)
 
-      logs_html = ""
-      if card["Logs"]:
-        for l in card["Logs"]:
-          unit_display = f" ({l['Sub_Location']})" if card["Required"] > 1 and l["Sub_Location"] else ""
-          logs_html += f'<div style="font-size:0.73rem; border-top:1px solid #e2e8f0; padding:3px 0; display:flex; justify-content:space-between;"><span><b>Shift {l["Shift"]}</b>{unit_display}</span><span style="color:#0284c7;">{l["Time"]}</span></div>'
-      else:
-        logs_html = '<div style="font-size:0.72rem; color:#b45309; font-style:italic;">No logs submitted today.</div>'
+    st.write("")
 
-      card_html = textwrap.dedent(f"""
-          <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid {status_color}; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-              <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
-                  <span style="font-size:0.9rem; font-weight:700; color:#0f172a;">📍 {card["Location"]}</span>
-                  <span style="color:{status_color}; font-weight:700; font-size:0.72rem;">{status_text}</span>
-              </div>
-              <div style="margin-top:6px; font-size:0.75rem; color:#475569;">
-                  <div><b>AM:</b> {card["AM_Logged"]}/{card["Required"]} | <b>PM:</b> {card["PM_Logged"]}/{card["Required"]}</div>
-              </div>
-              <div style="margin-top:6px;">
-                  {logs_html}
-              </div>
-          </div>
-      """).strip()
-      col_target.markdown(card_html, unsafe_allow_html=True)
+    # --- SECTION 2: COMPLETED & COMPLIANT LOCATIONS ---
+    st.markdown(
+        "<h4 style='color:#16a34a; margin-top:2rem; margin-bottom:1rem;'>✅"
+        f" Completed & Compliant Locations ({selected_day_str})</h4>",
+        unsafe_allow_html=True,
+    )
+    if not completed_cards:
+      st.info("No fully completed locations available yet.")
+    else:
+      c_cols = st.columns(3, gap="small")
+      for idx, card in enumerate(completed_cards):
+        col_target = c_cols[idx % 3]
+
+        units_html = ""
+        for u in card["Units"]:
+          units_html += f'<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:6px; margin-top:4px; font-size:0.75rem; display:flex; justify-content:space-between;"><span><b>{u["Unit_Name"]}</b></span><span style="color:#16a34a; font-weight:700;">✓ AM & PM Done</span></div>'
+
+        card_html = textwrap.dedent(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+                    <span style="font-size:0.9rem; font-weight:700; color:#0f172a;">📍 {card["Location"]}</span>
+                    <span style="color:#16a34a; font-weight:700; font-size:0.72rem;">✓ Fully Completed</span>
+                </div>
+                <div style="margin-top:6px;">
+                    {units_html}
+                </div>
+            </div>
+        """).strip()
+        col_target.markdown(card_html, unsafe_allow_html=True)
 
   with tab_matrix:
     st.subheader("7-Day Coffee Machine Cleaning Shift Matrix")
-    st.caption("Overview of cleaning logs across the selected date window.")
+    st.caption("Overview of cleaning logs across the selected date window grouped by unit.")
 
     if range_df.empty:
       st.info("No records found for this date range.")
@@ -293,7 +334,7 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
       total_days = max(1, (end_date - start_date).days + 1)
       matrix_dates = [start_date + timedelta(days=i) for i in range(total_days)]
 
-      for loc_name, req_count in CM01_LOCATION_RULES.items():
+      for loc_name, expected_units in CM01_LOCATION_UNITS.items():
         st.markdown(f"""
             <div style="background:#0f172a; color:#ffffff; padding:8px 12px; border-radius:6px; margin-top:1.2rem; margin-bottom:0.5rem; font-weight:700; font-size:0.95rem;">
                 📍 {loc_name}
@@ -301,29 +342,32 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
         """, unsafe_allow_html=True)
 
         num_dates = len(matrix_dates)
-        col_ratios = [1.2] + [1.0] * num_dates
+        col_ratios = [1.5] + [1.0] * num_dates
         cols = st.columns(col_ratios)
 
-        cols[0].markdown('<div style="font-weight:700; font-size:0.78rem; color:#475569; padding:4px;">Shift</div>', unsafe_allow_html=True)
+        cols[0].markdown('<div style="font-weight:700; font-size:0.78rem; color:#475569; padding:4px;">Machine Unit & Shift</div>', unsafe_allow_html=True)
         for i, d in enumerate(matrix_dates):
           cols[i + 1].markdown(f'<div style="background:#f1f5f9; font-weight:700; font-size:0.75rem; text-align:center; padding:4px; border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>', unsafe_allow_html=True)
 
-        for shift in ["AM", "PM"]:
-          row_cols = st.columns(col_ratios)
-          row_cols[0].markdown(f'<div style="background:#ffffff; border:1.0px solid #cbd5e1; border-radius:4px; padding:6px; min-height:45px; display:flex; align-items:center;"><b style="font-size:0.80rem; color:#0f172a;">Shift {shift}</b></div>', unsafe_allow_html=True)
+        for unit_name in expected_units:
+          for shift in ["AM", "PM"]:
+            row_label = f"{unit_name} ({shift})"
+            row_cols = st.columns(col_ratios)
+            row_cols[0].markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:6px; min-height:45px; display:flex; align-items:center;"><b style="font-size:0.74rem; color:#0f172a;">{row_label}</b></div>', unsafe_allow_html=True)
 
-          for i, d in enumerate(matrix_dates):
-            d_str = d.strftime("%d/%m/%Y")
-            matches = range_df[
-                (range_df["Date_Str"] == d_str)
-                & (range_df["Location"].str.strip().str.lower() == loc_name.lower())
-                & (range_df["Shift"] == shift)
-            ]
-            logged_count = len(matches) if req_count == 1 else matches["Sub_Location"].nunique()
+            for i, d in enumerate(matrix_dates):
+              d_str = d.strftime("%d/%m/%Y")
+              matches = range_df[
+                  (range_df["Date_Str"] == d_str)
+                  & (range_df["Location"].str.strip().str.lower() == loc_name.lower())
+                  & (range_df["Shift"] == shift)
+              ]
+              if len(expected_units) > 1:
+                matches = matches[matches["Sub_Location"].str.strip().str.lower().str.contains(unit_name.lower(), na=False)]
 
-            if logged_count < req_count:
-              row_cols[i + 1].markdown(f'<div style="background:#fef2f2; border:1px solid #dc2626; border-radius:4px; padding:4px; min-height:45px; display:flex; justify-content:center; align-items:center;"><span style="color:#dc2626; font-weight:700; font-size:0.7rem;">{logged_count}/{req_count}</span></div>', unsafe_allow_html=True)
-            else:
-              row_cols[i + 1].markdown(f'<div style="background:#f0fdf4; border:1.5px solid #16a34a; border-radius:4px; padding:4px; min-height:45px; display:flex; justify-content:center; align-items:center;"><span style="color:#16a34a; font-weight:800; font-size:0.7rem;">✓ Done ({logged_count}/{req_count})</span></div>', unsafe_allow_html=True)
+              if matches.empty:
+                row_cols[i + 1].markdown('<div style="background:#fef2f2; border:1px solid #dc2626; border-radius:4px; padding:4px; min-height:45px; display:flex; justify-content:center; align-items:center;"><span style="color:#dc2626; font-weight:700; font-size:0.65rem;">Pending</span></div>', unsafe_allow_html=True)
+              else:
+                row_cols[i + 1].markdown('<div style="background:#f0fdf4; border:1.5px solid #16a34a; border-radius:4px; padding:4px; min-height:45px; display:flex; justify-content:center; align-items:center;"><span style="color:#16a34a; font-weight:800; font-size:0.68rem;">✓ Done</span></div>', unsafe_allow_html=True)
 
         st.write("")
