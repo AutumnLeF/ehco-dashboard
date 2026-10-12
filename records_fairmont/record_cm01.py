@@ -334,7 +334,7 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
 
   with tab_matrix:
     st.subheader("7-Day Coffee Machine Cleaning Shift Matrix")
-    st.caption("Overview of cleaning logs across the selected date window grouped by unit.")
+    st.caption("Overview of cleaning logs across the selected date window grouped by machine unit.")
 
     if range_df.empty:
       st.info("No records found for this date range.")
@@ -353,29 +353,39 @@ def render_record_cm01_view(raw_df, selected_day_str, start_date, end_date):
         col_ratios = [1.5] + [1.0] * num_dates
         cols = st.columns(col_ratios)
 
-        cols[0].markdown('<div style="font-weight:700; font-size:0.78rem; color:#475569; padding:4px;">Machine Unit & Shift</div>', unsafe_allow_html=True)
+        cols[0].markdown('<div style="font-weight:700; font-size:0.78rem; color:#475569; padding:4px;">Machine Unit</div>', unsafe_allow_html=True)
         for i, d in enumerate(matrix_dates):
           cols[i + 1].markdown(f'<div style="background:#f1f5f9; font-weight:700; font-size:0.75rem; text-align:center; padding:4px; border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>', unsafe_allow_html=True)
 
         for unit_name in expected_units:
-          for shift in ["AM", "PM"]:
-            row_label = f"{unit_name} ({shift})"
-            row_cols = st.columns(col_ratios)
-            row_cols[0].markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:6px; min-height:45px; display:flex; align-items:center;"><b style="font-size:0.74rem; color:#0f172a;">{row_label}</b></div>', unsafe_allow_html=True)
+          row_cols = st.columns(col_ratios)
+          row_cols[0].markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:6px; min-height:50px; display:flex; align-items:center;"><b style="font-size:0.76rem; color:#0f172a;">{unit_name}</b></div>', unsafe_allow_html=True)
 
-            for i, d in enumerate(matrix_dates):
-              d_str = d.strftime("%d/%m/%Y")
-              matches = range_df[
-                  (range_df["Date_Str"] == d_str)
-                  & (range_df["Location"].str.strip().str.lower() == loc_name.lower())
-                  & (range_df["Shift"] == shift)
-              ]
-              if len(expected_units) > 1:
-                matches = matches[matches["Sub_Location"].str.strip().str.lower().str.contains(unit_name.lower(), na=False)]
+          for i, d in enumerate(matrix_dates):
+            d_str = d.strftime("%d/%m/%Y")
+            day_matches = range_df[range_df["Date_Str"] == d_str]
+            loc_matches = day_matches[day_matches["Location"].str.strip().str.lower() == loc_name.lower()] if not day_matches.empty else pd.DataFrame()
 
-              if matches.empty:
-                row_cols[i + 1].markdown('<div style="background:#fef2f2; border:1px solid #dc2626; border-radius:4px; padding:4px; min-height:45px; display:flex; justify-content:center; align-items:center;"><span style="color:#dc2626; font-weight:700; font-size:0.65rem;">Pending</span></div>', unsafe_allow_html=True)
-              else:
-                row_cols[i + 1].markdown('<div style="background:#f0fdf4; border:1.5px solid #16a34a; border-radius:4px; padding:4px; min-height:45px; display:flex; justify-content:center; align-items:center;"><span style="color:#16a34a; font-weight:800; font-size:0.68rem;">✓ Done</span></div>', unsafe_allow_html=True)
+            if len(expected_units) > 1 and not loc_matches.empty:
+              u_matches = loc_matches[loc_matches["Sub_Location"].str.strip().str.lower().str.contains(unit_name.lower(), na=False)]
+            else:
+              u_matches = loc_matches
+
+            am_done = not u_matches[u_matches["Shift"] == "AM"].empty if not u_matches.empty else False
+            pm_done = not u_matches[u_matches["Shift"] == "PM"].empty if not u_matches.empty else False
+
+            am_str = '<span style="color:#16a34a; font-weight:700;">✓ AM</span>' if am_done else '<span style="color:#dc2626; font-weight:700;">⏳ AM</span>'
+            pm_str = '<span style="color:#16a34a; font-weight:700;">✓ PM</span>' if pm_done else '<span style="color:#dc2626; font-weight:700;">⏳ PM</span>'
+
+            box_bg = "#f0fdf4" if (am_done and pm_done) else "#fef2f2"
+            box_border = "#16a34a" if (am_done and pm_done) else "#dc2626"
+
+            row_cols[i + 1].markdown(
+                f'<div style="background:{box_bg}; border:1.5px solid {box_border}; border-radius:4px; padding:6px; min-height:50px; display:flex; flex-direction:column; justify-content:center; align-items:center; font-size:0.68rem;">'
+                f'<div>{am_str}</div>'
+                f'<div style="margin-top:2px;">{pm_str}</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
 
         st.write("")
