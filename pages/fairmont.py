@@ -14,7 +14,7 @@ from records_fairmont.record_13 import render_record_13_view, parse_record_13_su
 from records_fairmont.record_15 import render_record_15_view, parse_record_15_submissions
 from records_fairmont.record_21 import render_record_21_view, parse_record_21_submissions, RECORD_21_AREAS
 from records_fairmont.record_25 import render_record_25_view, parse_record_25_submissions
-from records_fairmont.record_cm01 import render_record_cm01_view, parse_record_cm01_submissions, CM01_LOCATION_RULES
+from records_fairmont.record_cm01 import render_record_cm01_view, parse_record_cm01_submissions, CM01_LOCATION_UNITS, CM01_LOCATION_RULES
 
 st.set_page_config(
     page_title="Fairmont Mumbai - EHCO Status",
@@ -476,13 +476,17 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     # --- RECORD CM01 METRICS ---
     day_cm01 = get_day_df(df_cm01_parsed, selected_day_variants, target_date_obj)
     cm01_completed_locs = 0
-    for loc_name, req_units in CM01_LOCATION_RULES.items():
+    for loc_name, expected_units in CM01_LOCATION_UNITS.items():
         loc_logs = day_cm01[day_cm01["Location"].str.strip().str.lower() == loc_name.lower()] if not day_cm01.empty else pd.DataFrame()
-        am_count = len(loc_logs[loc_logs["Shift"] == "AM"])
-        pm_count = len(loc_logs[loc_logs["Shift"] == "PM"])
-        if am_count >= req_units and pm_count >= req_units:
+        am_units = loc_logs[loc_logs["Shift"] == "AM"]["Sub_Location"].str.strip().str.lower().tolist()
+        pm_units = loc_logs[loc_logs["Shift"] == "PM"]["Sub_Location"].str.strip().str.lower().tolist()
+        expected_lower = [str(u).strip().lower() for u in expected_units]
+        am_complete = all(any(eu in lu for lu in am_units) for eu in expected_lower)
+        pm_complete = all(any(eu in lu for lu in pm_units) for eu in expected_lower)
+        if am_complete and pm_complete:
             cm01_completed_locs += 1
-    total_cm01_locs = len(CM01_LOCATION_RULES)
+
+    total_cm01_locs = len(CM01_LOCATION_UNITS)
     is_cm01_complete = (cm01_completed_locs >= total_cm01_locs)
     stat_cm01 = f'<span style="color: {"#4ade80" if is_cm01_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_cm01_complete else "Pending"} - {cm01_completed_locs}/{total_cm01_locs} locations</span>'
 
