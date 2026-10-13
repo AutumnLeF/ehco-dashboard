@@ -58,7 +58,6 @@ def parse_record_ph01_submissions(raw_df):
     sign_staff = str(sub.get("Sign_initial") or sub.get("Sign") or "Staff").strip()
     sign_incharge = str(sub.get("Sign_initial_-_Outlet_Incharge") or sub.get("Sign_Incharge") or "Incharge").strip()
 
-    # Handle repeatable entries set
     entries = sub.get("Entry") or sub.get("set") or []
     if isinstance(entries, dict):
       entries = [entries]
@@ -74,8 +73,6 @@ def parse_record_ph01_submissions(raw_df):
       short_hair = str(entry.get("Short_hair") or "Yes")
       clean_shaven = str(entry.get("Clean_shaven") or "Yes")
       nails = str(entry.get("Trimmed_and_clean_nails") or "Yes")
-      jewelry = str(entry.get("Jewellery_and_thread_not_worn") or "Yes")
-      wounds = str(entry.get("Wounds_and_cuts_covered") or "Not applicable")
 
       rows.append({
           "Date_Str": date_str,
@@ -88,8 +85,6 @@ def parse_record_ph01_submissions(raw_df):
           "Short_Hair": short_hair,
           "Clean_Shaven": clean_shaven,
           "Nails": nails,
-          "Jewelry": jewelry,
-          "Wounds": wounds,
       })
 
   df_out = pd.DataFrame(rows)
@@ -191,40 +186,58 @@ def render_record_ph01_view(raw_df, selected_day_str, start_date, end_date):
       )
 
     st.write("")
+
+    # Group records by location for the selected day
+    loc_cards = []
+    if not day_df.empty:
+      for loc_name, group in day_df.groupby("Location"):
+        staff_list = group.to_dict("records")
+        checked_by = group["Sign_Staff"].iloc[0] if "Sign_Staff" in group.columns else "Staff"
+        incharge = group["Sign_Incharge"].iloc[0] if "Sign_Incharge" in group.columns else "Incharge"
+        loc_cards.append({
+            "Location": loc_name,
+            "Staff_List": staff_list,
+            "Checked_By": checked_by,
+            "Incharge": incharge,
+            "Count": len(staff_list),
+        })
+
+    # --- SECTION: COMPLETED & INSPECTED LOCATIONS ---
     st.markdown(
-        "<h4 style='color:#0f172a; margin-top:1.5rem; margin-bottom:1rem;'>👤"
-        f" Staff Personal Hygiene Inspections ({selected_day_str})</h4>",
+        "<h4 style='color:#16a34a; margin-top:1.5rem; margin-bottom:1rem;'>✅"
+        f" Inspected Locations ({selected_day_str})</h4>",
         unsafe_allow_html=True,
     )
-
-    if day_df.empty:
-      st.info("No personal hygiene records submitted for this date.")
+    if not loc_cards:
+      st.info("No personal hygiene inspections recorded for this date.")
     else:
       cols = st.columns(3, gap="small")
-      for idx, (_, r) in enumerate(day_df.iterrows()):
+      for idx, card in enumerate(loc_cards):
         col_target = cols[idx % 3]
+
+        staff_items_html = ""
+        for s in card["Staff_List"]:
+          staff_items_html += f'<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:6px; margin-top:4px; font-size:0.75rem; display:flex; justify-content:space-between;"><span>👤 <b>{s["Staff_Name"]}</b></span><span style="color:#16a34a;">✓ Pass</span></div>'
+
         card_html = textwrap.dedent(f"""
             <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
                 <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
-                    <span style="font-size:0.9rem; font-weight:700; color:#0f172a;">👤 {r["Staff_Name"]}</span>
-                    <span style="color:#16a34a; font-weight:700; font-size:0.75rem;">✓ Compliant</span>
+                    <span style="font-size:0.9rem; font-weight:700; color:#0f172a;">📍 {card["Location"]}</span>
+                    <span style="color:#16a34a; font-weight:700; font-size:0.72rem;">{card["Count"]} Staff Checked</span>
                 </div>
-                <div style="margin-top:6px; font-size:0.75rem; color:#475569;">
-                    <div><b>Location:</b> {r["Location"]}</div>
-                    <div style="margin-top:4px; color:#64748b;">
-                        Uniform: {r["Clean_Uniform"]} | Hair: {r["Short_Hair"]} | Shaven: {r["Clean_Shaven"]} | Nails: {r["Nails"]}
-                    </div>
+                <div style="margin-top:6px; max-height:150px; overflow-y:auto;">
+                    {staff_items_html}
                 </div>
                 <div style="font-size:0.68rem; color:#64748b; margin-top:8px; border-top:1px solid #f1f5f9; padding-top:4px; display:flex; justify-content:space-between;">
-                    <span><b>Staff:</b> {r["Sign_Staff"]}</span>
-                    <span><b>Incharge:</b> {r["Sign_Incharge"]}</span>
+                    <span><b>Checked By:</b> {card["Checked_By"]}</span>
+                    <span><b>Incharge:</b> {card["Incharge"]}</span>
                 </div>
             </div>
         """).strip()
         col_target.markdown(card_html, unsafe_allow_html=True)
 
   with tab_matrix:
-    st.subheader("7-Day Personal Hygiene History")
+    st.subheader("7-Day Personal Hygiene History Matrix")
     if not range_df.empty:
       st.dataframe(range_df, use_container_width=True, hide_index=True)
     else:
