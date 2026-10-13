@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import textwrap
 import pandas as pd
 import streamlit as st
@@ -169,7 +169,6 @@ def render_record_ph01_view(raw_df, selected_day_str, start_date, end_date):
     )
 
     total_inspected = len(day_df)
-    logged_locs = day_df["Location"].str.strip().str.lower().unique() if not day_df.empty else []
 
     completed_cards = []
     pending_locs = []
@@ -263,7 +262,7 @@ def render_record_ph01_view(raw_df, selected_day_str, start_date, end_date):
 
         staff_items_html = ""
         for s in card["Staff_List"]:
-          staff_items_html += f'<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:6px; margin-top:4px; font-size:0.75rem;">👤 <b>{s["Staff_Name"]}</b></div>'
+          staff_items_html += f'<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:5px 8px; margin-top:3px; font-size:0.75rem;">👤 <b>{s["Staff_Name"]}</b></div>'
 
         card_html = textwrap.dedent(f"""
             <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
@@ -271,7 +270,7 @@ def render_record_ph01_view(raw_df, selected_day_str, start_date, end_date):
                     <span style="font-size:0.9rem; font-weight:700; color:#0f172a;">📍 {card["Location"]}</span>
                     <span style="color:#16a34a; font-weight:700; font-size:0.72rem;">{card["Count"]} Staff Checked</span>
                 </div>
-                <div style="margin-top:6px; max-height:150px; overflow-y:auto;">
+                <div style="margin-top:6px;">
                     {staff_items_html}
                 </div>
                 <div style="font-size:0.68rem; color:#64748b; margin-top:8px; border-top:1px solid #f1f5f9; padding-top:4px; display:flex; justify-content:space-between;">
@@ -284,7 +283,54 @@ def render_record_ph01_view(raw_df, selected_day_str, start_date, end_date):
 
   with tab_matrix:
     st.subheader("7-Day Personal Hygiene History Matrix")
-    if not range_df.empty:
-      st.dataframe(range_df, use_container_width=True, hide_index=True)
+    st.caption("Overview of personal hygiene audit logs across the selected date window grouped by location.")
+
+    if range_df.empty:
+      st.info("No records found for this date range.")
     else:
-      st.info("No records found in the selected date range.")
+      total_days = max(1, (end_date - start_date).days + 1)
+      matrix_dates = [start_date + timedelta(days=i) for i in range(total_days)]
+      current_today = datetime.now(timezone(timedelta(hours=5, minutes=30))).date()
+
+      num_dates = len(matrix_dates)
+      col_ratios = [1.8] + [1.0] * num_dates
+      cols = st.columns(col_ratios)
+
+      cols[0].markdown('<div style="font-weight:700; font-size:0.78rem; color:#475569; padding:6px 4px;">Inspection Location</div>', unsafe_allow_html=True)
+      for i, d in enumerate(matrix_dates):
+        cols[i + 1].markdown(f'<div style="background:#f1f5f9; font-weight:700; font-size:0.75rem; text-align:center; padding:6px 2px; border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>', unsafe_allow_html=True)
+
+      st.write("")
+
+      for loc_name in PH01_LOCATIONS:
+        row_cols = st.columns(col_ratios)
+        row_cols[0].markdown(f'<div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:4px; padding:8px 6px; min-height:45px; display:flex; align-items:center;"><b style="font-size:0.78rem; color:#0f172a;">📍 {loc_name}</b></div>', unsafe_allow_html=True)
+
+        for i, d in enumerate(matrix_dates):
+          d_str = d.strftime("%d/%m/%Y")
+          day_matches = range_df[range_df["Date_Str"] == d_str]
+          loc_matches = day_matches[day_matches["Location"].str.strip().str.lower() == loc_name.lower()] if not day_matches.empty else pd.DataFrame()
+
+          is_done = not loc_matches.empty
+          staff_count = len(loc_matches)
+
+          is_old = (current_today - d).days > 1
+          pending_icon = "❌" if is_old else "⏳"
+
+          if is_done:
+            cell_bg = "#f0fdf4"
+            cell_border = "#16a34a"
+            cell_content = f'<span style="color:#16a34a; font-weight:800; font-size:0.7rem;">✓ Inspected</span><br><span style="font-size:0.6rem; color:#15803d;">({staff_count} Staff)</span>'
+          else:
+            cell_bg = "#fef2f2"
+            cell_border = "#dc2626"
+            cell_content = f'<span style="color:#dc2626; font-weight:700; font-size:0.7rem;">{pending_icon} Pending</span>'
+
+          row_cols[i + 1].markdown(
+              f'<div style="background:{cell_bg}; border:1.5px solid {cell_border}; border-radius:4px; padding:4px; min-height:45px; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;">'
+              f'{cell_content}'
+              f'</div>',
+              unsafe_allow_html=True
+          )
+
+        st.write("")
