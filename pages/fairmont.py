@@ -82,18 +82,17 @@ def go_to_overview():
 
 st.sidebar.title("⚙️ Inspection Controls")
 
-# --- STYLIZED CARD CONTAINER FOR BANQUET OPERATIONS ---
+# --- UNIFIED CARD CONTAINER FOR BANQUET OPERATIONS & TOGGLES ---
 st.sidebar.markdown("""
-<div style="background: linear-gradient(145deg, #0b192c 0%, #1e293b 100%); border-radius: 10px; padding: 12px 14px; color: white; margin-bottom: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.08);">
-    <div style="font-size: 0.8rem; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-        🏨 Banquet Operations
+<div style="background: linear-gradient(145deg, #0b192c 0%, #1e293b 100%); border-radius: 10px; padding: 14px 16px; color: white; margin-bottom: 14px; box-shadow: 0 4px 8px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.08);">
+    <div style="font-size: 0.82rem; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+        🏨 BANQUET OPERATIONS
     </div>
-    <div style="font-size: 0.7rem; color: #94a3b8;">Toggle active meal services for today</div>
 </div>
 """, unsafe_allow_html=True)
 
-banquet_lunch = st.sidebar.toggle("🍽️ Banquet Lunch Active", value=True, key="sb_banquet_l")
-banquet_dinner = st.sidebar.toggle("🌙 Banquet Dinner Active", value=True, key="sb_banquet_d")
+banquet_lunch = st.sidebar.toggle("🍽️ Lunch", value=True, key="sb_banquet_l")
+banquet_dinner = st.sidebar.toggle("🌙 Dinner", value=True, key="sb_banquet_d")
 banquet_breakfast = True
 
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
