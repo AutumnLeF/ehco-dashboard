@@ -258,7 +258,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
   tab_day, tab_matrix = st.tabs([
       f"📅 Daily Cooking & Reheating Audit ({selected_day_str})",
-      "📈 Last 5-Day Compliance Matrix",
+      "📈 Last 3-Day Compliance Matrix",
   ])
 
   with tab_day:
@@ -558,19 +558,19 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
             unsafe_allow_html=True,
         )
 
-  # --- TAB 2: LAST 5-DAY COMPLIANCE MATRIX ---
+  # --- TAB 2: LAST 3-DAY COMPLIANCE MATRIX ---
   with tab_matrix:
     selected_dt = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
-    matrix_dates = [selected_dt - timedelta(days=i) for i in reversed(range(5))]
+    matrix_dates = [selected_dt - timedelta(days=i) for i in reversed(range(3))]
     
     st.markdown(
-        f"<h4 style='color:#0f172a; margin-top:1.5rem;'>📈 Last 5-Day Compliance"
+        f"<h4 style='color:#0f172a; margin-top:1.5rem;'>📈 Last 3-Day Compliance"
         f" Matrix ({matrix_dates[0].strftime('%d/%m/%Y')} to"
         f" {matrix_dates[-1].strftime('%d/%m/%Y')})</h4>",
         unsafe_allow_html=True,
     )
     st.caption(
-        "Kitchen names on the left, last 5 days across the columns with shift"
+        "Kitchen names on the left, last 3 days across the columns with shift"
         " breakdown."
     )
 
