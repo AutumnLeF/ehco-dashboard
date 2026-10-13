@@ -15,7 +15,7 @@ from records_fairmont.record_15 import render_record_15_view, parse_record_15_su
 from records_fairmont.record_21 import render_record_21_view, parse_record_21_submissions, RECORD_21_AREAS
 from records_fairmont.record_25 import render_record_25_view, parse_record_25_submissions
 from records_fairmont.record_cm01 import render_record_cm01_view, parse_record_cm01_submissions, CM01_LOCATION_UNITS, CM01_LOCATION_RULES
-from records_fairmont.record_ph01 import render_record_ph01_view, parse_record_ph01_submissions
+from records_fairmont.record_ph01 import render_record_ph01_view, parse_record_ph01_submissions, PH01_LOCATIONS
 
 st.set_page_config(
     page_title="Fairmont Mumbai - EHCO Status",
@@ -29,6 +29,25 @@ st.markdown("""
     .stApp { background-color: #f4f6f9; font-family: 'Plus Jakarta Sans', sans-serif; color: #0f172a; }
     .serif-title { font-size: 2rem; font-weight: 800; color: #0f172a; text-align: center; letter-spacing: -0.03em; margin: 0; background: linear-gradient(135deg, #0f172a 0%, #334155 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     
+    /* Premium button styling */
+    .stButton > button {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
+        border-radius: 8px !important;
+        font-weight: 600 !important;
+        font-size: 0.82rem !important;
+        padding: 8px 16px !important;
+        transition: all 0.2s ease-in-out !important;
+        box-shadow: 0 4px 6px -1px rgba(15,23,42,0.1);
+    }
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 6px 12px -2px rgba(56,189,248,0.25);
+        transform: translateY(-1px);
+    }
+
     [data-testid="stSidebarNav"] {
         display: none;
     }
@@ -164,7 +183,7 @@ def fetch_incremental_persistent_data_cached(url, token, form_id):
     }
     new_rows = []
     base_url = url.strip()
-    for page in range(15):
+    for page in range(8):
         payload = {
             "formId": form_id,
             "paging": {"limit": 50, "offset": page * 50},
@@ -358,7 +377,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         f'Dinner: <span style="color: {"#4ade80" if d_req_04 > 0 and d_done_04 >= d_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_04 > 0 and d_done_04 >= d_req_04 else "Pending"} - {d_done_04}/{d_req_04}</span>'
     )
 
-    # --- RECORD 05 METRICS (WITH PENDING LOCATIONS LIST) ---
+    # --- RECORD 05 METRICS (WITH ALL PENDING LOCATIONS) ---
     day_05 = get_day_df(df_05_parsed, selected_day_variants, target_date_obj)
     logged_locs_05 = [str(x).strip().lower() for x in day_05["Location"].dropna().unique()] if not day_05.empty and "Location" in day_05.columns else []
     pending_locs_05 = [k for k in RECORD_05_KITCHENS if k.strip().lower() not in logged_locs_05]
@@ -368,8 +387,8 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if is_05_complete:
         stat_05 = '<span style="color: #4ade80; font-weight: 600;">Completed - All 10 kitchens logged</span>'
     else:
-        pending_str_05 = ", ".join(pending_locs_05[:3]) + ("..." if len(pending_locs_05) > 3 else "")
-        stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.72rem; color:#94a3b8;">Missing: {pending_str_05}</span>'
+        pending_str_05 = ", ".join(pending_locs_05)
+        stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.72rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_05}</span>'
 
     # --- RECORD 06 METRICS ---
     day_06 = get_day_df(df_06_parsed, selected_day_variants, target_date_obj)
@@ -394,7 +413,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         f'Dinner: <span style="color: {"#4ade80" if d_req_06 > 0 and d_done_06 >= d_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_06 > 0 and d_done_06 >= d_req_06 else "Pending"} - {d_done_06}/{d_req_06}</span>'
     )
 
-    # --- RECORD 12 METRICS (WITH PENDING AREAS LIST) ---
+    # --- RECORD 12 METRICS (WITH ALL PENDING AREAS) ---
     day_12 = get_day_df(df_12_parsed, selected_day_variants, target_date_obj)
     logged_locs_12 = [str(x).strip().lower() for x in day_12["Location"].dropna().unique()] if not day_12.empty and "Location" in day_12.columns else []
     pending_locs_12 = [a for a in RECORD_12_AREAS if a.strip().lower() not in logged_locs_12]
@@ -404,8 +423,8 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if is_12_complete:
         stat_12 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {completed_areas_12}/{len(RECORD_12_AREAS)} areas</span>'
     else:
-        pending_str_12 = ", ".join(pending_locs_12[:2]) + ("..." if len(pending_locs_12) > 2 else "")
-        stat_12 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_areas_12}/{len(RECORD_12_AREAS)})</span><br><span style="font-size:0.72rem; color:#94a3b8;">Missing: {pending_str_12}</span>'
+        pending_str_12 = ", ".join(pending_locs_12)
+        stat_12 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_areas_12}/{len(RECORD_12_AREAS)})</span><br><span style="font-size:0.72rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_12}</span>'
 
     # --- RECORD 13 METRICS ---
     day_13 = get_day_df(df_13_parsed, selected_day_variants, target_date_obj)
@@ -418,7 +437,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     logged_15 = len(day_15) if not day_15.empty else 0
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15} entries</span>'
     
-    # --- RECORD 21 METRICS (WITH PENDING AREAS LIST) ---
+    # --- RECORD 21 METRICS (WITH ALL PENDING AREAS) ---
     day_21 = get_day_df(df_21_parsed, selected_day_variants, target_date_obj)
     logged_locs_21 = [str(x).strip().lower() for x in day_21["Location"].dropna().unique()] if not day_21.empty and "Location" in day_21.columns else []
     pending_locs_21 = [a for a in RECORD_21_AREAS if a.strip().lower() not in logged_locs_21]
@@ -428,15 +447,15 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if is_21_complete:
         stat_21 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {completed_areas_21}/{len(RECORD_21_AREAS)} areas</span>'
     else:
-        pending_str_21 = ", ".join(pending_locs_21[:2]) + ("..." if len(pending_locs_21) > 2 else "")
-        stat_21 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_areas_21}/{len(RECORD_21_AREAS)})</span><br><span style="font-size:0.72rem; color:#94a3b8;">Missing: {pending_str_21}</span>'
+        pending_str_21 = ", ".join(pending_locs_21)
+        stat_21 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_areas_21}/{len(RECORD_21_AREAS)})</span><br><span style="font-size:0.72rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_21}</span>'
     
     # --- RECORD 25 METRICS ---
     day_25 = get_day_df(df_25_parsed, selected_day_variants, target_date_obj)
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
-    # --- RECORD CM01 METRICS (WITH PENDING LOCATIONS LIST) ---
+    # --- RECORD CM01 METRICS (WITH ALL PENDING LOCATIONS) ---
     day_cm01 = get_day_df(df_cm01_parsed, selected_day_variants, target_date_obj)
     pending_locs_cm01 = []
     cm01_completed_locs = 0
@@ -457,12 +476,21 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if is_cm01_complete:
         stat_cm01 = '<span style="color: #4ade80; font-weight: 600;">Completed - All 9 locations</span>'
     else:
-        pending_str_cm01 = ", ".join(pending_locs_cm01[:2]) + ("..." if len(pending_locs_cm01) > 2 else "")
-        stat_cm01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({cm01_completed_locs}/{total_cm01_locs})</span><br><span style="font-size:0.72rem; color:#94a3b8;">Missing: {pending_str_cm01}</span>'
+        pending_str_cm01 = ", ".join(pending_locs_cm01)
+        stat_cm01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({cm01_completed_locs}/{total_cm01_locs})</span><br><span style="font-size:0.72rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_cm01}</span>'
 
-    # --- RECORD PH01 METRICS ---
+    # --- RECORD PH01 METRICS (CHECKED AGAINST ALL 22 MASTER LOCATIONS) ---
     day_ph01 = get_day_df(df_ph01_parsed, selected_day_variants, target_date_obj)
-    stat_ph01 = f'<span style="color: {"#4ade80" if not day_ph01.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_ph01.empty else "Pending"} - {len(day_ph01)} staff inspected</span>'
+    logged_locs_ph01 = [str(x).strip().lower() for x in day_ph01["Location"].dropna().unique()] if not day_ph01.empty and "Location" in day_ph01.columns else []
+    pending_locs_ph01 = [loc for loc in PH01_LOCATIONS if loc.strip().lower() not in logged_locs_ph01]
+    completed_locs_ph01 = len(PH01_LOCATIONS) - len(pending_locs_ph01)
+    is_ph01_complete = (len(pending_locs_ph01) == 0)
+
+    if is_ph01_complete:
+        stat_ph01 = f'<span style="color: #4ade80; font-weight: 600;">Completed - All 22 locations ({len(day_ph01)} staff)</span>'
+    else:
+        pending_str_ph01 = ", ".join(pending_locs_ph01)
+        stat_ph01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_locs_ph01}/22 locations)</span><br><span style="font-size:0.72rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_ph01}</span>'
 
     completed_cats = sum([
         1 if not day_02.empty else 0,
@@ -476,7 +504,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         1 if is_21_complete else 0,
         1 if logged_25 > 0 else 0,
         1 if is_cm01_complete else 0,
-        1 if not day_ph01.empty else 0
+        1 if is_ph01_complete else 0
     ])
     total_cats = 12
     progress_pct = int((completed_cats / total_cats) * 100)
@@ -498,7 +526,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         col1, col2, col3 = st.columns(3)
         def render_theme_card(col, title, status_html, target_nav, unique_key):
             col.markdown(f"""
-            <div style="background: linear-gradient(145deg, #0b192c 0%, #112238 100%); border-radius: 12px; padding: 18px; color: white; margin-bottom: 8px; min-height: 125px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 10px 15px -3px rgba(11,25,44,0.15), 0 4px 6px -4px rgba(11,25,44,0.1); border: 1px solid rgba(255,255,255,0.06);">
+            <div style="background: linear-gradient(145deg, #0b192c 0%, #112238 100%); border-radius: 12px; padding: 18px; color: white; margin-bottom: 8px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 10px 15px -3px rgba(11,25,44,0.15), 0 4px 6px -4px rgba(11,25,44,0.1); border: 1px solid rgba(255,255,255,0.06);">
                 <div style="font-size: 0.85rem; font-weight: 700; line-height: 1.35; margin-bottom: 6px; letter-spacing: -0.01em; color: #f8fafc;">{title}</div>
                 <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.45;">{status_html}</div>
             </div>
