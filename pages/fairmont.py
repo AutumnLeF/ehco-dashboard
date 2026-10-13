@@ -305,7 +305,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             st.rerun()
 
     # --- BULLETPROOF SESSION CACHING FOR INSTANT LOAD SPEED ---
-    if "parsed_cache_all" not in st.session_state or 24144 not in st.session_state.get("parsed_cache_all", {}):
+    if "parsed_cache_all" not in st.session_state or 24146 not in st.session_state.get("parsed_cache_all", {}):
         st.session_state.parsed_cache_all = {
             23703: parse_record_02_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23703)),
             23705: parse_record_03_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23705)),
@@ -318,6 +318,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             23723: parse_record_21_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23723)),
             23727: parse_record_25_submissions(fetch_incremental_persistent_data(api_url, clean_token, 23727)),
             24144: parse_record_cm01_submissions(fetch_incremental_persistent_data(api_url, clean_token, 24144)),
+            24146: parse_record_ph01_submissions(fetch_incremental_persistent_data(api_url, clean_token, 24146)),
         }
 
     cache = st.session_state.parsed_cache_all
@@ -332,6 +333,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     df_21_parsed = cache.get(23723, pd.DataFrame())
     df_25_parsed = cache.get(23727, pd.DataFrame())
     df_cm01_parsed = cache.get(24144, pd.DataFrame())
+    df_ph01_parsed = cache.get(24146, pd.DataFrame())
 
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
@@ -492,6 +494,10 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     is_cm01_complete = (cm01_completed_locs >= total_cm01_locs)
     stat_cm01 = f'<span style="color: {"#4ade80" if is_cm01_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_cm01_complete else "Pending"} - {cm01_completed_locs}/{total_cm01_locs} locations</span>'
 
+    # --- RECORD PH01 METRICS ---
+    day_ph01 = get_day_df(df_ph01_parsed, selected_day_variants, target_date_obj)
+    stat_ph01 = f'<span style="color: {"#4ade80" if not day_ph01.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_ph01.empty else "Pending"} - {len(day_ph01)} staff inspected</span>'
+
     completed_cats = sum([
         1 if not day_02.empty else 0,
         1 if is_op_complete and is_cl_complete else 0,
@@ -503,9 +509,10 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         1 if logged_15 > 0 else 0,
         1 if is_21_complete else 0,
         1 if logged_25 > 0 else 0,
-        1 if is_cm01_complete else 0
+        1 if is_cm01_complete else 0,
+        1 if not day_ph01.empty else 0
     ])
-    total_cats = 11
+    total_cats = 12
     progress_pct = int((completed_cats / total_cats) * 100)
     bar_color = "#4ade80" if progress_pct > 70 else ("#3b82f6" if progress_pct > 30 else "#fbbf24")
 
@@ -541,6 +548,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
             render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
             render_theme_card(col2, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "card_r12")
+            render_theme_card(col2, "RECORD PH01 - PERSONAL HYGIENE RECORD", stat_ph01, "RECORD PH01 - PERSONAL HYGIENE RECORD", "card_rph01")
         with col3:
             render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
             render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
@@ -623,3 +631,5 @@ else:
         render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.fairmont_nav_choice == "RECORD CM01 - COFFEE MACHINE CLEANING RECORD":
         render_record_cm01_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD PH01 - PERSONAL HYGIENE RECORD":
+        render_record_ph01_view(raw_records_df, selected_day_str, start_date, end_date)
