@@ -40,7 +40,7 @@ def parse_all_record_04_dishes(raw_df):
 
   rows = []
   for _, row in df.iterrows():
-    rec = row.get("raw_record") if "raw_record" in df.columns else row.to_dict()
+    rec = row.get("raw_record") if "raw_record" in row.columns else row.to_dict()
     if not isinstance(rec, dict):
       rec = row.to_dict()
 
@@ -100,7 +100,6 @@ def parse_all_record_04_dishes(raw_df):
         or []
     )
 
-    # Safe handling if entries resolves to a boolean or non-iterable type
     if isinstance(entries, bool) or not isinstance(entries, (list, dict)):
       entries = [sub] if isinstance(sub, dict) else []
     elif isinstance(entries, dict):
@@ -257,7 +256,7 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
 
   tab_day, tab_matrix = st.tabs([
       f"📅 Daily Cooking & Reheating Audit ({selected_day_str})",
-      "📈 14-Day Compliance Matrix",
+      "📈 Last 5-Day Compliance Matrix",
   ])
 
   with tab_day:
@@ -312,11 +311,9 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
               "Sign": "",
           })
 
-      # Create separate card entry for pending shifts if any exist for this kitchen
       if pending_meals_list:
         pending_cards.append({"Kitchen": kitchen, "Meals": pending_meals_list})
 
-      # Create separate card entry for completed shifts if any exist for this kitchen
       if completed_meals_list:
         completed_cards.append({
             "Kitchen": kitchen,
@@ -339,339 +336,4 @@ def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
     with k1:
       st.markdown(
           f"""
-            <div class="kpi-container" style="border-top-color: #dc2626;">
-                <div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div>
-                <div class="kpi-lbl">Core Temp Breaches (&lt; 75°C)</div>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
-    with k2:
-      b_done, b_req = (
-          shift_counts["Breakfast"]["done"],
-          shift_counts["Breakfast"]["req"],
-      )
-      st.markdown(
-          f"""
-            <div class="kpi-container" style="border-top-color: #16a34a;">
-                <div class="kpi-num" style="color:#16a34a;">{b_done}/{b_req}</div>
-                <div class="kpi-lbl">Breakfast Shift Completed</div>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
-    with k3:
-      l_done, l_req = (
-          shift_counts["Lunch"]["done"],
-          shift_counts["Lunch"]["req"],
-      )
-      st.markdown(
-          f"""
-            <div class="kpi-container" style="border-top-color: #d97706;">
-                <div class="kpi-num" style="color:#d97706;">{l_done}/{l_req}</div>
-                <div class="kpi-lbl">Lunch Shift Completed</div>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
-    with k4:
-      d_done, d_req = (
-          shift_counts["Dinner"]["done"],
-          shift_counts["Dinner"]["req"],
-      )
-      pct = int((d_done / d_req) * 100) if d_req > 0 else 0
-      st.markdown(
-          f"""
-            <div class="kpi-container" style="border-top-color: #2563eb;">
-                <div class="kpi-num" style="color:#2563eb;">{d_done}/{d_req} <span style="font-size:0.9rem; color:#64748b; font-weight:600;">({pct}%)</span></div>
-                <div class="kpi-lbl">Dinner Shift Completed</div>
-            </div>
-            """,
-          unsafe_allow_html=True,
-      )
-
-    st.write("")
-
-    # --- SECTION 1: PENDING / INCOMPLETE SHIFT CARDS (TOP) ---
-    st.markdown(
-        "<h4 style='color:#b45309; margin-top:1.5rem; margin-bottom:1rem;'>⏳"
-        f" Pending / Incomplete Shift Cards ({selected_day_str})</h4>",
-        unsafe_allow_html=True,
-    )
-
-    if not pending_cards:
-      st.success("🎉 No pending shifts remaining for today!")
-    else:
-      p_cols = st.columns(3, gap="small")
-      for idx, k_info in enumerate(pending_cards):
-        col_target = p_cols[idx % 3]
-        k_name = k_info["Kitchen"]
-        m_list = k_info["Meals"]
-        meals_html = ""
-
-        for m in m_list:
-          is_done = m["Status"] == "Completed"
-          status_color = "#16a34a" if is_done else "#d97706"
-          status_text = "✓ Done" if is_done else "⏳ Pending"
-          dishes_html = ""
-
-          if is_done:
-            for dish in m["Dishes"]:
-              temp = dish["Temp"]
-              temp_text = f"{temp}°C" if pd.notna(temp) else "—"
-              temp_color = (
-                  "#dc2626"
-                  if pd.notna(temp) and temp < TEMP_THRESHOLD
-                  else "#0f172a"
-              )
-              dishes_html += (
-                  '<div style="display:flex; justify-content:space-between;'
-                  ' gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid'
-                  f' #e2e8f0;"><span style="color:#334155;'
-                  f' overflow-wrap:anywhere;">• {dish["Food"]}</span><b'
-                  f' style="color:{temp_color};'
-                  f' white-space:nowrap;">{temp_text}</b></div>'
-              )
-            details_html = (
-                f'<div style="margin-top:5px;">{dishes_html}</div><div'
-                ' style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed:'
-                f' {m["Sign"]}</div>'
-            )
-          else:
-            details_html = (
-                '<div style="font-size:0.72rem; color:#b45309;'
-                ' margin-top:5px;">No records submitted</div>'
-            )
-
-          meals_html += textwrap.dedent(f"""
-                <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.78rem; font-weight:700; color:#0f172a;">
-                        <span>🍽️ {m["Meal"]}</span>
-                        <span style="color:{status_color}; white-space:nowrap;">{status_text}</span>
-                    </div>
-                    {details_html}
-                </div>
-            """).strip()
-
-        card_html = textwrap.dedent(f"""
-            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #d97706; border-radius:6px; padding:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-                <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">
-                    📍 {k_name} (Pending Shift)
-                </div>
-                {meals_html}
-            </div>
-        """).strip()
-
-        col_target.markdown(card_html, unsafe_allow_html=True)
-
-    st.write("")
-
-    # --- SECTION 2: COMPLETELY COMPLETED SHIFT CARDS (BOTTOM) ---
-    st.markdown(
-        "<h4 style='color:#16a34a; margin-top:2rem; margin-bottom:1rem;'>✅"
-        f" Completely Completed Shift Cards ({selected_day_str})</h4>",
-        unsafe_allow_html=True,
-    )
-
-    if not completed_cards:
-      st.info("No completely completed shift cards available yet.")
-    else:
-      c_cols = st.columns(3, gap="small")
-      for idx, k_info in enumerate(completed_cards):
-        col_target = c_cols[idx % 3]
-        k_name = k_info["Kitchen"]
-        m_list = k_info["Meals"]
-        meals_html = ""
-
-        for m in m_list:
-          is_done = m["Status"] == "Completed"
-          status_color = "#16a34a" if is_done else "#d97706"
-          status_text = "✓ Done" if is_done else "⏳ Pending"
-          dishes_html = ""
-
-          if is_done:
-            for dish in m["Dishes"]:
-              temp = dish["Temp"]
-              temp_text = f"{temp}°C" if pd.notna(temp) else "—"
-              temp_color = (
-                  "#dc2626"
-                  if pd.notna(temp) and temp < TEMP_THRESHOLD
-                  else "#0f172a"
-              )
-              dishes_html += (
-                  '<div style="display:flex; justify-content:space-between;'
-                  ' gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid'
-                  f' #e2e8f0;"><span style="color:#334155;'
-                  f' overflow-wrap:anywhere;">• {dish["Food"]}</span><b'
-                  f' style="color:{temp_color};'
-                  f' white-space:nowrap;">{temp_text}</b></div>'
-              )
-            details_html = (
-                f'<div style="margin-top:5px;">{dishes_html}</div><div'
-                ' style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed:'
-                f' {m["Sign"]}</div>'
-            )
-          else:
-            details_html = (
-                '<div style="font-size:0.72rem; color:#b45309;'
-                ' margin-top:5px;">No records submitted</div>'
-            )
-
-          meals_html += textwrap.dedent(f"""
-                <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.78rem; font-weight:700; color:#0f172a;">
-                        <span>🍽️ {m["Meal"]}</span>
-                        <span style="color:{status_color}; white-space:nowrap;">{status_text}</span>
-                    </div>
-                    {details_html}
-                </div>
-            """).strip()
-
-        card_html = textwrap.dedent(f"""
-            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
-                <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">
-                    📍 {k_name} (Completed Shifts)
-                </div>
-                {meals_html}
-            </div>
-        """).strip()
-
-        col_target.markdown(card_html, unsafe_allow_html=True)
-
-    if excursions:
-      st.markdown(
-          '<div style="background:#fee2e2; border-left:5px solid #dc2626;'
-          ' padding:10px 14px; border-radius:6px; margin-top:1rem;'
-          ' margin-bottom:1rem;"><b style="color:#dc2626; font-size:1rem;">🔴'
-          ' Core Temperature Excursions (&lt; 75°C)</b></div>',
-          unsafe_allow_html=True,
-      )
-      for exc in excursions:
-        st.markdown(
-            f'<div style="background:#ffffff; border:1px solid #fca5a5;'
-            ' border-left:4px solid #dc2626; padding:10px; border-radius:6px;'
-            ' margin-bottom:8px;"><div style="font-weight:700; font-size:0.9rem;'
-            f' color:#0f172a;">{exc["Kitchen"]} • {exc["Meal"]} Service</div><div'
-            ' style="font-size:0.85rem; color:#dc2626; font-weight:700;'
-            f' margin-top:2px;">Dish: {exc["Food"]} | Temp: {exc["Temp"]}°C'
-            ' (Required ≥ 75°C)</div><div style="font-size:0.75rem;'
-            f' color:#64748b; margin-top:2px;">Signed by: {exc["Sign"]}</div></div>',
-            unsafe_allow_html=True,
-        )
-
-  # --- TAB 2: 14-DAY COMPLIANCE MATRIX ---
-  with tab_matrix:
-    st.markdown(
-        f"<h4 style='color:#0f172a; margin-top:1.5rem;'>📈 14-Day Compliance"
-        f" Matrix ({start_date.strftime('%d/%m/%Y')} to"
-        f" {end_date.strftime('%d/%m/%Y')})</h4>",
-        unsafe_allow_html=True,
-    )
-    st.caption(
-        "Kitchen names on the left, dates across the columns with shift"
-        " breakdown."
-    )
-
-    if range_df.empty:
-      st.info("No temperature logs found for this date range.")
-    else:
-      total_days = max(1, (end_date - start_date).days + 1)
-      matrix_dates = [
-          start_date + timedelta(days=i) for i in range(total_days)
-      ]
-      today_date_obj = datetime.now().date()
-
-      for kitchen, meals in KITCHEN_MEAL_RULES.items():
-        st.markdown(
-            f'<div style="background:#0f172a; color:#ffffff; padding:8px'
-            ' 12px; border-radius:6px; margin-top:1.2rem;'
-            ' margin-bottom:0.5rem; font-weight:700; font-size:0.95rem;">📍'
-            f" {kitchen}</div>",
-            unsafe_allow_html=True,
-        )
-
-        num_dates = len(matrix_dates)
-        col_ratios = [1.2] + [1.0] * num_dates
-        cols = st.columns(col_ratios)
-
-        cols[0].markdown(
-            '<div style="font-weight:700; font-size:0.78rem; color:#475569;'
-            ' padding:4px;">Meal Service</div>',
-            unsafe_allow_html=True,
-        )
-        for i, d in enumerate(matrix_dates):
-          cols[i + 1].markdown(
-              f'<div style="background:#f1f5f9; font-weight:700;'
-              ' font-size:0.75rem; text-align:center; padding:4px;'
-              f' border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>',
-              unsafe_allow_html=True,
-          )
-
-        for meal in meals:
-          row_cols = st.columns(col_ratios)
-          row_cols[0].markdown(
-              f'<div style="background:#ffffff; border:1px solid #cbd5e1;'
-              ' border-radius:4px; padding:6px; min-height:60px; display:flex;'
-              f' align-items:center;"><b style="font-size:0.80rem;'
-              f' color:#0f172a;">{meal}</b></div>',
-              unsafe_allow_html=True,
-          )
-
-          for i, d in enumerate(matrix_dates):
-            d_str = d.strftime("%d/%m/%Y")
-            match_entry = range_df[
-                (range_df["Date_Str"] == d_str)
-                & (
-                    range_df["Location"].str.strip().str.lower()
-                    == kitchen.lower()
-                )
-                & (
-                    range_df["Meal_Service"].str.strip().str.lower()
-                    == meal.lower()
-                )
-            ]
-
-            if match_entry.empty:
-              is_past = d < today_date_obj
-              card_bg = "#fef2f2" if is_past else "#f8fafc"
-              border_c = "#dc2626" if is_past else "#d97706"
-              tag_txt = "❌ Missing" if is_past else "⏳ Pending"
-              tag_color = "#dc2626" if is_past else "#d97706"
-
-              cell_html = (
-                  f'<div style="background:{card_bg}; border:1px solid '
-                  f'{border_c}; border-radius:4px; padding:6px; '
-                  'min-height:60px; display:flex; flex-direction:column; '
-                  'justify-content:center; align-items:center;">'
-                  f'<span style="color:{tag_color}; font-weight:800; '
-                  f'font-size:0.7rem;">{tag_txt}</span></div>'
-              )
-              row_cols[i + 1].markdown(cell_html, unsafe_allow_html=True)
-            else:
-              has_exc = any(match_entry["Temp"] < TEMP_THRESHOLD)
-              border_c = "#dc2626" if has_exc else "#16a34a"
-
-              items_preview = ""
-              for _, dish in match_entry.iterrows():
-                t_val = (
-                    f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
-                )
-                items_preview += (
-                    "<div style='font-size:0.65rem; color:#334155; "
-                    "white-space:nowrap; overflow:hidden; "
-                    f"text-overflow:ellipsis;'>• {dish['Food']}: "
-                    f"<b>{t_val}</b></div>"
-                )
-
-              cell_html = (
-                  f'<div style="background:#ffffff; border:1.5px solid '
-                  f'{border_c}; border-radius:4px; padding:4px; '
-                  'min-height:60px; display:flex; flex-direction:column; '
-                  'justify-content:flex-start;">'
-                  '<div style="font-weight:800; font-size:0.68rem; '
-                  f'color:{border_c};">✓ Completed</div>'
-                  f'{items_preview}</div>'
-              )
-              row_cols[i + 1].markdown(cell_html, unsafe_allow_html=True)
-
-          st.write("")
+            <div class="k
