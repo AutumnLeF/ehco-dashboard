@@ -628,52 +628,60 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
       """, unsafe_allow_html=True)
       st.progress(cl_progress, text=f"Closing Shift Progress: {int(cl_progress * 100)}%")
 
-    # --- RESTORED LOCATION SUMMARY BLOCKS (INDIVIDUAL KITCHEN/AREA CARDS) ---
+    # --- FILTERED LOCATION SUMMARY BLOCKS (SHOWING ONLY PENDING / BREACHED LOCATIONS) ---
     st.write("")
-    st.markdown(f"<h4 style='color:#0f172a; margin-top:1.5rem;'>🏢 Location Summary Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
-    st.caption("Each location summary block tracks Opening & Closing logs and displays pending units.")
+    st.markdown(f"<h4 style='color:#0f172a; margin-top:1.5rem;'>🏢 Pending Location Summary Blocks ({selected_day_str})</h4>", unsafe_allow_html=True)
+    st.caption("Showing only locations with pending opening/closing shifts or temperature breaches.")
 
-    loc_cols = st.columns(4)
-    for idx, item in enumerate(loc_summary_data):
-      col_target = loc_cols[idx % 4]
-      loc_name = item["loc_name"]
-      total_u = item["total_u"]
-      op_count = item["op_count"]
-      cl_count = item["cl_count"]
-      pending_opening = item["pending_opening"]
-      pending_closing = item["pending_closing"]
-      loc_breaches = item["loc_breaches"]
+    filtered_loc_summary = [
+        item for item in loc_summary_data 
+        if item["op_count"] < item["total_u"] or item["cl_count"] < item["total_u"] or item["loc_breaches"] > 0
+    ]
 
-      if loc_breaches > 0:
-        compliance_badge = "<span style='color:#dc2626; font-weight:700; font-size:0.75rem; float:right;'>🔴 BREACH</span>"
-      elif op_count < total_u or cl_count < total_u:
-        compliance_badge = "<span style='color:#d97706; font-weight:700; font-size:0.75rem; float:right;'>⏳ PENDING</span>"
-      else:
-        compliance_badge = "<span style='color:#16a34a; font-weight:700; font-size:0.75rem; float:right;'>🟢 Fully Compliant</span>"
+    if not filtered_loc_summary:
+      st.success("🎉 All locations are fully compliant with zero pending units or breaches!")
+    else:
+      loc_cols = st.columns(4)
+      for idx, item in enumerate(filtered_loc_summary):
+        col_target = loc_cols[idx % 4]
+        loc_name = item["loc_name"]
+        total_u = item["total_u"]
+        op_count = item["op_count"]
+        cl_count = item["cl_count"]
+        pending_opening = item["pending_opening"]
+        pending_closing = item["pending_closing"]
+        loc_breaches = item["loc_breaches"]
 
-      pending_op_html = "".join([f"<div style='font-size:0.7rem; color:#b45309; margin-left:6px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_opening]) if pending_opening else "<div style='font-size:0.7rem; color:#16a34a; margin-top:2px; margin-left:6px;'>• All units logged.</div>"
-      
-      pending_cl_html = "".join([f"<div style='font-size:0.7rem; color:#b45309; margin-left:6px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_closing]) if pending_closing else "<div style='font-size:0.7rem; color:#16a34a; margin-top:2px; margin-left:6px;'>• All units logged.</div>"
+        if loc_breaches > 0:
+          compliance_badge = "<span style='color:#dc2626; font-weight:700; font-size:0.75rem; float:right;'>🔴 BREACH</span>"
+          border_top_color = "#dc2626"
+        else:
+          compliance_badge = "<span style='color:#d97706; font-weight:700; font-size:0.75rem; float:right;'>⏳ PENDING</span>"
+          border_top_color = "#d97706"
 
-      col_target.markdown(f"""
-      <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0f172a; border-radius:6px; padding:10px 12px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05); min-height:230px;">
-          <div style="font-weight:700; font-size:0.85rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:5px; margin-bottom:8px;">
-              📍 {loc_name} <span style="font-size:0.68rem; color:#64748b; font-weight:normal;">({total_u})</span> {compliance_badge}
-          </div>
-          <div style="background:#f8fafc; border-left:3px solid #16a34a; padding:6px 8px; border-radius:4px; margin-bottom:6px;">
-              <div style="font-size:0.78rem; color:#15803d; font-weight:700; display:flex; justify-content:space-between;">
-                  <span>🌅 Opening</span><span>{op_count}/{total_u} Logged</span>
-              </div>
-              <div style="margin-top:3px; max-height:60px; overflow-y:auto;">{pending_op_html}</div>
-          </div>
-          <div style="background:#f8fafc; border-left:3px solid #0284c7; padding:6px 8px; border-radius:4px; margin-bottom:4px;">
-              <div style="font-size:0.78rem; color:#0369a1; font-weight:700; display:flex; justify-content:space-between;">
-                  <span>🌙 Closing</span><span>{cl_count}/{total_u} Logged</span>
-              </div>
-              <div style="margin-top:3px; max-height:60px; overflow-y:auto;">{pending_cl_html}</div>
-          </div>
-      </div>
-      """, unsafe_allow_html=True)
+        pending_op_html = "".join([f"<div style='font-size:0.7rem; color:#b45309; margin-left:6px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_opening]) if pending_opening else "<div style='font-size:0.7rem; color:#16a34a; margin-top:2px; margin-left:6px;'>• All units logged.</div>"
+        
+        pending_cl_html = "".join([f"<div style='font-size:0.7rem; color:#b45309; margin-left:6px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_closing]) if pending_closing else "<div style='font-size:0.7rem; color:#16a34a; margin-top:2px; margin-left:6px;'>• All units logged.</div>"
+
+        col_target.markdown(f"""
+        <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid {border_top_color}; border-radius:6px; padding:10px 12px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05); min-height:230px;">
+            <div style="font-weight:700; font-size:0.85rem; color:#0f172a; border-bottom:1px solid #f1f5f9; padding-bottom:5px; margin-bottom:8px;">
+                📍 {loc_name} <span style="font-size:0.68rem; color:#64748b; font-weight:normal;">({total_u})</span> {compliance_badge}
+            </div>
+            <div style="background:#f8fafc; border-left:3px solid #16a34a; padding:6px 8px; border-radius:4px; margin-bottom:6px;">
+                <div style="font-size:0.78rem; color:#15803d; font-weight:700; display:flex; justify-content:space-between;">
+                    <span>🌅 Opening</span><span>{op_count}/{total_u} Logged</span>
+                </div>
+                <div style="margin-top:3px; max-height:60px; overflow-y:auto;">{pending_op_html}</div>
+            </div>
+            <div style="background:#f8fafc; border-left:3px solid #0284c7; padding:6px 8px; border-radius:4px; margin-bottom:4px;">
+                <div style="font-size:0.78rem; color:#0369a1; font-weight:700; display:flex; justify-content:space-between;">
+                    <span>🌙 Closing</span><span>{cl_count}/{total_u} Logged</span>
+                </div>
+                <div style="margin-top:3px; max-height:60px; overflow-y:auto;">{pending_cl_html}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
   with tab_matrix:
     selected_dt = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
