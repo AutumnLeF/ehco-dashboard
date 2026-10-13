@@ -15,6 +15,7 @@ from records_fairmont.record_15 import render_record_15_view, parse_record_15_su
 from records_fairmont.record_21 import render_record_21_view, parse_record_21_submissions, RECORD_21_AREAS
 from records_fairmont.record_25 import render_record_25_view, parse_record_25_submissions
 from records_fairmont.record_cm01 import render_record_cm01_view, parse_record_cm01_submissions, CM01_LOCATION_UNITS, CM01_LOCATION_RULES
+from records_fairmont.record_ph01 import render_record_ph01_view, parse_record_ph01_submissions
 
 st.set_page_config(
     page_title="Fairmont Mumbai - EHCO Status",
@@ -49,6 +50,7 @@ FORM_MAPPING = {
     "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH": 23723,
     "RECORD 25 - ICE MACHINE CLEANING RECORD": 23727,
     "RECORD CM01 - COFFEE MACHINE CLEANING RECORD": 24144,
+    "RECORD PH01 - PERSONAL HYGIENE RECORD": 24146,
 }
 
 if "fairmont_nav_choice" not in st.session_state:
