@@ -1,0 +1,231 @@
+from datetime import datetime, timedelta
+import textwrap
+import pandas as pd
+import streamlit as st
+
+RECORD_PH01_FORM_ID = 24146
+
+
+def parse_record_ph01_submissions(raw_df):
+  """Robustly parses Record PH01 Personal Hygiene submissions (with repeatable entries)."""
+  if raw_df is None or raw_df.empty:
+    return pd.DataFrame()
+
+  df = raw_df.copy()
+  form_col = next(
+      (c for c in df.columns if c.lower() in ["formid", "submission.formid"]),
+      None,
+  )
+  if form_col:
+    df = df[
+        df[form_col].astype(str).str.contains(str(RECORD_PH01_FORM_ID), na=False)
+    ]
+
+  if df.empty:
+    df = raw_df.copy()
+
+  rows = []
+  for _, record in df.iterrows():
+    rec = record.get("raw_record") if "raw_record" in record.to_dict() else record.to_dict()
+    if not isinstance(rec, dict):
+      rec = record.to_dict()
+
+    sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
+
+    raw_date = (
+        sub.get("Date")
+        or sub.get("date")
+        or rec.get("createdAt")
+        or rec.get("dateTimeSubmitted")
+        or ""
+    )
+    parsed_dt = pd.to_datetime(raw_date, errors="coerce")
+    if pd.isna(parsed_dt):
+      parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
+
+    if pd.notna(parsed_dt):
+      if parsed_dt.tzinfo is None:
+        parsed_dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
+      else:
+        parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
+      date_str = parsed_dt_ist.strftime("%d/%m/%Y")
+      date_obj = parsed_dt_ist.date()
+    else:
+      date_str = str(raw_date)[:10]
+      date_obj = None
+
+    location = str(sub.get("Location") or rec.get("Location") or "General Area").strip()
+    sign_staff = str(sub.get("Sign_initial") or sub.get("Sign") or "Staff").strip()
+    sign_incharge = str(sub.get("Sign_initial_-_Outlet_Incharge") or sub.get("Sign_Incharge") or "Incharge").strip()
+
+    # Handle repeatable entries set
+    entries = sub.get("Entry") or sub.get("set") or []
+    if isinstance(entries, dict):
+      entries = [entries]
+    elif not isinstance(entries, list):
+      entries = [sub]
+
+    for entry in entries:
+      if not isinstance(entry, dict):
+        continue
+
+      staff_name = str(entry.get("Staff_Name") or entry.get("Name") or "Staff Member").strip()
+      clean_uniform = str(entry.get("Clean_uniform") or entry.get("Clean_") or "Yes")
+      short_hair = str(entry.get("Short_hair") or "Yes")
+      clean_shaven = str(entry.get("Clean_shaven") or "Yes")
+      nails = str(entry.get("Trimmed_and_clean_nails") or "Yes")
+      jewelry = str(entry.get("Jewellery_and_thread_not_worn") or "Yes")
+      wounds = str(entry.get("Wounds_and_cuts_covered") or "Not applicable")
+
+      rows.append({
+          "Date_Str": date_str,
+          "Date_Obj": date_obj,
+          "Location": location,
+          "Staff_Name": staff_name,
+          "Sign_Staff": sign_staff,
+          "Sign_Incharge": sign_incharge,
+          "Clean_Uniform": clean_uniform,
+          "Short_Hair": short_hair,
+          "Clean_Shaven": clean_shaven,
+          "Nails": nails,
+          "Jewelry": jewelry,
+          "Wounds": wounds,
+      })
+
+  df_out = pd.DataFrame(rows)
+  if not df_out.empty:
+    df_out = df_out.drop_duplicates(subset=["Date_Str", "Location", "Staff_Name"], keep="first")
+  return df_out
+
+
+def render_record_ph01_view(raw_df, selected_day_str, start_date, end_date):
+  st.markdown(
+      """
+    <style>
+    .kpi-container {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #0f172a;
+        border-radius: 8px;
+        padding: 14px 18px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        margin-bottom: 10px;
+    }
+    .kpi-num {
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+    .kpi-lbl {
+        font-size: 0.78rem;
+        color: #64748b;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-top: 2px;
+    }
+    </style>
+    """,
+      unsafe_allow_html=True,
+  )
+
+  df_items = parse_record_ph01_submissions(raw_df)
+
+  with st.expander("🔍 Record PH01 Diagnostic (Inspect loaded data)"):
+    st.write(f"Total parsed staff hygiene records: **{len(df_items)}**")
+    if not df_items.empty:
+      st.dataframe(df_items.head(10), use_container_width=True)
+
+  if not df_items.empty and "Date_Obj" in df_items.columns:
+    range_df = df_items[
+        (df_items["Date_Obj"] >= start_date)
+        & (df_items["Date_Obj"] <= end_date)
+    ]
+  else:
+    range_df = df_items.copy()
+
+  tab_day, tab_matrix = st.tabs([
+      f"📅 Daily Personal Hygiene Audit ({selected_day_str})",
+      "📈 7-Day History Matrix",
+  ])
+
+  with tab_day:
+    day_df = (
+        range_df[range_df["Date_Str"] == selected_day_str]
+        if not range_df.empty
+        else pd.DataFrame()
+    )
+
+    total_inspected = len(day_df)
+    unique_locations = day_df["Location"].nunique() if not day_df.empty else 0
+
+    k1, k2, k3 = st.columns(3)
+    with k1:
+      st.markdown(
+          f"""
+            <div class="kpi-container" style="border-top-color: #16a34a;">
+                <div class="kpi-num" style="color:#16a34a;">{total_inspected}</div>
+                <div class="kpi-lbl">Staff Inspected Today</div>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
+    with k2:
+      st.markdown(
+          f"""
+            <div class="kpi-container" style="border-top-color: #0284c7;">
+                <div class="kpi-num" style="color:#0284c7;">{unique_locations}</div>
+                <div class="kpi-lbl">Active Locations</div>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
+    with k3:
+      st.markdown(
+          f"""
+            <div class="kpi-container" style="border-top-color: #0f172a;">
+                <div class="kpi-num" style="color:#0f172a;">{total_inspected}</div>
+                <div class="kpi-lbl">Compliant Checks</div>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
+
+    st.write("")
+    st.markdown(
+        "<h4 style='color:#0f172a; margin-top:1.5rem; margin-bottom:1rem;'>👤"
+        f" Staff Personal Hygiene Inspections ({selected_day_str})</h4>",
+        unsafe_allow_html=True,
+    )
+
+    if day_df.empty:
+      st.info("No personal hygiene records submitted for this date.")
+    else:
+      cols = st.columns(3, gap="small")
+      for idx, (_, r) in enumerate(day_df.iterrows()):
+        col_target = cols[idx % 3]
+        card_html = textwrap.dedent(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #e2e8f0; padding-bottom:6px;">
+                    <span style="font-size:0.9rem; font-weight:700; color:#0f172a;">👤 {r["Staff_Name"]}</span>
+                    <span style="color:#16a34a; font-weight:700; font-size:0.75rem;">✓ Compliant</span>
+                </div>
+                <div style="margin-top:6px; font-size:0.75rem; color:#475569;">
+                    <div><b>Location:</b> {r["Location"]}</div>
+                    <div style="margin-top:4px; color:#64748b;">
+                        Uniform: {r["Clean_Uniform"]} | Hair: {r["Short_Hair"]} | Shaven: {r["Clean_Shaven"]} | Nails: {r["Nails"]}
+                    </div>
+                </div>
+                <div style="font-size:0.68rem; color:#64748b; margin-top:8px; border-top:1px solid #f1f5f9; padding-top:4px; display:flex; justify-content:space-between;">
+                    <span><b>Staff:</b> {r["Sign_Staff"]}</span>
+                    <span><b>Incharge:</b> {r["Sign_Incharge"]}</span>
+                </div>
+            </div>
+        """).strip()
+        col_target.markdown(card_html, unsafe_allow_html=True)
+
+  with tab_matrix:
+    st.subheader("7-Day Personal Hygiene History")
+    if not range_df.empty:
+      st.dataframe(range_df, use_container_width=True, hide_index=True)
+    else:
+      st.info("No records found in the selected date range.")
