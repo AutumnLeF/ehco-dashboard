@@ -82,7 +82,6 @@ def go_to_overview():
 
 st.sidebar.title("⚙️ Inspection Controls")
 
-# --- UNIFIED CARD CONTAINER FOR BANQUET OPERATIONS & TOGGLES ---
 st.sidebar.markdown("""
 <div style="background: linear-gradient(145deg, #0b192c 0%, #1e293b 100%); border-radius: 10px; padding: 14px 16px; color: white; margin-bottom: 14px; box-shadow: 0 4px 8px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.08);">
     <div style="font-size: 0.82rem; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
@@ -366,7 +365,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending - {global_closing_logged}/{global_total_units}"
     html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # --- RECORD 04 METRICS (LUNCH & DINNER BANQUET FILTERING) ---
+    # --- RECORD 04 METRICS ---
     day_04 = get_day_df(df_04_parsed, selected_day_variants, target_date_obj)
     
     adjusted_rules_04 = {}
@@ -420,7 +419,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     else:
         stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.7rem; color:#94a3b8;">Missing: {", ".join(pending_locs_05)}</span>'
 
-    # --- RECORD 06 METRICS (LUNCH & DINNER BANQUET FILTERING) ---
+    # --- RECORD 06 METRICS ---
     day_06 = get_day_df(df_06_parsed, selected_day_variants, target_date_obj)
     
     adjusted_rules_06 = {}
@@ -474,12 +473,12 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     is_12_complete = (completed_areas_12 >= total_areas_12)
     stat_12 = f'<span style="color: {"#4ade80" if is_12_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_12_complete else "Pending"} - {completed_areas_12}/{total_areas_12} areas</span>'
 
-    # --- RECORD 13 METRICS (UNIQUE MACHINES) ---
+    # --- RECORD 13 METRICS (UNIQUE MACHINES, CAPPED AT 11) ---
     day_13 = get_day_df(df_13_parsed, selected_day_variants, target_date_obj)
     if not day_13.empty and "Unit_ID" in day_13.columns:
         unique_logged_13 = day_13.dropna(subset=["Unit_ID"]).copy()
         unique_logged_13["Clean_Machine"] = unique_logged_13["Unit_ID"].apply(clean_unit_token)
-        logged_13_count = unique_logged_13["Clean_Machine"].nunique()
+        logged_13_count = min(11, unique_logged_13["Clean_Machine"].nunique())
     else:
         logged_13_count = 0
     is_13_complete = (logged_13_count >= 11)
@@ -507,8 +506,9 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
-    # --- RECORD CM01 METRICS ---
+    # --- RECORD CM01 METRICS (WITH PROPER PENDING LOCATIONS) ---
     day_cm01 = get_day_df(df_cm01_parsed, selected_day_variants, target_date_obj)
+    pending_locs_cm01 = []
     cm01_completed_locs = 0
     for loc_name, expected_units in CM01_LOCATION_UNITS.items():
         loc_logs = day_cm01[day_cm01["Location"].str.strip().str.lower() == loc_name.lower()] if not day_cm01.empty else pd.DataFrame()
@@ -519,10 +519,16 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         pm_complete = all(any(eu in lu for lu in pm_units) for eu in expected_lower)
         if am_complete and pm_complete:
             cm01_completed_locs += 1
+        else:
+            pending_locs_cm01.append(loc_name)
 
     total_cm01_locs = len(CM01_LOCATION_UNITS)
     is_cm01_complete = (cm01_completed_locs >= total_cm01_locs)
-    stat_cm01 = f'<span style="color: {"#4ade80" if is_cm01_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_cm01_complete else "Pending"} - {cm01_completed_locs}/{total_cm01_locs} locations</span>'
+    if is_cm01_complete:
+        stat_cm01 = f'<span style="color: #4ade80; font-weight: 600;">Completed - All {total_cm01_locs} locations</span>'
+    else:
+        pending_str_cm01 = ", ".join(pending_locs_cm01)
+        stat_cm01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({cm01_completed_locs}/{total_cm01_locs})</span><br><span style="font-size:0.7rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_cm01}</span>'
 
     # --- RECORD PH01 METRICS ---
     day_ph01 = get_day_df(df_ph01_parsed, selected_day_variants, target_date_obj)
