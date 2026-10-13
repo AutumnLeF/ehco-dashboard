@@ -168,7 +168,7 @@ def fetch_incremental_persistent_data_cached(url, token, form_id):
   base_url = url.strip()
   
   # 8 pages * 50 items per page = exactly 400 records max per sync
-  for page in range(12):
+  for page in range(15):
     payload = {
         "formId": form_id,
         "paging": {"limit": 50, "offset": page * 50},
