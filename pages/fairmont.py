@@ -82,12 +82,17 @@ def go_to_overview():
 
 st.sidebar.title("⚙️ Inspection Controls")
 
-st.sidebar.markdown("---")
-st.sidebar.markdown("##### 🏨 Banquet Meal Operations")
-banquet_breakfast = st.sidebar.checkbox("Banquet Breakfast Active", value=True, key="sb_banquet_b")
+# --- COMPACT CARD-LIKE BANQUET MEAL TOGGLES (LUNCH & DINNER) ---
+st.sidebar.markdown("""
+<div style="background: rgba(15, 23, 42, 0.04); border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;">
+    <div style="font-size: 0.78rem; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; display:flex; align-items:center; gap:5px;">
+        🏨 Banquet Operations
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
 banquet_lunch = st.sidebar.checkbox("Banquet Lunch Active", value=True, key="sb_banquet_l")
 banquet_dinner = st.sidebar.checkbox("Banquet Dinner Active", value=True, key="sb_banquet_d")
-st.sidebar.markdown("---")
 
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
 today = ist_now.date()
@@ -360,24 +365,22 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending - {global_closing_logged}/{global_total_units}"
     html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # --- RECORD 04 METRICS (MEAL-WISE BANQUET FILTERING) ---
+    # --- RECORD 04 METRICS (LUNCH & DINNER BANQUET FILTERING) ---
     day_04 = get_day_df(df_04_parsed, selected_day_variants, target_date_obj)
     
-    # Dynamically filter required meals for kitchens based on sidebar meal checkboxes
     adjusted_rules_04 = {}
     for kitchen, meals in KITCHEN_MEAL_RULES_04.items():
         filtered_meals = []
         for m in meals:
             if "banquet" in kitchen.lower():
-                if m == "Breakfast" and not banquet_breakfast: continue
                 if m == "Lunch" and not banquet_lunch: continue
                 if m == "Dinner" and not banquet_dinner: continue
             filtered_meals.append(m)
         if filtered_meals:
             adjusted_rules_04[kitchen] = filtered_meals
 
-    shift_totals_04 = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
-    pending_details_04 = {"Breakfast": [], "Lunch": [], "Dinner": []}
+    shift_totals_04 = {"Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
+    pending_details_04 = {"Lunch": [], "Dinner": []}
 
     for kitchen, meals in adjusted_rules_04.items():
         k_df = day_04[day_04["Location"].str.strip().str.lower() == kitchen.lower()] if not day_04.empty else pd.DataFrame()
@@ -391,13 +394,10 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
                 if kitchen not in pending_details_04[meal]:
                     pending_details_04[meal].append(kitchen)
 
-    b_done_04, b_req_04 = shift_totals_04["Breakfast"]["done"], shift_totals_04["Breakfast"]["req"]
     l_done_04, l_req_04 = shift_totals_04["Lunch"]["done"], shift_totals_04["Lunch"]["req"]
     d_done_04, d_req_04 = shift_totals_04["Dinner"]["done"], shift_totals_04["Dinner"]["req"]
 
     html_04 = (
-        f'Breakfast: <span style="color: {"#4ade80" if b_req_04 > 0 and b_done_04 >= b_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_04 > 0 and b_done_04 >= b_req_04 else "Pending"} - {b_done_04}/{b_req_04}</span>'
-        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Breakfast"]) + "</span>" if b_done_04 < b_req_04 else ""}<br>'
         f'Lunch: <span style="color: {"#4ade80" if l_req_04 > 0 and l_done_04 >= l_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_04 > 0 and l_done_04 >= l_req_04 else "Pending"} - {l_done_04}/{l_req_04}</span>'
         f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Lunch"]) + "</span>" if l_done_04 < l_req_04 else ""}<br>'
         f'Dinner: <span style="color: {"#4ade80" if d_req_04 > 0 and d_done_04 >= d_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_04 > 0 and d_done_04 >= d_req_04 else "Pending"} - {d_done_04}/{d_req_04}</span>'
@@ -416,7 +416,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     else:
         stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.7rem; color:#94a3b8;">Missing: {", ".join(pending_locs_05)}</span>'
 
-    # --- RECORD 06 METRICS (MEAL-WISE BANQUET FILTERING) ---
+    # --- RECORD 06 METRICS (LUNCH & DINNER BANQUET FILTERING) ---
     day_06 = get_day_df(df_06_parsed, selected_day_variants, target_date_obj)
     
     adjusted_rules_06 = {}
@@ -424,15 +424,14 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         filtered_meals = []
         for m in meals:
             if "banquet" in kitchen.lower():
-                if m == "Breakfast" and not banquet_breakfast: continue
                 if m == "Lunch" and not banquet_lunch: continue
                 if m == "Dinner" and not banquet_dinner: continue
             filtered_meals.append(m)
         if filtered_meals:
             adjusted_rules_06[kitchen] = filtered_meals
 
-    shift_totals_06 = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
-    pending_details_06 = {"Breakfast": [], "Lunch": [], "Dinner": []}
+    shift_totals_06 = {"Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
+    pending_details_06 = {"Lunch": [], "Dinner": []}
 
     for kitchen, meals in adjusted_rules_06.items():
         k_df = day_06[day_06["Location"].str.strip().str.lower() == kitchen.lower()] if not day_06.empty else pd.DataFrame()
@@ -446,13 +445,10 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
                 if kitchen not in pending_details_06[meal]:
                     pending_details_06[meal].append(kitchen)
 
-    b_done_06, b_req_06 = shift_totals_06["Breakfast"]["done"], shift_totals_06["Breakfast"]["req"]
     l_done_06, l_req_06 = shift_totals_06["Lunch"]["done"], shift_totals_06["Lunch"]["req"]
     d_done_06, d_req_06 = shift_totals_06["Dinner"]["done"], shift_totals_06["Dinner"]["req"]
 
     stat_06 = (
-        f'Breakfast: <span style="color: {"#4ade80" if b_req_06 > 0 and b_done_06 >= b_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_06 > 0 and b_done_06 >= b_req_06 else "Pending"} - {b_done_06}/{b_req_06}</span>'
-        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Breakfast"]) + "</span>" if b_done_06 < b_req_06 else ""}<br>'
         f'Lunch: <span style="color: {"#4ade80" if l_req_06 > 0 and l_done_06 >= l_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_06 > 0 and l_done_06 >= l_req_06 else "Pending"} - {l_done_06}/{l_req_06}</span>'
         f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Lunch"]) + "</span>" if l_done_06 < l_req_06 else ""}<br>'
         f'Dinner: <span style="color: {"#4ade80" if d_req_06 > 0 and d_done_06 >= d_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_06 > 0 and d_done_06 >= d_req_06 else "Pending"} - {d_done_06}/{d_req_06}</span>'
@@ -537,9 +533,9 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     completed_cats = sum([
         1 if not day_02.empty else 0,
         1 if is_op_complete and is_cl_complete else 0,
-        1 if b_req_04 > 0 and b_done_04 >= b_req_04 and l_done_04 >= l_req_04 and d_done_04 >= d_req_04 else 0,
+        1 if l_req_04 > 0 and l_done_04 >= l_req_04 and d_done_04 >= d_req_04 else 0,
         1 if is_05_complete else 0,
-        1 if b_req_06 > 0 and b_done_06 >= b_req_06 and l_done_06 >= l_req_06 and d_done_06 >= d_req_06 else 0,
+        1 if l_req_06 > 0 and l_done_06 >= l_req_06 and d_done_06 >= d_req_06 else 0,
         1 if is_12_complete else 0,
         1 if is_13_complete else 0,
         1 if logged_15 > 0 else 0,
