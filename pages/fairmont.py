@@ -82,13 +82,12 @@ def go_to_overview():
 
 st.sidebar.title("⚙️ Inspection Controls")
 
-# --- BANQUET OPERATIONS TOGGLE (Applies specifically to Records 04, 05, 06) ---
-banquet_active = st.sidebar.checkbox(
-    "🏨 Banquet Operations Active Today",
-    value=True,
-    key="sb_fairmont_banquet_toggle",
-    help="Uncheck if Banquets are closed today so they are excluded from Records 04, 05, and 06 pending lists."
-)
+st.sidebar.markdown("---")
+st.sidebar.markdown("##### 🏨 Banquet Meal Operations")
+banquet_breakfast = st.sidebar.checkbox("Banquet Breakfast Active", value=True, key="sb_banquet_b")
+banquet_lunch = st.sidebar.checkbox("Banquet Lunch Active", value=True, key="sb_banquet_l")
+banquet_dinner = st.sidebar.checkbox("Banquet Dinner Active", value=True, key="sb_banquet_d")
+st.sidebar.markdown("---")
 
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
 today = ist_now.date()
@@ -269,10 +268,9 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     st.write("")
     mode_cols = st.columns([6, 3])
     with mode_cols[0]:
-        banquet_badge_html = ' <span style="background:#0284c7; color:white; padding:2px 8px; border-radius:4px; font-size:0.75rem; margin-left:8px;">🏨 Banquets Active</span>' if banquet_active else ' <span style="background:#64748b; color:white; padding:2px 8px; border-radius:4px; font-size:0.75rem; margin-left:8px;">🏨 Banquets Inactive (Records 04, 05, 06)</span>'
         st.markdown(f"""
             <div style="background: #ffffff; border: 1px solid #e2e8f0; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.88rem; color: #0f172a; display: inline-flex; align-items:center; gap:8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                <span style="font-size:1.1rem;">📅</span> Focus Audit Date: <span style="color:#0284c7; font-weight:700;">{selected_day_str}</span>{banquet_badge_html}
+                <span style="font-size:1.1rem;">📅</span> Focus Audit Date: <span style="color:#0284c7; font-weight:700;">{selected_day_str}</span>
             </div>
         """, unsafe_allow_html=True)
     with mode_cols[1]:
@@ -362,17 +360,26 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending - {global_closing_logged}/{global_total_units}"
     html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # --- RECORD 04 METRICS (BAMQUET FILTERED FOR PENDING) ---
+    # --- RECORD 04 METRICS (MEAL-WISE BANQUET FILTERING) ---
     day_04 = get_day_df(df_04_parsed, selected_day_variants, target_date_obj)
+    
+    # Dynamically filter required meals for kitchens based on sidebar meal checkboxes
+    adjusted_rules_04 = {}
+    for kitchen, meals in KITCHEN_MEAL_RULES_04.items():
+        filtered_meals = []
+        for m in meals:
+            if "banquet" in kitchen.lower():
+                if m == "Breakfast" and not banquet_breakfast: continue
+                if m == "Lunch" and not banquet_lunch: continue
+                if m == "Dinner" and not banquet_dinner: continue
+            filtered_meals.append(m)
+        if filtered_meals:
+            adjusted_rules_04[kitchen] = filtered_meals
+
     shift_totals_04 = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
     pending_details_04 = {"Breakfast": [], "Lunch": [], "Dinner": []}
 
-    active_rules_04 = {
-        k: meals for k, meals in KITCHEN_MEAL_RULES_04.items()
-        if banquet_active or "banquet" not in k.lower()
-    }
-
-    for kitchen, meals in active_rules_04.items():
+    for kitchen, meals in adjusted_rules_04.items():
         k_df = day_04[day_04["Location"].str.strip().str.lower() == kitchen.lower()] if not day_04.empty else pd.DataFrame()
         for meal in meals:
             if meal in shift_totals_04:
@@ -397,31 +404,37 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Dinner"]) + "</span>" if d_done_04 < d_req_04 else ""}'
     )
 
-    # --- RECORD 05 METRICS (BANQUET FILTERED) ---
+    # --- RECORD 05 METRICS ---
     day_05 = get_day_df(df_05_parsed, selected_day_variants, target_date_obj)
     logged_locs_05 = [str(x).strip().lower() for x in day_05["Location"].dropna().unique()] if not day_05.empty and "Location" in day_05.columns else []
-    target_kitchens_05 = [k for k in RECORD_05_KITCHENS if banquet_active or "banquet" not in k.lower()]
-    pending_locs_05 = [k for k in target_kitchens_05 if k.strip().lower() not in logged_locs_05]
-    completed_kitchens_05 = len(target_kitchens_05) - len(pending_locs_05)
-    is_05_complete = (len(pending_locs_05) == 0)
-
+    completed_kitchens_05 = sum(1 for k in RECORD_05_KITCHENS if k.strip().lower() in logged_locs_05)
+    total_kitchens_05 = len(RECORD_05_KITCHENS)
+    is_05_complete = (completed_kitchens_05 >= total_kitchens_05)
+    pending_locs_05 = [k for k in RECORD_05_KITCHENS if k.strip().lower() not in logged_locs_05]
     if is_05_complete:
-        stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - All {len(target_kitchens_05)} kitchens logged</span>'
+        stat_05 = '<span style="color: #4ade80; font-weight: 600;">Completed - All 10 kitchens logged</span>'
     else:
-        pending_str_05 = ", ".join(pending_locs_05)
-        stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/{len(target_kitchens_05)})</span><br><span style="font-size:0.7rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_05}</span>'
+        stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.7rem; color:#94a3b8;">Missing: {", ".join(pending_locs_05)}</span>'
 
-    # --- RECORD 06 METRICS (BANQUET FILTERED) ---
+    # --- RECORD 06 METRICS (MEAL-WISE BANQUET FILTERING) ---
     day_06 = get_day_df(df_06_parsed, selected_day_variants, target_date_obj)
+    
+    adjusted_rules_06 = {}
+    for kitchen, meals in RECORD_06_MEAL_RULES.items():
+        filtered_meals = []
+        for m in meals:
+            if "banquet" in kitchen.lower():
+                if m == "Breakfast" and not banquet_breakfast: continue
+                if m == "Lunch" and not banquet_lunch: continue
+                if m == "Dinner" and not banquet_dinner: continue
+            filtered_meals.append(m)
+        if filtered_meals:
+            adjusted_rules_06[kitchen] = filtered_meals
+
     shift_totals_06 = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
     pending_details_06 = {"Breakfast": [], "Lunch": [], "Dinner": []}
 
-    active_rules_06 = {
-        k: meals for k, meals in RECORD_06_MEAL_RULES.items()
-        if banquet_active or "banquet" not in k.lower()
-    }
-
-    for kitchen, meals in active_rules_06.items():
+    for kitchen, meals in adjusted_rules_06.items():
         k_df = day_06[day_06["Location"].str.strip().str.lower() == kitchen.lower()] if not day_06.empty else pd.DataFrame()
         for meal in meals:
             if meal in shift_totals_06:
@@ -458,7 +471,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     is_12_complete = (completed_areas_12 >= total_areas_12)
     stat_12 = f'<span style="color: {"#4ade80" if is_12_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_12_complete else "Pending"} - {completed_areas_12}/{total_areas_12} areas</span>'
 
-    # --- RECORD 13 METRICS (UNIQUE MACHINES ONLY) ---
+    # --- RECORD 13 METRICS (UNIQUE MACHINES) ---
     day_13 = get_day_df(df_13_parsed, selected_day_variants, target_date_obj)
     if not day_13.empty and "Unit_ID" in day_13.columns:
         unique_logged_13 = day_13.dropna(subset=["Unit_ID"]).copy()
