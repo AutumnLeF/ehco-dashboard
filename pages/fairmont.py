@@ -156,37 +156,39 @@ if cache_key_time not in st.session_state:
 
 @st.cache_data(ttl=300, show_spinner=False)
 def fetch_incremental_persistent_data_cached(url, token, form_id):
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "Mozilla/5.0",
-        "Origin": "https://tehc-fairmont-mumbai.data-manager.oneblink.io",
-        "Referer": "https://tehc-fairmont-mumbai.data-manager.oneblink.io/",
+  headers = {
+      "Authorization": f"Bearer {token}",
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "User-Agent": "Mozilla/5.0",
+      "Origin": "https://tehc-fairmont-mumbai.data-manager.oneblink.io",
+      "Referer": "https://tehc-fairmont-mumbai.data-manager.oneblink.io/",
+  }
+  new_rows = []
+  base_url = url.strip()
+  
+  # 8 pages * 50 items per page = exactly 400 records max per sync
+  for page in range(8):
+    payload = {
+        "formId": form_id,
+        "paging": {"limit": 50, "offset": page * 50},
+        "sorting": [{"property": "dateTimeSubmitted", "direction": "descending"}],
+        "unwindRepeatableSets": True,
     }
-    new_rows = []
-    base_url = url.strip()
-    for page in range(5):  # Limit initial fetch pages for speed
-        payload = {
-            "formId": form_id,
-            "paging": {"limit": 50, "offset": page * 50},
-            "sorting": [{"property": "dateTimeSubmitted", "direction": "descending"}],
-            "unwindRepeatableSets": True,
-        }
-        try:
-            res = requests.post(base_url, headers=headers, json=payload, timeout=10)
-            if res.status_code != 200:
-                break
-            data = res.json()
-            items = data.get("submissions", []) if isinstance(data, dict) else data
-            if not items:
-                break
-            new_rows.extend(items)
-            if len(items) < 50:
-                break
-        except Exception:
-            break
-    return new_rows
+    try:
+      res = requests.post(base_url, headers=headers, json=payload, timeout=15)
+      if res.status_code != 200:
+        break
+      data = res.json()
+      items = data.get("submissions", []) if isinstance(data, dict) else data
+      if not items:
+        break
+      new_rows.extend(items)
+      if len(items) < 50:
+        break
+    except Exception:
+      break
+  return new_rows
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_fairmont_live_feed_btn", use_container_width=True)
 if force_refresh:
