@@ -82,18 +82,19 @@ def go_to_overview():
 
 st.sidebar.title("⚙️ Inspection Controls")
 
-# --- COMPACT CARD-LIKE BANQUET MEAL TOGGLES (LUNCH & DINNER ONLY) ---
+# --- STYLIZED CARD CONTAINER FOR BANQUET OPERATIONS ---
 st.sidebar.markdown("""
-<div style="background: rgba(15, 23, 42, 0.04); border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 12px; margin-bottom: 12px;">
-    <div style="font-size: 0.78rem; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 6px; display:flex; align-items:center; gap:5px;">
+<div style="background: linear-gradient(145deg, #0b192c 0%, #1e293b 100%); border-radius: 10px; padding: 12px 14px; color: white; margin-bottom: 14px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border: 1px solid rgba(255,255,255,0.08);">
+    <div style="font-size: 0.8rem; font-weight: 700; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
         🏨 Banquet Operations
     </div>
+    <div style="font-size: 0.7rem; color: #94a3b8;">Toggle active meal services for today</div>
 </div>
 """, unsafe_allow_html=True)
 
-banquet_lunch = st.sidebar.checkbox("Banquet Lunch Active", value=True, key="sb_banquet_l")
-banquet_dinner = st.sidebar.checkbox("Banquet Dinner Active", value=True, key="sb_banquet_d")
-banquet_breakfast = True  # Kept True globally so breakfast rules are undisturbed everywhere else
+banquet_lunch = st.sidebar.toggle("🍽️ Banquet Lunch Active", value=True, key="sb_banquet_l")
+banquet_dinner = st.sidebar.toggle("🌙 Banquet Dinner Active", value=True, key="sb_banquet_d")
+banquet_breakfast = True
 
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
 today = ist_now.date()
