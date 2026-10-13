@@ -22,7 +22,7 @@ KITCHEN_MEAL_RULES = {
 
 
 def parse_all_record_04_dishes(raw_df):
-  if raw_df.empty:
+  if raw_df is None or raw_df.empty:
     return pd.DataFrame()
 
   df = raw_df.copy()
@@ -39,8 +39,10 @@ def parse_all_record_04_dishes(raw_df):
     df = raw_df.copy()
 
   rows = []
+  has_raw_record = "raw_record" in df.columns
+
   for _, row in df.iterrows():
-    rec = row.get("raw_record") if "raw_record" in row.columns else row.to_dict()
+    rec = row.get("raw_record") if has_raw_record else row.to_dict()
     if not isinstance(rec, dict):
       rec = row.to_dict()
 
