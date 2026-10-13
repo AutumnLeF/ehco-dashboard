@@ -5,9 +5,35 @@ import streamlit as st
 
 RECORD_PH01_FORM_ID = 24146
 
+# Master catalog of all required personal hygiene inspection locations
+PH01_LOCATIONS = [
+    "Banquet Kitchen",
+    "Banquet Service",
+    "Bakery/Pastry/Halwai",
+    "Beyond Oryn",
+    "Bombay Café",
+    "Commissary",
+    "Gold lounge Kitchen",
+    "Gold lounge Service",
+    "Hedonist Kitchen",
+    "Hedonist Bar",
+    "IRD",
+    "IRD Kitchen",
+    "Kitchen Stewarding",
+    "Madeline De Proust Kitchen",
+    "Madeline De Proust",
+    "Main Stores",
+    "Merchants kitchen",
+    "Merchants Service",
+    "Oryn Kitchen",
+    "Receiving",
+    "Samaa Kitchen",
+    "Samaa Bar",
+]
+
 
 def parse_record_ph01_submissions(raw_df):
-  """Robustly parses Record PH01 Personal Hygiene submissions (with repeatable entries)."""
+  """Robustly parses Record PH01 Personal Hygiene submissions."""
   if raw_df is None or raw_df.empty:
     return pd.DataFrame()
 
@@ -69,10 +95,6 @@ def parse_record_ph01_submissions(raw_df):
         continue
 
       staff_name = str(entry.get("Staff_Name") or entry.get("Name") or "Staff Member").strip()
-      clean_uniform = str(entry.get("Clean_uniform") or entry.get("Clean_") or "Yes")
-      short_hair = str(entry.get("Short_hair") or "Yes")
-      clean_shaven = str(entry.get("Clean_shaven") or "Yes")
-      nails = str(entry.get("Trimmed_and_clean_nails") or "Yes")
 
       rows.append({
           "Date_Str": date_str,
@@ -81,10 +103,6 @@ def parse_record_ph01_submissions(raw_df):
           "Staff_Name": staff_name,
           "Sign_Staff": sign_staff,
           "Sign_Incharge": sign_incharge,
-          "Clean_Uniform": clean_uniform,
-          "Short_Hair": short_hair,
-          "Clean_Shaven": clean_shaven,
-          "Nails": nails,
       })
 
   df_out = pd.DataFrame(rows)
@@ -151,7 +169,26 @@ def render_record_ph01_view(raw_df, selected_day_str, start_date, end_date):
     )
 
     total_inspected = len(day_df)
-    unique_locations = day_df["Location"].nunique() if not day_df.empty else 0
+    logged_locs = day_df["Location"].str.strip().str.lower().unique() if not day_df.empty else []
+
+    completed_cards = []
+    pending_locs = []
+
+    for master_loc in PH01_LOCATIONS:
+      loc_match = day_df[day_df["Location"].str.strip().str.lower() == master_loc.lower()] if not day_df.empty else pd.DataFrame()
+      if not loc_match.empty:
+        staff_list = loc_match.to_dict("records")
+        checked_by = loc_match["Sign_Staff"].iloc[0] if "Sign_Staff" in loc_match.columns else "Staff"
+        incharge = loc_match["Sign_Incharge"].iloc[0] if "Sign_Incharge" in loc_match.columns else "Incharge"
+        completed_cards.append({
+            "Location": master_loc,
+            "Staff_List": staff_list,
+            "Checked_By": checked_by,
+            "Incharge": incharge,
+            "Count": len(staff_list),
+        })
+      else:
+        pending_locs.append(master_loc)
 
     k1, k2, k3 = st.columns(3)
     with k1:
@@ -168,8 +205,8 @@ def render_record_ph01_view(raw_df, selected_day_str, start_date, end_date):
       st.markdown(
           f"""
             <div class="kpi-container" style="border-top-color: #0284c7;">
-                <div class="kpi-num" style="color:#0284c7;">{unique_locations}</div>
-                <div class="kpi-lbl">Active Locations</div>
+                <div class="kpi-num" style="color:#0284c7;">{len(completed_cards)}/{len(PH01_LOCATIONS)}</div>
+                <div class="kpi-lbl">Locations Checked</div>
             </div>
             """,
           unsafe_allow_html=True,
@@ -177,9 +214,9 @@ def render_record_ph01_view(raw_df, selected_day_str, start_date, end_date):
     with k3:
       st.markdown(
           f"""
-            <div class="kpi-container" style="border-top-color: #0f172a;">
-                <div class="kpi-num" style="color:#0f172a;">{total_inspected}</div>
-                <div class="kpi-lbl">Compliant Checks</div>
+            <div class="kpi-container" style="border-top-color: #dc2626;">
+                <div class="kpi-num" style="color:#dc2626;">{len(pending_locs)}</div>
+                <div class="kpi-lbl">Pending Locations</div>
             </div>
             """,
           unsafe_allow_html=True,
@@ -187,37 +224,46 @@ def render_record_ph01_view(raw_df, selected_day_str, start_date, end_date):
 
     st.write("")
 
-    # Group records by location for the selected day
-    loc_cards = []
-    if not day_df.empty:
-      for loc_name, group in day_df.groupby("Location"):
-        staff_list = group.to_dict("records")
-        checked_by = group["Sign_Staff"].iloc[0] if "Sign_Staff" in group.columns else "Staff"
-        incharge = group["Sign_Incharge"].iloc[0] if "Sign_Incharge" in group.columns else "Incharge"
-        loc_cards.append({
-            "Location": loc_name,
-            "Staff_List": staff_list,
-            "Checked_By": checked_by,
-            "Incharge": incharge,
-            "Count": len(staff_list),
-        })
-
-    # --- SECTION: COMPLETED & INSPECTED LOCATIONS ---
+    # --- SECTION 1: PENDING LOCATIONS ---
     st.markdown(
-        "<h4 style='color:#16a34a; margin-top:1.5rem; margin-bottom:1rem;'>✅"
+        "<h4 style='color:#b45309; margin-top:1.5rem; margin-bottom:1rem;'>⏳"
+        f" Pending / Unchecked Locations ({selected_day_str})</h4>",
+        unsafe_allow_html=True,
+    )
+    if not pending_locs:
+      st.success("🎉 All locations have submitted personal hygiene inspections!")
+    else:
+      p_cols = st.columns(3, gap="small")
+      for idx, p_loc in enumerate(pending_locs):
+        col_target = p_cols[idx % 3]
+        col_target.markdown(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #d97706; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <span style="font-size:0.9rem; font-weight:700; color:#0f172a;">📍 {p_loc}</span>
+                    <span style="color:#d97706; font-weight:700; font-size:0.72rem;">Pending Audit</span>
+                </div>
+                <div style="margin-top:6px; font-size:0.75rem; color:#b45309; font-style:italic;">No hygiene inspection logged today.</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.write("")
+
+    # --- SECTION 2: COMPLETED LOCATIONS ---
+    st.markdown(
+        "<h4 style='color:#16a34a; margin-top:2rem; margin-bottom:1rem;'>✅"
         f" Inspected Locations ({selected_day_str})</h4>",
         unsafe_allow_html=True,
     )
-    if not loc_cards:
+    if not completed_cards:
       st.info("No personal hygiene inspections recorded for this date.")
     else:
       cols = st.columns(3, gap="small")
-      for idx, card in enumerate(loc_cards):
+      for idx, card in enumerate(completed_cards):
         col_target = cols[idx % 3]
 
         staff_items_html = ""
         for s in card["Staff_List"]:
-          staff_items_html += f'<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:6px; margin-top:4px; font-size:0.75rem; display:flex; justify-content:space-between;"><span>👤 <b>{s["Staff_Name"]}</b></span><span style="color:#16a34a;">✓ Pass</span></div>'
+          staff_items_html += f'<div style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:4px; padding:6px; margin-top:4px; font-size:0.75rem;">👤 <b>{s["Staff_Name"]}</b></div>'
 
         card_html = textwrap.dedent(f"""
             <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
