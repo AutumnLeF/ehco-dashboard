@@ -356,4 +356,239 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     d_done_04, d_req_04 = shift_totals_04["Dinner"]["done"], shift_totals_04["Dinner"]["req"]
 
     html_04 = (
-        f'Breakfast: <span style="color: {"#4ade80" if b_req_04 > 0 and b_done_04 >= b_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_04 > 0 and b_done_04 >= b_req_
+        f'Breakfast: <span style="color: {"#4ade80" if b_req_04 > 0 and b_done_04 >= b_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_04 > 0 and b_done_04 >= b_req_04 else "Pending"} - {b_done_04}/{b_req_04}</span><br>'
+        f'Lunch: <span style="color: {"#4ade80" if l_req_04 > 0 and l_done_04 >= l_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_04 > 0 and l_done_04 >= l_req_04 else "Pending"} - {l_done_04}/{l_req_04}</span><br>'
+        f'Dinner: <span style="color: {"#4ade80" if d_req_04 > 0 and d_done_04 >= d_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_04 > 0 and d_done_04 >= d_req_04 else "Pending"} - {d_done_04}/{d_req_04}</span>'
+    )
+
+    # --- RECORD 05 METRICS ---
+    day_05 = get_day_df(df_05_parsed, selected_day_variants, target_date_obj)
+    completed_kitchens_05 = 0
+    if not day_05.empty and "Location" in day_05.columns:
+        logged_locs_05 = day_05["Location"].str.strip().str.lower().unique()
+        for kitchen in RECORD_05_KITCHENS:
+            if kitchen.lower() in logged_locs_05:
+                completed_kitchens_05 += 1
+    total_kitchens_05 = len(RECORD_05_KITCHENS)
+    is_05_complete = (completed_kitchens_05 >= total_kitchens_05)
+    stat_05 = f'<span style="color: {"#4ade80" if is_05_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_05_complete else "Pending"} - {completed_kitchens_05}/{total_kitchens_05} kitchens</span>'
+
+    # --- RECORD 06 METRICS ---
+    day_06 = get_day_df(df_06_parsed, selected_day_variants, target_date_obj)
+    shift_totals_06 = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
+
+    for kitchen, meals in RECORD_06_MEAL_RULES.items():
+        k_df = day_06[day_06["Location"].str.strip().str.lower() == kitchen.lower()] if not day_06.empty else pd.DataFrame()
+        for meal in meals:
+            if meal in shift_totals_06:
+                shift_totals_06[meal]["req"] += 1
+            m_df = k_df[k_df["Meal_Service"].str.strip().str.lower() == meal.lower()] if not k_df.empty else pd.DataFrame()
+            if not m_df.empty and meal in shift_totals_06:
+                shift_totals_06[meal]["done"] += 1
+
+    b_done_06, b_req_06 = shift_totals_06["Breakfast"]["done"], shift_totals_06["Breakfast"]["req"]
+    l_done_06, l_req_06 = shift_totals_06["Lunch"]["done"], shift_totals_06["Lunch"]["req"]
+    d_done_06, d_req_06 = shift_totals_06["Dinner"]["done"], shift_totals_06["Dinner"]["req"]
+
+    stat_06 = (
+        f'Breakfast: <span style="color: {"#4ade80" if b_req_06 > 0 and b_done_06 >= b_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_06 > 0 and b_done_06 >= b_req_06 else "Pending"} - {b_done_06}/{b_req_06}</span><br>'
+        f'Lunch: <span style="color: {"#4ade80" if l_req_06 > 0 and l_done_06 >= l_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_06 > 0 and l_done_06 >= l_req_06 else "Pending"} - {l_done_06}/{l_req_06}</span><br>'
+        f'Dinner: <span style="color: {"#4ade80" if d_req_06 > 0 and d_done_06 >= d_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_06 > 0 and d_done_06 >= d_req_06 else "Pending"} - {d_done_06}/{d_req_06}</span>'
+    )
+
+    # --- RECORD 12 METRICS ---
+    day_12 = get_day_df(df_12_parsed, selected_day_variants, target_date_obj)
+    completed_areas_12 = 0
+    if not day_12.empty and "Location" in day_12.columns:
+        logged_locs_12 = day_12["Location"].str.strip().str.lower().unique()
+        for area in RECORD_12_AREAS:
+            if area.lower() in logged_locs_12:
+                completed_areas_12 += 1
+    total_areas_12 = len(RECORD_12_AREAS)
+    is_12_complete = (completed_areas_12 >= total_areas_12)
+    stat_12 = f'<span style="color: {"#4ade80" if is_12_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_12_complete else "Pending"} - {completed_areas_12}/{total_areas_12} areas</span>'
+
+    # --- RECORD 13 METRICS ---
+    day_13 = get_day_df(df_13_parsed, selected_day_variants, target_date_obj)
+    logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
+    is_13_complete = (logged_13 >= 11)
+    stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11 machines</span>'
+    
+    # --- RECORD 15 METRICS ---
+    day_15 = get_day_df(df_15_parsed, selected_day_variants, target_date_obj)
+    logged_15 = len(day_15) if not day_15.empty else 0
+    stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15} entries</span>'
+    
+    # --- RECORD 21 METRICS ---
+    day_21 = get_day_df(df_21_parsed, selected_day_variants, target_date_obj)
+    completed_areas_21 = 0
+    if not day_21.empty and "Location" in day_21.columns:
+        logged_locs_21 = day_21["Location"].str.strip().str.lower().unique()
+        for area in RECORD_21_AREAS:
+            if area.lower() in logged_locs_21:
+                completed_areas_21 += 1
+    total_areas_21 = len(RECORD_21_AREAS)
+    is_21_complete = (completed_areas_21 >= total_areas_21)
+    stat_21 = f'<span style="color: {"#4ade80" if is_21_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_21_complete else "Pending"} - {completed_areas_21}/{total_areas_21} areas</span>'
+    
+    # --- RECORD 25 METRICS ---
+    day_25 = get_day_df(df_25_parsed, selected_day_variants, target_date_obj)
+    logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
+    stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
+
+    # --- RECORD CM01 METRICS ---
+    day_cm01 = get_day_df(df_cm01_parsed, selected_day_variants, target_date_obj)
+    cm01_completed_locs = 0
+    for loc_name, expected_units in CM01_LOCATION_UNITS.items():
+        loc_logs = day_cm01[day_cm01["Location"].str.strip().str.lower() == loc_name.lower()] if not day_cm01.empty else pd.DataFrame()
+        am_units = loc_logs[loc_logs["Shift"] == "AM"]["Sub_Location"].str.strip().str.lower().tolist()
+        pm_units = loc_logs[loc_logs["Shift"] == "PM"]["Sub_Location"].str.strip().str.lower().tolist()
+        expected_lower = [str(u).strip().lower() for u in expected_units]
+        am_complete = all(any(eu in lu for lu in am_units) for eu in expected_lower)
+        pm_complete = all(any(eu in lu for lu in pm_units) for eu in expected_lower)
+        if am_complete and pm_complete:
+            cm01_completed_locs += 1
+
+    total_cm01_locs = len(CM01_LOCATION_UNITS)
+    is_cm01_complete = (cm01_completed_locs >= total_cm01_locs)
+    stat_cm01 = f'<span style="color: {"#4ade80" if is_cm01_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_cm01_complete else "Pending"} - {cm01_completed_locs}/{total_cm01_locs} locations</span>'
+
+    # --- RECORD PH01 METRICS ---
+    day_ph01 = get_day_df(df_ph01_parsed, selected_day_variants, target_date_obj)
+    stat_ph01 = f'<span style="color: {"#4ade80" if not day_ph01.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_ph01.empty else "Pending"} - {len(day_ph01)} staff inspected</span>'
+
+    completed_cats = sum([
+        1 if not day_02.empty else 0,
+        1 if is_op_complete and is_cl_complete else 0,
+        1 if b_req_04 > 0 and b_done_04 >= b_req_04 and l_done_04 >= l_req_04 and d_done_04 >= d_req_04 else 0,
+        1 if is_05_complete else 0,
+        1 if b_req_06 > 0 and b_done_06 >= b_req_06 and l_done_06 >= l_req_06 and d_done_06 >= d_req_06 else 0,
+        1 if is_12_complete else 0,
+        1 if is_13_complete else 0,
+        1 if logged_15 > 0 else 0,
+        1 if is_21_complete else 0,
+        1 if logged_25 > 0 else 0,
+        1 if is_cm01_complete else 0,
+        1 if not day_ph01.empty else 0
+    ])
+    total_cats = 12
+    progress_pct = int((completed_cats / total_cats) * 100)
+    bar_color = "#4ade80" if progress_pct > 70 else ("#3b82f6" if progress_pct > 30 else "#fbbf24")
+
+    if st.session_state.fairmont_dashboard_view_mode == "📊 Overview Cards":
+        st.markdown(f"""
+        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                <span style="font-weight: 700; font-size: 0.88rem; color: #0f172a;">📊 Daily Compliance & Progression Tracker</span>
+                <span style="font-weight: 700; font-size: 0.88rem; color: {bar_color};">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
+            </div>
+            <div style="width: 100%; background: #e2e8f0; border-radius: 8px; height: 12px; overflow: hidden;">
+                <div style="width: {progress_pct}%; background: {bar_color}; height: 100%; border-radius: 8px; transition: width 0.5s ease;"></div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col1, col2, col3 = st.columns(3)
+        def render_theme_card(col, title, status_html, target_nav, unique_key):
+            col.markdown(f"""
+            <div style="background-color: #0b192c; border-radius: 10px; padding: 16px; color: white; margin-bottom: 6px; min-height: 115px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 0.88rem; font-weight: 600; line-height: 1.3; margin-bottom: 6px;">{title}</div>
+                <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            col.button("Open ➔", use_container_width=True, key=f"btn_fairmont_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
+
+        with col1:
+            render_theme_card(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "card_r02")
+            render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
+            render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04")
+            render_theme_card(col1, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", stat_cm01, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", "card_rcm01")
+        with col2:
+            render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
+            render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
+            render_theme_card(col2, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "card_r12")
+            render_theme_card(col2, "RECORD PH01 - PERSONAL HYGIENE RECORD", stat_ph01, "RECORD PH01 - PERSONAL HYGIENE RECORD", "card_rph01")
+        with col3:
+            render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
+            render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
+            render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "card_r21")
+            render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
+    else:
+        st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
+        st.write("Department-wise overview for Fairmont Mumbai")
+
+        dept_cols = st.columns(3)
+        def render_dept_card(col, dept_name, rec_tuples):
+            items_html = ""
+            for r_title, r_status in rec_tuples:
+                items_html += f"""
+                <div style="background: rgba(255,255,255,0.06); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px;">
+                    <div style="font-weight: 600; font-size: 0.85rem; color: #f8fafc; margin-bottom: 2px;">{r_title}</div>
+                    <div style="font-size: 0.75rem; color: #cbd5e1;">{r_status}</div>
+                </div>
+                """
+            col.markdown(f"""
+            <div style="background-color: #0b192c; border-radius: 10px; padding: 18px; color: white; margin-bottom: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <div style="font-size: 1.1rem; font-weight: 700; color: #38bdf8; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 8px;">🏢 {dept_name}</div>
+                {items_html}
+            </div>
+            """, unsafe_allow_html=True)
+
+        with dept_cols[0]:
+            render_dept_card(dept_cols[0], "Purchase", [("RECORD 02 - FOOD DELIVERY", stat_02), ("RECORD 03 - TEMPERATURE RECORD", html_03.replace("<br>", " | "))])
+        with dept_cols[1]:
+            render_dept_card(dept_cols[1], "Stewarding", [("RECORD 13 - DISHWASHER", stat_13), ("RECORD 25 - ICE MACHINE", stat_25)])
+        with dept_cols[2]:
+            render_dept_card(dept_cols[2], "Housekeeping", [("RECORD 13 - DISHWASHER", stat_13), ("RECORD 15 - PESTICIDE USAGE", stat_15)])
+else:
+    hdr_cols = st.columns([3, 4, 3])
+    with hdr_cols[0]:
+        selected_site_sub = st.selectbox(
+            "Select Site Portal",
+            options=["🏰 Fairmont Mumbai", "🏨 Roswyn Mumbai"],
+            index=0,
+            label_visibility="collapsed",
+            key="global_site_switcher_select_sub_fairmont"
+        )
+        if selected_site_sub.startswith("🏨"):
+            st.switch_page("pages/roswyn.py")
+
+    with hdr_cols[1]:
+        st.markdown(f'<div class="serif-title" style="font-size:1.4rem;">{st.session_state.fairmont_nav_choice}</div>', unsafe_allow_html=True)
+
+    with hdr_cols[2]:
+        st.markdown(f"""
+            <div style="background: #0b192c; color: white; padding: 6px 12px; border-radius: 8px; font-weight: 500; font-size: 0.78rem; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
+                <div>🕒 IST: <span style="color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</span></div>
+                <div style="color: #94a3b8; font-size: 0.72rem; margin-top: 2px;">Last Sync: Live Cached</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.write("")
+    st.button("← Back to EHCO Status Overview", key="back_to_fairmont_overview_top_btn", on_click=go_to_overview)
+    st.write("")
+
+    if st.session_state.fairmont_nav_choice == "RECORD 02 - FOOD DELIVERY RECORD":
+        render_record_02_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD":
+        render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
+        render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD 05 - COOLING OF FOOD RECORD":
+        render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
+        render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD 12 - DEFROSTING TEMPERATURE RECORD":
+        render_record_12_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD":
+        render_record_13_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD 15 - PESTICIDE USAGE RECORD":
+        render_record_15_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH":
+        render_record_21_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD 25 - ICE MACHINE CLEANING RECORD":
+        render_record_25_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD CM01 - COFFEE MACHINE CLEANING RECORD":
+        render_record_cm01_view(raw_records_df, selected_day_str, start_date, end_date)
+    elif st.session_state.fairmont_nav_choice == "RECORD PH01 - PERSONAL HYGIENE RECORD":
+        render_record_ph01_view(raw_records_df, selected_day_str, start_date, end_date)
