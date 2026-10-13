@@ -1,300 +1,27 @@
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
+import textwrap
 import pandas as pd
 import streamlit as st
 
-MAX_FRIDGE_TEMP = 4.0      # Coolroom / Fridge <= 4.0°C
-MAX_FREEZER_TEMP = -18.0  # Freezer <= -18.0°C
-RECORD_03_FORM_ID = 23705
+RECORD_04_FORM_ID = 23706
+TEMP_THRESHOLD = 75.0  # Minimum required core temp (°C)
 
-# Comprehensive Catalog mapped from site data (CoolRooms, Freezers & Fridges)
-UNIT_CATALOG = {
-    # --- COOLROOMS ---
-    "Garbage Room Walk-In (Chiller)": [
-        {"Unit_ID": "GRB-Cold Room-CR01", "Type": "Coolroom"},
-    ],
-    "Receiving": [
-        {"Unit_ID": "CMM-Cold Room-CR02", "Type": "Coolroom"},
-        {"Unit_ID": "CMM/DF/CR03", "Type": "Freezer"},
-    ],
-    "Commissary": [
-        {"Unit_ID": "CMM-Cold Room-CR04", "Type": "Coolroom"},
-        {"Unit_ID": "CMM-Cold Room-CR05", "Type": "Coolroom"},
-        {"Unit_ID": "VP-Cold Room-CR09", "Type": "Coolroom"},
-    ],
-    "Butchery": [
-        {"Unit_ID": "CMM-Cold Room-CR06", "Type": "Coolroom"},
-        {"Unit_ID": "CMM-Cold Room-CR07", "Type": "Coolroom"},
-        {"Unit_ID": "CMM/DF/CR08", "Type": "Freezer"},
-        {"Unit_ID": "BCH-Cold Room-CR10", "Type": "Coolroom"},
-        {"Unit_ID": "SF-Cold Room-CR11", "Type": "Coolroom"},
-    ],
-    "The Bombay Café": [
-        {"Unit_ID": "CK-Cold Room-CR13", "Type": "Coolroom"},
-        {"Unit_ID": "TBC/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "TBC/UC/REF/01", "Type": "Fridge"},
-    ],
-    "Banquet Kitchen": [
-        {"Unit_ID": "BQT-Cold Room-CR14", "Type": "Coolroom"},
-        {"Unit_ID": "BQT-Cold Room-CR15", "Type": "Coolroom"},
-        {"Unit_ID": "BQT/DF/CR16", "Type": "Freezer"},
-        {"Unit_ID": "BQT-Cold Room-CR17", "Type": "Coolroom"},
-        {"Unit_ID": "MKI/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MKC/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "BQC/VR/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "BQK/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "BQT SER- Cold room - CR26", "Type": "Coolroom"},
-        {"Unit_ID": "MKI/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MKT/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MKA/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MKC/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "BQC/VR/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "BQC/VR/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "BQC/VR/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "BQK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "BQK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "BQK/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "BQK/UC/REF/04", "Type": "Fridge"},
-    ],
-    "Garde Manger": [
-        {"Unit_ID": "GM-Cold Room-CR18", "Type": "Coolroom"},
-        {"Unit_ID": "GM/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "GM/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "GM/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "GM/UC/REF/03", "Type": "Fridge"},
-    ],
-    "Bakery & Pastry": [
-        {"Unit_ID": "BK-Cold Room-CR19", "Type": "Coolroom"},
-        {"Unit_ID": "BP/DF/CR20", "Type": "Freezer"},
-        {"Unit_ID": "PK-Cold Room-CR21", "Type": "Coolroom"},
-        {"Unit_ID": "PS/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "CR/VR/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "PS/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "PS/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "PS/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "CR/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "CR/VR/REF/01", "Type": "Fridge"},
-    ],
-    "Banquet - Service": [
-        {"Unit_ID": "BQT SER- Cold room - CR261", "Type": "Coolroom"},
-        {"Unit_ID": "BQS/VR/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "BQS/VR/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "BQS/VR/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "BQS/VR/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "BQS/VR/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "BQB/UC/REF/01", "Type": "Fridge"},
-    ],
-    "Merchant Chiller": [
-        {"Unit_ID": "TM-Cold Room - CR27", "Type": "Coolroom"},
-    ],
-    "The Merchants Deep Freezer": [
-        {"Unit_ID": "TM/DF/CR28", "Type": "Freezer"},
-    ],
-    "IRD Kitchen": [
-        {"Unit_ID": "IRDK/Cold Room/31", "Type": "Coolroom"},
-        {"Unit_ID": "IRDK/Cold Room/32", "Type": "Coolroom"},
-        {"Unit_ID": "IRDK/DF/33", "Type": "Freezer"},
-        {"Unit_ID": "IRDK/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "IRDK/UC/FRZ/02", "Type": "Freezer"},
-        {"Unit_ID": "IRD/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "IRD/VR/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "IRD/VR/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "IRDK/VR/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "IRDK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "IRDK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "IRDK/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "IRDK/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "IRDK/UC/REF/05", "Type": "Fridge"},
-        {"Unit_ID": "IRDK/UC/REF/06", "Type": "Fridge"},
-        {"Unit_ID": "IRDK/UC/REF/07", "Type": "Fridge"},
-    ],
-    "Oryn Kitchen": [
-        {"Unit_ID": "ORN/Cold Room/CR34", "Type": "Coolroom"},
-        {"Unit_ID": "OK/VR/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "OK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "OK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "OK/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "OK/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "OK/VR/REF/01", "Type": "Fridge"},
-    ],
-    "Merchants - Service": [
-        {"Unit_ID": "MS/Cold Room/25", "Type": "Coolroom"},
-        {"Unit_ID": "MB/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MB/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MB/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MB/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "MBS/VR/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MBS/VR/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MBS/VR/REF/03", "Type": "Fridge"},
-    ],
-    "The Merchants - Chocolate Atelier": [
-        {"Unit_ID": "MBP/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MBP/DIS/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MBP/UC/FRZ/03", "Type": "Freezer"},
-        {"Unit_ID": "MCA/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MBP/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MBP/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MBP/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "MCA/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MCA/UC/REF/02", "Type": "Fridge"},
-    ],
-    "The Merchants - Western Hot": [
-        {"Unit_ID": "MWH/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MWH/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MWH/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MWH/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "MWH/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "MWH/UC/REF/05", "Type": "Fridge"},
-        {"Unit_ID": "MWH/UC/REF/06", "Type": "Fridge"},
-    ],
-    "The Merchants - Cold Kitchen": [
-        {"Unit_ID": "MCK/VR/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MCK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MCK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MCK/UC/REF/03", "Type": "Fridge"},
-    ],
-    "The Merchants Indian Non Veg": [
-        {"Unit_ID": "MIN/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MIN/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MIN/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MIN/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "MIN/DIS/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MIN/DIS/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MIN/DIS/REF/03", "Type": "Fridge"},
-    ],
-    "The Merchants Indian Veg": [
-        {"Unit_ID": "MIV/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MIV/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MIV/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MIV/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "MIV/DIS/REF/01", "Type": "Fridge"},
-    ],
-    "The Merchants Japanese Section": [
-        {"Unit_ID": "MJ/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MJ/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MJ/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MJ/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "MJ/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "MJ/DIS/REF/01", "Type": "Fridge"},
-    ],
-    "The Merchants - Asian Section": [
-        {"Unit_ID": "MA/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MA/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MA/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MA/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "MA/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "MA/DIS/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MA/DIS/REF/02", "Type": "Fridge"},
-    ],
-    "Beyond Oryn Bar": [
-        {"Unit_ID": "BO/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "BO/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "BO/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "BO/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "BO/UC/REF/04", "Type": "Fridge"},
-    ],
-    "Gold Lounge Kitchen": [
-        {"Unit_ID": "GK/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "GK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "GK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "GK/VR/REF/01", "Type": "Fridge"},
-    ],
-    "Gold Lounge Service": [
-        {"Unit_ID": "GS/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "GS/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "GS/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "GS/DIS/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "GS/DIS/REF/02", "Type": "Fridge"},
-    ],
-    "Hedonist Kitchen": [
-        {"Unit_ID": "HK/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "HK/UC/REF/01", "Type": "Fridge"},
-    ],
-    "Hedonist Bar": [
-        {"Unit_ID": "HB/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "HB/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "HB/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "HB/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "HB/VR/REF/01", "Type": "Fridge"},
-    ],
-    "MDP Kitchen": [
-        {"Unit_ID": "MDPK/VR/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "MDPK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MDPK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MDPK/VR/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MDPK/VR/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MDPK/VR/REF/03", "Type": "Fridge"},
-    ],
-    "MDP Service": [
-        {"Unit_ID": "MDPS/VR/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MDPS/VR/REF/02", "Type": "Fridge"},
-    ],
-    "MDP Tea Lounge": [
-        {"Unit_ID": "MDPS/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "MDPS/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "MDPS/DIS/REF/01", "Type": "Fridge"},
-    ],
-    "Halwai Kitchen": [
-        {"Unit_ID": "HLK/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "HLK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "HLK/UC/REF/02", "Type": "Fridge"},
-    ],
-    "Samaa Kitchen": [
-        {"Unit_ID": "SK/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "SK/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "SK/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "SK/UC/REF/03", "Type": "Fridge"},
-        {"Unit_ID": "SK/UC/REF/04", "Type": "Fridge"},
-        {"Unit_ID": "SK/VR/REF/01", "Type": "Fridge"},
-    ],
-    "Hygiene Office": [
-        {"Unit_ID": "HO/VR/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "HO/VR/REF/01", "Type": "Fridge"},
-    ],
-    "Samaa Bar": [
-        {"Unit_ID": "SB/UC/FRZ/01", "Type": "Freezer"},
-        {"Unit_ID": "SB/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "SB/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "SB/UC/REF/03", "Type": "Fridge"},
-    ],
-    "Banquets - Grand Terminus": [
-        {"Unit_ID": "GT/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "GT/UC/REF/02", "Type": "Fridge"},
-    ],
-    "SPA": [
-        {"Unit_ID": "SPA/UC/REF/01", "Type": "Fridge"},
-        {"Unit_ID": "SPA/UC/REF/02", "Type": "Fridge"},
-        {"Unit_ID": "SPA/DIS/REF/01", "Type": "Fridge"},
-    ],
+KITCHEN_MEAL_RULES = {
+    "Bakery/Pastry": ["Lunch", "Dinner"],
+    "Banquet Kitchen": ["Lunch", "Dinner"],
+    "Cafeteria Kitchen": ["Breakfast", "Lunch", "Dinner"],
+    "Gold Lounge Kitchen": ["Breakfast", "Dinner"],
+    "Hedonist Kitchen": ["Lunch", "Dinner"],
+    "Indian Sweet / Halwai Kitchen": ["Lunch", "Dinner"],
+    "IRD Kitchen": ["Breakfast", "Lunch", "Dinner"],
+    "Madeleine de Proust": ["Breakfast", "Lunch", "Dinner"],
+    "Merchant Kitchen": ["Breakfast", "Lunch", "Dinner"],
+    "Oryn Kitchen": ["Lunch", "Dinner"],
+    "Samaa Kitchen": ["Lunch", "Dinner"],
 }
 
 
-def clean_unit_token(val):
-  if not val or pd.isna(val):
-    return ""
-  return str(val).replace("/", "").replace("_", "").replace(" ", "").replace("-", "").strip().upper()
-
-
-def extract_temp_value(entry, sub):
-  candidates = [
-      entry.get("CRTemperature"),
-      entry.get("FreezerTemp"),
-      entry.get("FZTemperature"),
-      entry.get("Temperature"),
-      entry.get("temperature"),
-      sub.get("Temperature °C (Coolroom 4°C or below / Fridge 4°C or below)"),
-      sub.get("Temperature °C (Freezer -18°C or colder)"),
-  ]
-  for c in candidates:
-    if c is not None and str(c).strip() not in ["", "None", "nan"]:
-      val_clean = str(c).replace("°C", "").replace("°", "").strip()
-      num = pd.to_numeric(val_clean, errors="coerce")
-      if pd.notna(num):
-        return float(num)
-  return None
-
-
-def parse_record_03_submissions(raw_df):
-  """Robustly parses Record 03 Coolroom/Fridge/Freezer temperature records."""
+def parse_all_record_04_dishes(raw_df):
   if raw_df is None or raw_df.empty:
     return pd.DataFrame()
 
@@ -305,30 +32,36 @@ def parse_record_03_submissions(raw_df):
   )
   if form_col:
     df = df[
-        df[form_col].astype(str).str.contains(str(RECORD_03_FORM_ID), na=False)
+        df[form_col].astype(str).str.contains(str(RECORD_04_FORM_ID), na=False)
     ]
 
   if df.empty:
     df = raw_df.copy()
 
-  flat_master = []
-  for loc, units in UNIT_CATALOG.items():
-    for u in units:
-      flat_master.append({
-          "Location": loc,
-          "Unit_ID": u["Unit_ID"],
-          "Type": u["Type"],
-          "Clean_ID": clean_unit_token(u["Unit_ID"]),
-      })
-
   rows = []
+  has_raw_record = "raw_record" in df.columns
+
   for _, row in df.iterrows():
-    rec = row.get("raw_record") if "raw_record" in df.columns else row.to_dict()
+    rec = row.get("raw_record") if has_raw_record else row.to_dict()
     if not isinstance(rec, dict):
-      continue
+      rec = row.to_dict()
 
     sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
-    entry = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else {}
+    entry_parent = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else sub
+
+    location = (
+        sub.get("Location")
+        or rec.get("Location")
+        or entry_parent.get("Location")
+        or "Unknown"
+    )
+    sign = (
+        sub.get("Sign")
+        or sub.get("sign")
+        or rec.get("Sign")
+        or rec.get("user.email")
+        or "Staff"
+    )
 
     raw_date = (
         sub.get("Date")
@@ -353,382 +86,590 @@ def parse_record_03_submissions(raw_df):
       date_obj = None
       parsed_dt_ist = datetime.now()
 
-    raw_time = (
-        sub.get("Time")
-        or sub.get("time")
-        or entry.get("Time")
-        or ""
+    raw_time = sub.get("Time") or sub.get("time") or entry_parent.get("Time") or ""
+    time_str = str(raw_time).strip()
+    if "T" in time_str:
+      try:
+        time_str = time_str.split("T")[1][:5]
+      except Exception:
+        pass
+
+    entries = (
+        sub.get("set")
+        or sub.get("Entry")
+        or rec.get("set")
+        or rec.get("Entry")
+        or []
     )
-    raw_time_str = str(raw_time).strip()
-    
-    if raw_time_str and len(raw_time_str) >= 3:
-      if "T" in raw_time_str:
-        try:
-          t_part = raw_time_str.split("T")[1][:5]
-          t_obj = datetime.strptime(t_part, "%H:%M")
-          time_clean = t_obj.strftime("%I:%M %p")
-        except Exception:
-          time_clean = raw_time_str[-8:]
-      else:
-        time_clean = raw_time_str
-    else:
-      if pd.notna(parsed_dt):
-        if parsed_dt.tzinfo is None:
-          dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
-        else:
-          dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
-        time_clean = dt_ist.strftime("%I:%M %p")
-      else:
-        time_clean = "Shift Log"
 
-    location = str(sub.get("Location") or entry.get("Location") or "").strip()
+    if isinstance(entries, bool) or not isinstance(entries, (list, dict)):
+      entries = [sub] if isinstance(sub, dict) else []
+    elif isinstance(entries, dict):
+      entries = [entries]
+        
+    if isinstance(entries, dict):
+      entries = [entries]
+    if not entries and isinstance(sub, dict):
+      entries = [sub]
 
-    raw_unit = (
-        entry.get("Fridge")
-        or entry.get("Freezer")
-        or entry.get("Coolroom")
-        or sub.get("Fridge")
-        or sub.get("Freezer")
-        or sub.get("Coolroom")
-        or ""
+    for entry in entries:
+      if not isinstance(entry, dict):
+        continue
+
+      meal = (
+          entry.get("Meal_Service")
+          or entry.get("Meal")
+          or entry.get("Meal Service")
+          or "Unassigned"
+      )
+
+      food = (
+          entry.get("Name_of_Food_Other")
+          if str(entry.get("Food", "")).strip().lower() == "other"
+          and entry.get("Name_of_Food_Other")
+          else (
+              entry.get("Food")
+              or entry.get("Name_of_Food_Other")
+              or entry.get("Name_of_Food")
+              or "Food Item"
+          )
+      )
+
+      temp_raw = (
+          entry.get("Temperature")
+          if pd.notna(entry.get("Temperature"))
+          and str(entry.get("Temperature")).strip()
+          not in ["", "nan", "None", "null"]
+          else entry.get("Temperature_copy")
+      )
+      if (
+          pd.isna(temp_raw)
+          or str(temp_raw).strip() in ["", "nan", "None", "null"]
+      ):
+        temp_raw = (
+            entry.get("Temperature_Cooking")
+            or entry.get("Temperature_Reheating")
+            or entry.get("Food Temperature °C (Cooking)")
+            or entry.get("Food Temperature °C (Reheating)")
+        )
+
+      temp_val = pd.to_numeric(
+          str(temp_raw).replace("°C", "").replace("°", "").strip(),
+          errors="coerce",
+      )
+      heat_treatment = (
+          entry.get("Heat_Treatment")
+          or entry.get("Type_of_Heat_Treatment")
+          or (
+              "Reheating"
+              if pd.notna(entry.get("Temperature_copy"))
+              else "Cooking"
+          )
+      )
+      corrective = (
+          entry.get("Corrective_Actions_cooking")
+          or entry.get("Corrective_Action")
+          or ""
+      )
+
+      rows.append({
+          "Date_Str": date_str,
+          "Date_Obj": date_obj,
+          "Timestamp_DT": parsed_dt_ist,
+          "Time": time_str,
+          "Location": str(location).strip(),
+          "Meal_Service": str(meal).strip(),
+          "Heat_Treatment": str(heat_treatment).strip(),
+          "Food": str(food).strip(),
+          "Temp": temp_val,
+          "Corrective_Action": str(corrective),
+          "Sign": str(sign).strip(),
+      })
+
+  df_out = pd.DataFrame(rows)
+  if not df_out.empty:
+    df_out = df_out.drop_duplicates(
+        subset=[
+            "Date_Str",
+            "Time",
+            "Location",
+            "Meal_Service",
+            "Food",
+            "Temp",
+        ],
+        keep="first",
     )
-    if isinstance(raw_unit, list) and len(raw_unit) > 0:
-      raw_unit = raw_unit[0]
-    raw_unit_str = str(raw_unit).strip()
-
-    clean_u = clean_unit_token(raw_unit_str)
-    matched_id = None
-    matched_loc = location
-    matched_type = str(entry.get("Type") or sub.get("Coolroom/Fridge/Freezer") or "Fridge").capitalize()
-
-    for m in flat_master:
-      if clean_u == m["Clean_ID"]:
-        matched_id = m["Unit_ID"]
-        matched_loc = m["Location"]
-        matched_type = m["Type"]
-        break
-
-    final_unit = matched_id if matched_id else raw_unit_str
-
-    status_raw = str(entry.get("USE") or sub.get("USE") or "IN USE").strip().upper()
-    is_in_use = "NOT" not in status_raw
-
-    num_temp = extract_temp_value(entry, sub)
-    has_breach = False
-    temp_disp = "—"
-
-    if is_in_use and num_temp is not None:
-      temp_disp = f"{num_temp}°C"
-      if "freezer" in matched_type.lower():
-        if num_temp > MAX_FREEZER_TEMP:
-          has_breach = True
-      else:
-        if num_temp > MAX_FRIDGE_TEMP:
-          has_breach = True
-
-    sign = str(sub.get("Sign") or entry.get("Sign") or sub.get("sign") or "Staff").strip()
-
-    rows.append({
-        "Date_Str": date_str,
-        "Date_Obj": date_obj,
-        "Timestamp_DT": parsed_dt_ist,
-        "Time": time_clean,
-        "Location": matched_loc,
-        "Unit_ID": final_unit,
-        "Clean_Unit": clean_unit_token(final_unit),
-        "Unit_Type": matched_type,
-        "In_Use": is_in_use,
-        "Temp": num_temp,
-        "Temp_Disp": temp_disp,
-        "Has_Breach": has_breach,
-        "Sign": sign,
-    })
-
-  df = pd.DataFrame(rows)
-  if not df.empty:
-    df = df.drop_duplicates(subset=["Date_Str", "Time", "Clean_Unit", "Temp", "Sign"], keep="first")
-  return df
+  return df_out
 
 
-def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
-  df_items = parse_record_03_submissions(raw_df)
+def render_record_04_view(raw_df, selected_day_str, start_date, end_date):
+  st.markdown(
+      """
+    <style>
+    .kpi-container {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-top: 4px solid #0f172a;
+        border-radius: 8px;
+        padding: 14px 18px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        margin-bottom: 10px;
+    }
+    .kpi-num {
+        font-size: 1.6rem;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+    }
+    .kpi-lbl {
+        font-size: 0.78rem;
+        color: #64748b;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-top: 2px;
+    }
+    </style>
+    """,
+      unsafe_allow_html=True,
+  )
 
-  current_time_str = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%I:%M:%S %p")
+  all_dishes_df = parse_all_record_04_dishes(raw_df)
 
-  with st.expander("🔍 Date Diagnostic (Inspect dates loaded in memory)"):
-    st.write(f"Total parsed records: **{len(df_items)}**")
-    if not df_items.empty and "Date_Obj" in df_items.columns:
-      date_counts = df_items["Date_Obj"].dropna().value_counts().sort_index(ascending=False).to_dict()
-      st.write("Records per date found:", {str(k): v for k, v in date_counts.items()})
-    else:
-      st.write("No valid dates found in the payload.")
+  with st.expander("🔍 Record 04 Diagnostic (Inspect loaded data)"):
+    st.write(f"Total parsed cooking records: **{len(all_dishes_df)}**")
+    if not all_dishes_df.empty and "Date_Obj" in all_dishes_df.columns:
+      date_counts = (
+          all_dishes_df["Date_Obj"]
+          .dropna()
+          .value_counts()
+          .sort_index(ascending=False)
+          .to_dict()
+      )
+      st.write(
+          "Records per date found:", {str(k): v for k, v in date_counts.items()}
+      )
+
+  if not all_dishes_df.empty and "Date_Obj" in all_dishes_df.columns:
+    range_df = all_dishes_df[
+        (all_dishes_df["Date_Obj"] >= start_date)
+        & (all_dishes_df["Date_Obj"] <= end_date)
+    ]
+  else:
+    range_df = all_dishes_df.copy()
 
   tab_day, tab_matrix = st.tabs([
-      f"📅 Daily Unit Temperature Audit ({selected_day_str})",
-      "📈 3-Day Grouped Location Matrix"
+      f"📅 Daily Cooking & Reheating Audit ({selected_day_str})",
+      "📈 Last 3-Day Compliance Matrix",
   ])
 
   with tab_day:
-    target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
-    next_date_obj = target_date_obj + timedelta(days=1)
+    day_df = (
+        range_df[range_df["Date_Str"] == selected_day_str]
+        if not range_df.empty
+        else pd.DataFrame()
+    )
 
-    if not df_items.empty:
-      day_df = df_items[
-          (df_items["Date_Obj"] == target_date_obj) |
-          ((df_items["Date_Obj"] == next_date_obj) & (df_items["Timestamp_DT"].dt.hour < 5))
-      ]
-    else:
-      day_df = pd.DataFrame()
+    excursions = []
+    shift_counts = {
+        "Breakfast": {"req": 0, "done": 0},
+        "Lunch": {"req": 0, "done": 0},
+        "Dinner": {"req": 0, "done": 0},
+    }
+    pending_cards = []
+    completed_cards = []
 
-    total_breaches = 0
-    fully_logged_areas = 0
-    total_catalog_locations = len(UNIT_CATALOG)
+    for kitchen, meals in KITCHEN_MEAL_RULES.items():
+      k_df = (
+          day_df[day_df["Location"].str.strip().str.lower() == kitchen.lower()]
+          if not day_df.empty
+          else pd.DataFrame()
+      )
 
-    loc_summary_data = []
-    global_opening_logged = 0
-    global_closing_logged = 0
-    global_total_units = 0
+      pending_meals_list = []
+      completed_meals_list = []
 
-    for loc_name, units in UNIT_CATALOG.items():
-      total_u = len(units)
-      global_total_units += total_u
-      opening_logged = []
-      closing_logged = []
-      pending_opening = []
-      pending_closing = []
-      loc_breaches = 0
+      for meal in meals:
+        if meal in shift_counts:
+          shift_counts[meal]["req"] += 1
 
-      for u in units:
-        u_id = u["Unit_ID"]
-        u_type = u["Type"]
-        clean_target = clean_unit_token(u_id)
-        unit_logs = day_df[day_df["Clean_Unit"] == clean_target] if not day_df.empty else pd.DataFrame()
-        
-        if not unit_logs.empty and "Has_Breach" in unit_logs.columns and any(unit_logs["Has_Breach"]):
-          loc_breaches += 1
-          total_breaches += 1
-
-        n_logs = len(unit_logs)
-        if n_logs == 0:
-          pending_opening.append(f"{u_id} ({u_type})")
-          pending_closing.append(f"{u_id} ({u_type})")
-        elif n_logs == 1:
-          opening_logged.append(u_id)
-          global_opening_logged += 1
-          pending_closing.append(f"{u_id} ({u_type})")
+        m_df = (
+            k_df[k_df["Meal_Service"].str.strip().str.lower() == meal.lower()]
+            if not k_df.empty
+            else pd.DataFrame()
+        )
+        if not m_df.empty:
+          if meal in shift_counts:
+            shift_counts[meal]["done"] += 1
+          completed_meals_list.append({
+              "Meal": meal,
+              "Status": "Completed",
+              "Dishes": m_df.to_dict("records"),
+              "Sign": m_df["Sign"].iloc[0],
+          })
         else:
-          opening_logged.append(u_id)
-          closing_logged.append(u_id)
-          global_opening_logged += 1
-          global_closing_logged += 1
+          pending_meals_list.append({
+              "Meal": meal,
+              "Status": "Pending",
+              "Dishes": [],
+              "Sign": "",
+          })
 
-      op_count = len(opening_logged)
-      cl_count = len(closing_logged)
-      
-      if op_count == total_u and cl_count == total_u and loc_breaches == 0:
-        fully_logged_areas += 1
+      if pending_meals_list:
+        pending_cards.append({"Kitchen": kitchen, "Meals": pending_meals_list})
 
-      loc_summary_data.append({
-          "loc_name": loc_name,
-          "units": units,
-          "total_u": total_u,
-          "op_count": op_count,
-          "cl_count": cl_count,
-          "pending_opening": pending_opening,
-          "pending_closing": pending_closing,
-          "loc_breaches": loc_breaches
-      })
+      if completed_meals_list:
+        completed_cards.append({
+            "Kitchen": kitchen,
+            "Meals": completed_meals_list,
+        })
 
-    pending_shifts_count = global_total_units * 2 - (global_opening_logged + global_closing_logged)
+    if not day_df.empty:
+      violating = day_df[day_df["Temp"] < TEMP_THRESHOLD]
+      for _, r in violating.iterrows():
+        excursions.append({
+            "Kitchen": r["Location"],
+            "Meal": r["Meal_Service"],
+            "Food": r["Food"],
+            "Temp": r["Temp"],
+            "Sign": r["Sign"],
+        })
 
+    # KPI Dashboard
     k1, k2, k3, k4 = st.columns(4)
     with k1:
-      st.markdown(f'<div class="kpi-container" style="border-top-color: #dc2626;"><div class="kpi-num" style="color:#dc2626;">{total_breaches}</div><div class="kpi-lbl">Temperature Breaches</div></div>', unsafe_allow_html=True)
+      st.markdown(
+          f"""
+            <div class="kpi-container" style="border-top-color: #dc2626;">
+                <div class="kpi-num" style="color:#dc2626;">{len(excursions)}</div>
+                <div class="kpi-lbl">Core Temp Breaches (&lt; 75°C)</div>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
     with k2:
-      st.markdown(f'<div class="kpi-container" style="border-top-color: #16a34a;"><div class="kpi-num" style="color:#16a34a;">{fully_logged_areas}/{total_catalog_locations}</div><div class="kpi-lbl">Fully Logged Areas</div></div>', unsafe_allow_html=True)
+      b_done, b_req = (
+          shift_counts["Breakfast"]["done"],
+          shift_counts["Breakfast"]["req"],
+      )
+      st.markdown(
+          f"""
+            <div class="kpi-container" style="border-top-color: #16a34a;">
+                <div class="kpi-num" style="color:#16a34a;">{b_done}/{b_req}</div>
+                <div class="kpi-lbl">Breakfast Shift Completed</div>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
     with k3:
-      st.markdown(f'<div class="kpi-container" style="border-top-color: #d97706;"><div class="kpi-num" style="color:#d97706;">{pending_shifts_count}</div><div class="kpi-lbl">Pending Shifts</div></div>', unsafe_allow_html=True)
+      l_done, l_req = (
+          shift_counts["Lunch"]["done"],
+          shift_counts["Lunch"]["req"],
+      )
+      st.markdown(
+          f"""
+            <div class="kpi-container" style="border-top-color: #d97706;">
+                <div class="kpi-num" style="color:#d97706;">{l_done}/{l_req}</div>
+                <div class="kpi-lbl">Lunch Shift Completed</div>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
     with k4:
-      st.markdown(f'<div class="kpi-container" style="border-top-color: #0f172a;"><div class="kpi-num" style="color:#0f172a;">{len(day_df)}</div><div class="kpi-lbl">Total Logs Count</div></div>', unsafe_allow_html=True)
+      d_done, d_req = (
+          shift_counts["Dinner"]["done"],
+          shift_counts["Dinner"]["req"],
+      )
+      pct = int((d_done / d_req) * 100) if d_req > 0 else 0
+      st.markdown(
+          f"""
+            <div class="kpi-container" style="border-top-color: #2563eb;">
+                <div class="kpi-num" style="color:#2563eb;">{d_done}/{d_req} <span style="font-size:0.9rem; color:#64748b; font-weight:600;">({pct}%)</span></div>
+                <div class="kpi-lbl">Dinner Shift Completed</div>
+            </div>
+            """,
+          unsafe_allow_html=True,
+      )
 
     st.write("")
-    st.markdown(f"""
-    <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: white; padding: 12px 20px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; margin-bottom: 1rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-        <div style="display: flex; align-items: center; gap: 10px;">
-            <span style="font-size: 1.2rem;">📋</span>
-            <span style="font-weight: 700; font-size: 1.05rem; letter-spacing: -0.01em;">Location Status</span>
-        </div>
-        <div style="font-weight: 600; font-size: 0.95rem; color: #e2e8f0; background: rgba(255, 255, 255, 0.08); padding: 4px 12px; border-radius: 6px; border: 1px solid rgba(255, 255, 255, 0.1);">
-            📅 {selected_day_str}
-        </div>
-        <div style="background: rgba(255, 255, 255, 0.1); padding: 6px 14px; border-radius: 20px; font-size: 0.88rem; font-weight: 600; border: 1px solid rgba(255, 255, 255, 0.15); display: flex; align-items: center; gap: 6px;">
-            <span>🕒 Current Time (IST):</span> <span style="color: #38bdf8;">{current_time_str}</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
 
-    sorted_loc_summary_op = sorted(
-        loc_summary_data,
-        key=lambda x: (0 if x["op_count"] < x["total_u"] else 1, x["loc_name"])
-    )
-    sorted_loc_summary_cl = sorted(
-        loc_summary_data,
-        key=lambda x: (0 if x["cl_count"] < x["total_u"] else 1, x["loc_name"])
+    # --- SECTION 1: PENDING / INCOMPLETE SHIFT CARDS (TOP) ---
+    st.markdown(
+        "<h4 style='color:#b45309; margin-top:1.5rem; margin-bottom:1rem;'>⏳"
+        f" Pending / Incomplete Shift Cards ({selected_day_str})</h4>",
+        unsafe_allow_html=True,
     )
 
-    shift_col1, shift_col2 = st.columns(2)
+    if not pending_cards:
+      st.success("🎉 No pending shifts remaining for today!")
+    else:
+      p_cols = st.columns(3, gap="small")
+      for idx, k_info in enumerate(pending_cards):
+        col_target = p_cols[idx % 3]
+        k_name = k_info["Kitchen"]
+        m_list = k_info["Meals"]
+        meals_html = ""
 
-    with shift_col1:
-      op_items_html = ""
-      for item in sorted_loc_summary_op:
-        l_name = item["loc_name"]
-        c_op = item["op_count"]
-        t_u = item["total_u"]
-        if c_op == t_u:
-          badge = f"<span style='color:#16a34a; font-weight:700; float:right;'>✓ Completed ({c_op}/{t_u})</span>"
-        else:
-          badge = f"<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending ({c_op}/{t_u})</span>"
-        op_items_html += f"<div style='padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:0.85rem;'><b>{l_name}</b> {badge}</div>"
+        for m in m_list:
+          is_done = m["Status"] == "Completed"
+          status_color = "#16a34a" if is_done else "#d97706"
+          status_text = "✓ Done" if is_done else "⏳ Pending"
+          dishes_html = ""
 
-      op_progress = global_opening_logged / max(1, global_total_units)
+          if is_done:
+            for dish in m["Dishes"]:
+              temp = dish["Temp"]
+              temp_text = f"{temp}°C" if pd.notna(temp) else "—"
+              temp_color = (
+                  "#dc2626"
+                  if pd.notna(temp) and temp < TEMP_THRESHOLD
+                  else "#0f172a"
+              )
+              dishes_html += (
+                  '<div style="display:flex; justify-content:space-between;'
+                  ' gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid'
+                  f' #e2e8f0;"><span style="color:#334155;'
+                  f' overflow-wrap:anywhere;">• {dish["Food"]}</span><b'
+                  f' style="color:{temp_color};'
+                  f' white-space:nowrap;">{temp_text}</b></div>'
+              )
+            details_html = (
+                f'<div style="margin-top:5px;">{dishes_html}</div><div'
+                ' style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed:'
+                f' {m["Sign"]}</div>'
+            )
+          else:
+            details_html = (
+                '<div style="font-size:0.72rem; color:#b45309;'
+                ' margin-top:5px;">No records submitted</div>'
+            )
 
-      st.markdown(f"""
-      <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #16a34a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-          <div style="font-weight:700; font-size:0.95rem; color:#15803d; margin-bottom:8px; display:flex; justify-content:space-between;">
-              <span>🌅 Opening Shift</span>
-              <span>{global_opening_logged}/{global_total_units} Units</span>
-          </div>
-          {op_items_html}
-      </div>
-      """, unsafe_allow_html=True)
-      st.progress(op_progress, text=f"Opening Shift Progress: {int(op_progress * 100)}%")
+          meals_html += textwrap.dedent(f"""
+                <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.78rem; font-weight:700; color:#0f172a;">
+                        <span>🍽️ {m["Meal"]}</span>
+                        <span style="color:{status_color}; white-space:nowrap;">{status_text}</span>
+                    </div>
+                    {details_html}
+                </div>
+            """).strip()
 
-    with shift_col2:
-      cl_items_html = ""
-      for item in sorted_loc_summary_cl:
-        l_name = item["loc_name"]
-        c_cl = item["cl_count"]
-        t_u = item["total_u"]
-        if c_cl == t_u:
-          badge = f"<span style='color:#16a34a; font-weight:700; float:right;'>✓ Completed ({c_cl}/{t_u})</span>"
-        else:
-          badge = f"<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending ({c_cl}/{t_u})</span>"
-        cl_items_html += f"<div style='padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:0.85rem;'><b>{l_name}</b> {badge}</div>"
+        card_html = textwrap.dedent(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #d97706; border-radius:6px; padding:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">
+                    📍 {k_name} (Pending Shift)
+                </div>
+                {meals_html}
+            </div>
+        """).strip()
 
-      cl_progress = global_closing_logged / max(1, global_total_units)
+        col_target.markdown(card_html, unsafe_allow_html=True)
 
-      st.markdown(f"""
-      <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0284c7; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-          <div style="font-weight:700; font-size:0.95rem; color:#0369a1; margin-bottom:8px; display:flex; justify-content:space-between;">
-              <span>🌙 Closing Shift</span>
-              <span>{global_closing_logged}/{global_total_units} Units</span>
-          </div>
-          {cl_items_html}
-      </div>
-      """, unsafe_allow_html=True)
-      st.progress(cl_progress, text=f"Closing Shift Progress: {int(cl_progress * 100)}%")
+    st.write("")
 
+    # --- SECTION 2: COMPLETELY COMPLETED SHIFT CARDS (BOTTOM) ---
+    st.markdown(
+        "<h4 style='color:#16a34a; margin-top:2rem; margin-bottom:1rem;'>✅"
+        f" Completely Completed Shift Cards ({selected_day_str})</h4>",
+        unsafe_allow_html=True,
+    )
+
+    if not completed_cards:
+      st.info("No completely completed shift cards available yet.")
+    else:
+      c_cols = st.columns(3, gap="small")
+      for idx, k_info in enumerate(completed_cards):
+        col_target = c_cols[idx % 3]
+        k_name = k_info["Kitchen"]
+        m_list = k_info["Meals"]
+        meals_html = ""
+
+        for m in m_list:
+          is_done = m["Status"] == "Completed"
+          status_color = "#16a34a" if is_done else "#d97706"
+          status_text = "✓ Done" if is_done else "⏳ Pending"
+          dishes_html = ""
+
+          if is_done:
+            for dish in m["Dishes"]:
+              temp = dish["Temp"]
+              temp_text = f"{temp}°C" if pd.notna(temp) else "—"
+              temp_color = (
+                  "#dc2626"
+                  if pd.notna(temp) and temp < TEMP_THRESHOLD
+                  else "#0f172a"
+              )
+              dishes_html += (
+                  '<div style="display:flex; justify-content:space-between;'
+                  ' gap:6px; font-size:0.76rem; padding:4px 0; border-top:1px solid'
+                  f' #e2e8f0;"><span style="color:#334155;'
+                  f' overflow-wrap:anywhere;">• {dish["Food"]}</span><b'
+                  f' style="color:{temp_color};'
+                  f' white-space:nowrap;">{temp_text}</b></div>'
+              )
+            details_html = (
+                f'<div style="margin-top:5px;">{dishes_html}</div><div'
+                ' style="font-size:0.68rem; color:#64748b; margin-top:5px;">Signed:'
+                f' {m["Sign"]}</div>'
+            )
+          else:
+            details_html = (
+                '<div style="font-size:0.72rem; color:#b45309;'
+                ' margin-top:5px;">No records submitted</div>'
+            )
+
+          meals_html += textwrap.dedent(f"""
+                <div style="background:#f8fafc; border-left:3px solid {status_color}; border-radius:4px; padding:7px 9px; margin-top:7px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; gap:5px; font-size:0.78rem; font-weight:700; color:#0f172a;">
+                        <span>🍽️ {m["Meal"]}</span>
+                        <span style="color:{status_color}; white-space:nowrap;">{status_text}</span>
+                    </div>
+                    {details_html}
+                </div>
+            """).strip()
+
+        card_html = textwrap.dedent(f"""
+            <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:3px solid #16a34a; border-radius:6px; padding:10px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,0.04);">
+                <div style="font-size:0.88rem; font-weight:700; color:#0f172a; padding-bottom:7px; border-bottom:1px solid #e2e8f0;">
+                    📍 {k_name} (Completed Shifts)
+                </div>
+                {meals_html}
+            </div>
+        """).strip()
+
+        col_target.markdown(card_html, unsafe_allow_html=True)
+
+    if excursions:
+      st.markdown(
+          '<div style="background:#fee2e2; border-left:5px solid #dc2626;'
+          ' padding:10px 14px; border-radius:6px; margin-top:1rem;'
+          ' margin-bottom:1rem;"><b style="color:#dc2626; font-size:1rem;">🔴'
+          ' Core Temperature Excursions (&lt; 75°C)</b></div>',
+          unsafe_allow_html=True,
+      )
+      for exc in excursions:
+        st.markdown(
+            f'<div style="background:#ffffff; border:1px solid #fca5a5;'
+            ' border-left:4px solid #dc2626; padding:10px; border-radius:6px;'
+            ' margin-bottom:8px;"><div style="font-weight:700; font-size:0.9rem;'
+            f' color:#0f172a;">{exc["Kitchen"]} • {exc["Meal"]} Service</div><div'
+            ' style="font-size:0.85rem; color:#dc2626; font-weight:700;'
+            f' margin-top:2px;">Dish: {exc["Food"]} | Temp: {exc["Temp"]}°C'
+            ' (Required ≥ 75°C)</div><div style="font-size:0.75rem;'
+            f' color:#64748b; margin-top:2px;">Signed by: {exc["Sign"]}</div></div>',
+            unsafe_allow_html=True,
+        )
+
+  # --- TAB 2: LAST 3-DAY COMPLIANCE MATRIX ---
   with tab_matrix:
     selected_dt = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
-    page_dates = [selected_dt - timedelta(days=i) for i in reversed(range(3))]
-
+    matrix_dates = [selected_dt - timedelta(days=i) for i in reversed(range(3))]
+    
     st.markdown(
-        f"<h4 style='color:#0f172a; margin-top:1.5rem;'>📈 3-Day Grouped Location Matrix"
-        f" ({page_dates[0].strftime('%d/%m/%Y')} to"
-        f" {page_dates[-1].strftime('%d/%m/%Y')})</h4>",
+        f"<h4 style='color:#0f172a; margin-top:1.5rem;'>📈 Last 3-Day Compliance"
+        f" Matrix ({matrix_dates[0].strftime('%d/%m/%Y')} to"
+        f" {matrix_dates[-1].strftime('%d/%m/%Y')})</h4>",
         unsafe_allow_html=True,
     )
     st.caption(
-        "Kitchen names on the left, last 3 days across the columns with appliance unit breakdown."
+        "Kitchen names on the left, last 3 days across the columns with shift"
+        " breakdown."
     )
 
-    st.write("")
-    all_catalog_locs = list(UNIT_CATALOG.keys())
-    sel_loc = st.selectbox("📍 Select Kitchen Area to Audit (or view All):", ["All Locations"] + all_catalog_locs)
-    locations_to_show = all_catalog_locs if sel_loc == "All Locations" else [sel_loc]
+    if range_df.empty:
+      st.info("No temperature logs found for this date range.")
+    else:
+      today_date_obj = datetime.now().date()
 
-    num_dates = len(page_dates)
-    col_ratios = [2.0] + [1.0] * num_dates
+      for kitchen, meals in KITCHEN_MEAL_RULES.items():
+        st.markdown(
+            f'<div style="background:#0f172a; color:#ffffff; padding:8px'
+            ' 12px; border-radius:6px; margin-top:1.2rem;'
+            ' margin-bottom:0.5rem; font-weight:700; font-size:0.95rem;">📍'
+            f" {kitchen}</div>",
+            unsafe_allow_html=True,
+        )
 
-    for location in locations_to_show:
-      units = UNIT_CATALOG.get(location, [])
-      st.markdown(f"""
-      <div style="background:#0f172a; color:#ffffff; padding:10px 14px; border-radius:6px; margin-top:1.4rem; margin-bottom:0.6rem; display:flex; justify-content:space-between; align-items:center;">
-          <span style="font-weight:700; font-size:0.98rem;">❄️ {location}</span>
-          <span style="font-size:0.8rem; background:#334155; padding:3px 10px; border-radius:12px;">{len(units)} Assigned Units</span>
-      </div>
-      """, unsafe_allow_html=True)
+        num_dates = len(matrix_dates)
+        col_ratios = [1.2] + [1.0] * num_dates
+        cols = st.columns(col_ratios)
 
-      cols = st.columns(col_ratios)
-      cols[0].markdown('<div style="font-weight:700; font-size:0.80rem; color:#475569; padding:6px 2px;">Appliance Unit</div>', unsafe_allow_html=True)
-      for i, d in enumerate(page_dates):
-        cols[i + 1].markdown(f'<div style="background:#f1f5f9; font-weight:700; font-size:0.80rem; text-align:center; padding:6px 2px; border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>', unsafe_allow_html=True)
+        cols[0].markdown(
+            '<div style="font-weight:700; font-size:0.78rem; color:#475569;'
+            ' padding:4px;">Meal Service</div>',
+            unsafe_allow_html=True,
+        )
+        for i, d in enumerate(matrix_dates):
+          cols[i + 1].markdown(
+              f'<div style="background:#f1f5f9; font-weight:700;'
+              ' font-size:0.75rem; text-align:center; padding:4px;'
+              f' border-radius:4px; color:#0f172a;">{d.strftime("%d/%m (%a)")}</div>',
+              unsafe_allow_html=True,
+          )
 
-      st.write("")
+        for meal in meals:
+          row_cols = st.columns(col_ratios)
+          row_cols[0].markdown(
+              f'<div style="background:#ffffff; border:1px solid #cbd5e1;'
+              ' border-radius:4px; padding:6px; min-height:60px; display:flex;'
+              f' align-items:center;"><b style="font-size:0.80rem;'
+              f' color:#0f172a;">{meal}</b></div>',
+              unsafe_allow_html=True,
+          )
 
-      for u in units:
-        unit_id = u["Unit_ID"]
-        unit_type = u["Type"]
-        clean_target = clean_unit_token(unit_id)
-        row_cols = st.columns(col_ratios)
+          for i, d in enumerate(matrix_dates):
+            d_str = d.strftime("%d/%m/%Y")
+            match_entry = range_df[
+                (range_df["Date_Str"] == d_str)
+                & (
+                    range_df["Location"].str.strip().str.lower()
+                    == kitchen.lower()
+                )
+                & (
+                    range_df["Meal_Service"].str.strip().str.lower()
+                    == meal.lower()
+                )
+            ]
 
-        row_cols[0].markdown(f"""
-        <div style="background:#ffffff; border:1px solid #cbd5e1; border-radius:6px; padding:8px 8px; min-height:82px; display:flex; flex-direction:column; justify-content:center;">
-            <div style="font-weight:700; font-size:0.84rem; color:#0f172a;">{unit_id}</div>
-            <div style="font-size:0.72rem; color:#64748b; margin-top:2px;">{unit_type}</div>
-        </div>
-        """, unsafe_allow_html=True)
+            if match_entry.empty:
+              is_past = d < today_date_obj
+              card_bg = "#fef2f2" if is_past else "#f8fafc"
+              border_c = "#dc2626" if is_past else "#d97706"
+              tag_txt = "❌ Missing" if is_past else "⏳ Pending"
+              tag_color = "#dc2626" if is_past else "#d97706"
 
-        u_df = df_items[df_items["Clean_Unit"] == clean_target] if not df_items.empty else pd.DataFrame()
-
-        for i, d in enumerate(page_dates):
-          matches = pd.DataFrame()
-          if not u_df.empty and "Date_Obj" in u_df.columns:
-            matches = u_df[u_df["Date_Obj"] == d]
-
-          if matches.empty:
-            row_cols[i + 1].markdown(
-                '<div style="background:#f8fafc; border:1px dashed #cbd5e1; border-radius:6px; padding:6px; min-height:82px; display:flex; align-items:center; justify-content:center; color:#94a3b8; font-size:0.75rem;">— Not Logged</div>',
-                unsafe_allow_html=True
-            )
-          else:
-            entries = matches.sort_values(by="Time").to_dict("records")
-            has_day_breach = any(e["Has_Breach"] for e in entries)
-
-            distinct_shifts = []
-            for ent in entries:
-              if not distinct_shifts:
-                distinct_shifts.append(ent)
-              else:
-                if ent["Time"] != distinct_shifts[-1]["Time"]:
-                  distinct_shifts.append(ent)
-
-            if has_day_breach:
-              status_tag = '<span style="color:#dc2626; font-weight:800; font-size:0.75rem;">🔴 BREACH</span>'
-              border_color = "#dc2626"
-            elif len(distinct_shifts) >= 2:
-              status_tag = '<span style="color:#16a34a; font-weight:800; font-size:0.75rem;">✓ 2 of 2 Logged</span>'
-              border_color = "#16a34a"
+              cell_html = (
+                  f'<div style="background:{card_bg}; border:1px solid '
+                  f'{border_c}; border-radius:4px; padding:6px; '
+                  'min-height:60px; display:flex; flex-direction:column; '
+                  'justify-content:center; align-items:center;">'
+                  f'<span style="color:{tag_color}; font-weight:800; '
+                  f'font-size:0.7rem;">{tag_txt}</span></div>'
+              )
+              row_cols[i + 1].markdown(cell_html, unsafe_allow_html=True)
             else:
-              status_tag = '<span style="color:#0284c7; font-weight:700; font-size:0.74rem;">1 of 2 Logged</span>'
-              border_color = "#94a3b8"
+              has_exc = any(match_entry["Temp"] < TEMP_THRESHOLD)
+              border_c = "#dc2626" if has_exc else "#16a34a"
 
-            readings_str = ""
-            for idx, ent in enumerate(distinct_shifts[:2]):
-              t_color = "#dc2626" if ent["Has_Breach"] else "#0f172a"
-              t_val = ent["Temp_Disp"]
-              t_time = ent["Time"][:8]
-              readings_str += f'<div style="display:flex; justify-content:space-between; font-size:0.72rem; margin-top:2px;"><span style="color:#64748b;">#{idx+1} ({t_time})</span><b style="color:{t_color};">{t_val}</b></div>'
+              items_preview = ""
+              for _, dish in match_entry.iterrows():
+                t_val = (
+                    f"{dish['Temp']}°C" if pd.notna(dish["Temp"]) else "—"
+                )
+                items_preview += (
+                    "<div style='font-size:0.65rem; color:#334155; "
+                    "white-space:nowrap; overflow:hidden; "
+                    f"text-overflow:ellipsis;'>• {dish['Food']}: "
+                    f"<b>{t_val}</b></div>"
+                )
 
-            footer_info = f"By: {distinct_shifts[0]['Sign']}"
+              cell_html = (
+                  f'<div style="background:#ffffff; border:1.5px solid '
+                  f'{border_c}; border-radius:4px; padding:4px; '
+                  'min-height:60px; display:flex; flex-direction:column; '
+                  'justify-content:flex-start;">'
+                  '<div style="font-weight:800; font-size:0.68rem; '
+                  f'color:{border_c};">✓ Completed</div>'
+                  f'{items_preview}</div>'
+              )
+              row_cols[i + 1].markdown(cell_html, unsafe_allow_html=True)
 
-            row_cols[i + 1].markdown(
-                f'<div style="background:#ffffff; border:1.5px solid {border_color}; border-radius:6px; padding:6px 6px; min-height:82px; box-shadow:0 1px 2px rgba(0,0,0,0.05);">'
-                f'<div style="text-align:center; padding-bottom:3px; border-bottom:1px solid #f1f5f9;">{status_tag}</div>'
-                f'{readings_str}'
-                f'<div style="font-size:0.65rem; color:#64748b; text-align:right; margin-top:3px;">{footer_info}</div>'
-                f'</div>',
-                unsafe_allow_html=True
-            )
-
-      st.write("")
+        st.write("")
