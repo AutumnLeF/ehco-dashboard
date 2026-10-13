@@ -29,7 +29,6 @@ st.markdown("""
     .stApp { background-color: #f4f6f9; font-family: 'Plus Jakarta Sans', sans-serif; color: #0f172a; }
     .serif-title { font-size: 2rem; font-weight: 800; color: #0f172a; text-align: center; letter-spacing: -0.03em; margin: 0; background: linear-gradient(135deg, #0f172a 0%, #334155 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     
-    /* Premium button styling */
     .stButton > button {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
         color: #ffffff !important;
@@ -317,7 +316,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     day_02 = get_day_df(df_02_parsed, selected_day_variants, target_date_obj)
     stat_02 = f'<span style="color: {"#4ade80" if not day_02.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_02.empty else "Pending"} - {len(day_02)} entries</span>'
 
-    # --- RECORD 03 METRICS ---
+    # --- RECORD 03 METRICS (WITH PENDING LOCATIONS) ---
     if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns:
         if "Timestamp_DT" in df_03_parsed.columns:
             df_03_parsed["Timestamp_DT"] = pd.to_datetime(df_03_parsed["Timestamp_DT"], errors="coerce")
@@ -333,8 +332,12 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     global_opening_logged = 0
     global_closing_logged = 0
     global_total_units = 0
+    pending_locs_03_opening = []
+    pending_locs_03_closing = []
 
     for loc_name, units in UNIT_CATALOG.items():
+        loc_op_missing = False
+        loc_cl_missing = False
         for u in units:
             global_total_units += 1
             u_id = u["Unit_ID"]
@@ -343,20 +346,32 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             n_logs = len(unit_logs)
             if n_logs == 1:
                 global_opening_logged += 1
+                loc_cl_missing = True
             elif n_logs >= 2:
                 global_opening_logged += 1
                 global_closing_logged += 1
+            else:
+                loc_op_missing = True
+                loc_cl_missing = True
+        if loc_op_missing and loc_name not in pending_locs_03_opening:
+            pending_locs_03_opening.append(loc_name)
+        if loc_cl_missing and loc_name not in pending_locs_03_closing:
+            pending_locs_03_closing.append(loc_name)
 
     is_op_complete = (global_opening_logged >= global_total_units)
     is_cl_complete = (global_closing_logged >= global_total_units)
 
-    stat_03_op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending - {global_opening_logged}/{global_total_units}"
-    stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending - {global_closing_logged}/{global_total_units}"
-    html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
+    if is_op_complete and is_cl_complete:
+        html_03 = '<span style="color: #4ade80; font-weight: 600;">Completed - All shifts logged</span>'
+    else:
+        op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending ({global_opening_logged}/{global_total_units})<br><span style='font-size:0.7rem; color:#94a3b8;'>Missing Opening: {', '.join(pending_locs_03_opening)}</span>"
+        cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending ({global_closing_logged}/{global_total_units})<br><span style='font-size:0.7rem; color:#94a3b8;'>Missing Closing: {', '.join(pending_locs_03_closing)}</span>"
+        html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{cl_str}</span>'
 
-    # --- RECORD 04 METRICS ---
+    # --- RECORD 04 METRICS (WITH PENDING MEALS/LOCATIONS) ---
     day_04 = get_day_df(df_04_parsed, selected_day_variants, target_date_obj)
     shift_totals_04 = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
+    pending_details_04 = {"Breakfast": [], "Lunch": [], "Dinner": []}
 
     for kitchen, meals in KITCHEN_MEAL_RULES_04.items():
         k_df = day_04[day_04["Location"].str.strip().str.lower() == kitchen.lower()] if not day_04.empty else pd.DataFrame()
@@ -366,18 +381,24 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             m_df = k_df[k_df["Meal_Service"].str.strip().str.lower() == meal.lower()] if not k_df.empty else pd.DataFrame()
             if not m_df.empty and meal in shift_totals_04:
                 shift_totals_04[meal]["done"] += 1
+            else:
+                if kitchen not in pending_details_04[meal]:
+                    pending_details_04[meal].append(kitchen)
 
     b_done_04, b_req_04 = shift_totals_04["Breakfast"]["done"], shift_totals_04["Breakfast"]["req"]
     l_done_04, l_req_04 = shift_totals_04["Lunch"]["done"], shift_totals_04["Lunch"]["req"]
     d_done_04, d_req_04 = shift_totals_04["Dinner"]["done"], shift_totals_04["Dinner"]["req"]
 
     html_04 = (
-        f'Breakfast: <span style="color: {"#4ade80" if b_req_04 > 0 and b_done_04 >= b_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_04 > 0 and b_done_04 >= b_req_04 else "Pending"} - {b_done_04}/{b_req_04}</span><br>'
-        f'Lunch: <span style="color: {"#4ade80" if l_req_04 > 0 and l_done_04 >= l_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_04 > 0 and l_done_04 >= l_req_04 else "Pending"} - {l_done_04}/{l_req_04}</span><br>'
+        f'Breakfast: <span style="color: {"#4ade80" if b_req_04 > 0 and b_done_04 >= b_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_04 > 0 and b_done_04 >= b_req_04 else "Pending"} - {b_done_04}/{b_req_04}</span>'
+        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Breakfast"]) + "</span>" if b_done_04 < b_req_04 else ""}<br>'
+        f'Lunch: <span style="color: {"#4ade80" if l_req_04 > 0 and l_done_04 >= l_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_04 > 0 and l_done_04 >= l_req_04 else "Pending"} - {l_done_04}/{l_req_04}</span>'
+        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Lunch"]) + "</span>" if l_done_04 < l_req_04 else ""}<br>'
         f'Dinner: <span style="color: {"#4ade80" if d_req_04 > 0 and d_done_04 >= d_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_04 > 0 and d_done_04 >= d_req_04 else "Pending"} - {d_done_04}/{d_req_04}</span>'
+        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Dinner"]) + "</span>" if d_done_04 < d_req_04 else ""}'
     )
 
-    # --- RECORD 05 METRICS (WITH ALL PENDING LOCATIONS) ---
+    # --- RECORD 05 METRICS ---
     day_05 = get_day_df(df_05_parsed, selected_day_variants, target_date_obj)
     logged_locs_05 = [str(x).strip().lower() for x in day_05["Location"].dropna().unique()] if not day_05.empty and "Location" in day_05.columns else []
     pending_locs_05 = [k for k in RECORD_05_KITCHENS if k.strip().lower() not in logged_locs_05]
@@ -388,11 +409,12 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         stat_05 = '<span style="color: #4ade80; font-weight: 600;">Completed - All 10 kitchens logged</span>'
     else:
         pending_str_05 = ", ".join(pending_locs_05)
-        stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.72rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_05}</span>'
+        stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.7rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_05}</span>'
 
-    # --- RECORD 06 METRICS ---
+    # --- RECORD 06 METRICS (WITH PENDING MEALS/LOCATIONS) ---
     day_06 = get_day_df(df_06_parsed, selected_day_variants, target_date_obj)
     shift_totals_06 = {"Breakfast": {"req": 0, "done": 0}, "Lunch": {"req": 0, "done": 0}, "Dinner": {"req": 0, "done": 0}}
+    pending_details_06 = {"Breakfast": [], "Lunch": [], "Dinner": []}
 
     for kitchen, meals in RECORD_06_MEAL_RULES.items():
         k_df = day_06[day_06["Location"].str.strip().str.lower() == kitchen.lower()] if not day_06.empty else pd.DataFrame()
@@ -402,18 +424,24 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             m_df = k_df[k_df["Meal_Service"].str.strip().str.lower() == meal.lower()] if not k_df.empty else pd.DataFrame()
             if not m_df.empty and meal in shift_totals_06:
                 shift_totals_06[meal]["done"] += 1
+            else:
+                if kitchen not in pending_details_06[meal]:
+                    pending_details_06[meal].append(kitchen)
 
     b_done_06, b_req_06 = shift_totals_06["Breakfast"]["done"], shift_totals_06["Breakfast"]["req"]
     l_done_06, l_req_06 = shift_totals_06["Lunch"]["done"], shift_totals_06["Lunch"]["req"]
     d_done_06, d_req_06 = shift_totals_06["Dinner"]["done"], shift_totals_06["Dinner"]["req"]
 
     stat_06 = (
-        f'Breakfast: <span style="color: {"#4ade80" if b_req_06 > 0 and b_done_06 >= b_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_06 > 0 and b_done_06 >= b_req_06 else "Pending"} - {b_done_06}/{b_req_06}</span><br>'
-        f'Lunch: <span style="color: {"#4ade80" if l_req_06 > 0 and l_done_06 >= l_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_06 > 0 and l_done_06 >= l_req_06 else "Pending"} - {l_done_06}/{l_req_06}</span><br>'
+        f'Breakfast: <span style="color: {"#4ade80" if b_req_06 > 0 and b_done_06 >= b_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_06 > 0 and b_done_06 >= b_req_06 else "Pending"} - {b_done_06}/{b_req_06}</span>'
+        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Breakfast"]) + "</span>" if b_done_06 < b_req_06 else ""}<br>'
+        f'Lunch: <span style="color: {"#4ade80" if l_req_06 > 0 and l_done_06 >= l_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_06 > 0 and l_done_06 >= l_req_06 else "Pending"} - {l_done_06}/{l_req_06}</span>'
+        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Lunch"]) + "</span>" if l_done_06 < l_req_06 else ""}<br>'
         f'Dinner: <span style="color: {"#4ade80" if d_req_06 > 0 and d_done_06 >= d_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_06 > 0 and d_done_06 >= d_req_06 else "Pending"} - {d_done_06}/{d_req_06}</span>'
+        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Dinner"]) + "</span>" if d_done_06 < d_req_06 else ""}'
     )
 
-    # --- RECORD 12 METRICS (WITH ALL PENDING AREAS) ---
+    # --- RECORD 12 METRICS ---
     day_12 = get_day_df(df_12_parsed, selected_day_variants, target_date_obj)
     logged_locs_12 = [str(x).strip().lower() for x in day_12["Location"].dropna().unique()] if not day_12.empty and "Location" in day_12.columns else []
     pending_locs_12 = [a for a in RECORD_12_AREAS if a.strip().lower() not in logged_locs_12]
@@ -424,20 +452,25 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         stat_12 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {completed_areas_12}/{len(RECORD_12_AREAS)} areas</span>'
     else:
         pending_str_12 = ", ".join(pending_locs_12)
-        stat_12 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_areas_12}/{len(RECORD_12_AREAS)})</span><br><span style="font-size:0.72rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_12}</span>'
+        stat_12 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_areas_12}/{len(RECORD_12_AREAS)})</span><br><span style="font-size:0.7rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_12}</span>'
 
-    # --- RECORD 13 METRICS ---
+    # --- RECORD 13 METRICS (EXCLUDING DUPLICATE ENTRIES PER MACHINE) ---
     day_13 = get_day_df(df_13_parsed, selected_day_variants, target_date_obj)
-    logged_13 = len(day_13["Unit_ID"].dropna().unique()) if (not day_13.empty and "Unit_ID" in day_13.columns) else 0
-    is_13_complete = (logged_13 >= 11)
-    stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13}/11 machines</span>'
+    if not day_13.empty and "Unit_ID" in day_13.columns:
+        unique_logged_13 = day_13.dropna(subset=["Unit_ID"]).copy()
+        unique_logged_13["Clean_Machine"] = unique_logged_13["Unit_ID"].apply(clean_unit_token)
+        logged_13_count = unique_logged_13["Clean_Machine"].nunique()
+    else:
+        logged_13_count = 0
+    is_13_complete = (logged_13_count >= 11)
+    stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13_count}/11 unique machines</span>'
     
     # --- RECORD 15 METRICS ---
     day_15 = get_day_df(df_15_parsed, selected_day_variants, target_date_obj)
     logged_15 = len(day_15) if not day_15.empty else 0
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15} entries</span>'
     
-    # --- RECORD 21 METRICS (WITH ALL PENDING AREAS) ---
+    # --- RECORD 21 METRICS ---
     day_21 = get_day_df(df_21_parsed, selected_day_variants, target_date_obj)
     logged_locs_21 = [str(x).strip().lower() for x in day_21["Location"].dropna().unique()] if not day_21.empty and "Location" in day_21.columns else []
     pending_locs_21 = [a for a in RECORD_21_AREAS if a.strip().lower() not in logged_locs_21]
@@ -448,14 +481,14 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         stat_21 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {completed_areas_21}/{len(RECORD_21_AREAS)} areas</span>'
     else:
         pending_str_21 = ", ".join(pending_locs_21)
-        stat_21 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_areas_21}/{len(RECORD_21_AREAS)})</span><br><span style="font-size:0.72rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_21}</span>'
+        stat_21 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_areas_21}/{len(RECORD_21_AREAS)})</span><br><span style="font-size:0.7rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_21}</span>'
     
     # --- RECORD 25 METRICS ---
     day_25 = get_day_df(df_25_parsed, selected_day_variants, target_date_obj)
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
-    # --- RECORD CM01 METRICS (WITH ALL PENDING LOCATIONS) ---
+    # --- RECORD CM01 METRICS ---
     day_cm01 = get_day_df(df_cm01_parsed, selected_day_variants, target_date_obj)
     pending_locs_cm01 = []
     cm01_completed_locs = 0
@@ -477,9 +510,9 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         stat_cm01 = '<span style="color: #4ade80; font-weight: 600;">Completed - All 9 locations</span>'
     else:
         pending_str_cm01 = ", ".join(pending_locs_cm01)
-        stat_cm01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({cm01_completed_locs}/{total_cm01_locs})</span><br><span style="font-size:0.72rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_cm01}</span>'
+        stat_cm01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({cm01_completed_locs}/{total_cm01_locs})</span><br><span style="font-size:0.7rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_cm01}</span>'
 
-    # --- RECORD PH01 METRICS (CHECKED AGAINST ALL 22 MASTER LOCATIONS) ---
+    # --- RECORD PH01 METRICS ---
     day_ph01 = get_day_df(df_ph01_parsed, selected_day_variants, target_date_obj)
     logged_locs_ph01 = [str(x).strip().lower() for x in day_ph01["Location"].dropna().unique()] if not day_ph01.empty and "Location" in day_ph01.columns else []
     pending_locs_ph01 = [loc for loc in PH01_LOCATIONS if loc.strip().lower() not in logged_locs_ph01]
@@ -490,7 +523,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         stat_ph01 = f'<span style="color: #4ade80; font-weight: 600;">Completed - All 22 locations ({len(day_ph01)} staff)</span>'
     else:
         pending_str_ph01 = ", ".join(pending_locs_ph01)
-        stat_ph01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_locs_ph01}/22 locations)</span><br><span style="font-size:0.72rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_ph01}</span>'
+        stat_ph01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_locs_ph01}/22 locations)</span><br><span style="font-size:0.7rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_ph01}</span>'
 
     completed_cats = sum([
         1 if not day_02.empty else 0,
@@ -526,7 +559,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         col1, col2, col3 = st.columns(3)
         def render_theme_card(col, title, status_html, target_nav, unique_key):
             col.markdown(f"""
-            <div style="background: linear-gradient(145deg, #0b192c 0%, #112238 100%); border-radius: 12px; padding: 18px; color: white; margin-bottom: 8px; min-height: 135px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 10px 15px -3px rgba(11,25,44,0.15), 0 4px 6px -4px rgba(11,25,44,0.1); border: 1px solid rgba(255,255,255,0.06);">
+            <div style="background: linear-gradient(145deg, #0b192c 0%, #112238 100%); border-radius: 12px; padding: 18px; color: white; margin-bottom: 8px; min-height: 145px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 10px 15px -3px rgba(11,25,44,0.15), 0 4px 6px -4px rgba(11,25,44,0.1); border: 1px solid rgba(255,255,255,0.06);">
                 <div style="font-size: 0.85rem; font-weight: 700; line-height: 1.35; margin-bottom: 6px; letter-spacing: -0.01em; color: #f8fafc;">{title}</div>
                 <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.45;">{status_html}</div>
             </div>
