@@ -48,25 +48,42 @@ st.markdown("""
         -webkit-text-fill-color: transparent; 
     }
     
-    /* Full-tile clickable card buttons styling */
+    /* Compact Glassmorphic Compliance Cards */
+    .exec-card {
+        background: linear-gradient(145deg, #111e38 0%, #0f172a 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: 3px solid #38bdf8;
+        border-radius: 12px;
+        padding: 14px 16px;
+        color: #ffffff;
+        margin-bottom: 6px;
+        min-height: 195px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Sleek Inline Luxury Action Button */
     .stButton > button {
-        background: linear-gradient(145deg, #111e38 0%, #0f172a 100%) !important;
-        color: #ffffff !important;
-        border: 1px solid rgba(255, 255, 255, 0.08) !important;
-        border-top: 3px solid #38bdf8 !important;
-        border-radius: 12px !important;
-        padding: 16px 20px !important;
-        text-align: left !important;
-        width: 100% !important;
-        min-height: 165px !important;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
+        background: rgba(56, 189, 248, 0.1) !important;
+        color: #38bdf8 !important;
+        border: 1px solid rgba(56, 189, 248, 0.3) !important;
+        border-radius: 6px !important;
+        font-weight: 700 !important;
+        font-size: 0.72rem !important;
+        padding: 4px 12px !important;
         transition: all 0.2s ease-in-out !important;
+        box-shadow: none !important;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
     }
     .stButton > button:hover {
-        border-color: rgba(56, 189, 248, 0.5) !important;
-        background: linear-gradient(145deg, #162647 0%, #111e38 100%) !important;
-        box-shadow: 0 8px 24px rgba(56, 189, 248, 0.15) !important;
-        transform: translateY(-2px);
+        background: #38bdf8 !important;
+        color: #0f172a !important;
+        border-color: #38bdf8 !important;
+        box-shadow: 0 4px 10px rgba(56,189,248,0.3);
+        transform: translateY(-1px);
     }
 
     /* Hide default sidebar nav */
@@ -640,55 +657,39 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         """, unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns(3)
-        def render_interactive_tile(col, title, status_html, target_nav, unique_key):
-            # Using st.button as a full-tile interactive container matching reference dashboard style
-            button_label = f"{title}\n\n{status_html.replace('<br>', ' | ').replace('<span>','').replace('</span>','')}"
-            if col.button(f"{title}\n\n{status_html}", key=f"tile_{unique_key}", use_container_width=True):
-                navigate_to(target_nav)
-                st.rerun()
 
-        # Custom rendering inside columns to make tiles act as direct click-through targets
+        def render_executive_tile(col, title, status_html, target_nav, unique_key):
+            with col:
+                card_html = f"""
+                <div class="exec-card">
+                    <div>
+                        <div style="font-size: 0.82rem; font-weight: 700; line-height: 1.3; margin-bottom: 6px; letter-spacing: -0.01em; color: #f8fafc;">{title}</div>
+                        <div style="font-size: 0.74rem; color: #94a3b8; font-weight: 500; line-height: 1.4;">{status_html}</div>
+                    </div>
+                </div>
+                """
+                st.markdown(card_html, unsafe_allow_html=True)
+                if st.button(f"Inspect ➔ {title.split('-')[0].strip()}", key=f"tile_btn_{unique_key}", use_container_width=True):
+                    navigate_to(target_nav)
+                    st.rerun()
+
         with col1:
-            if st.button(f"RECORD 02 - FOOD DELIVERY RECORD\n\n{stat_02.replace('<br>', ' ')}", key="t_r02", use_container_width=True):
-                navigate_to("RECORD 02 - FOOD DELIVERY RECORD")
-                st.rerun()
-            if st.button(f"RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD\n\n{html_03.replace('<br>', ' | ')}", key="t_r03", use_container_width=True):
-                navigate_to("RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD")
-                st.rerun()
-            if st.button(f"RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD\n\n{html_04.replace('<br>', ' | ')}", key="t_r04", use_container_width=True):
-                navigate_to("RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD")
-                st.rerun()
-            if st.button(f"RECORD CM01 - COFFEE MACHINE CLEANING RECORD\n\n{stat_cm01.replace('<br>', ' | ')}", key="t_rcm01", use_container_width=True):
-                navigate_to("RECORD CM01 - COFFEE MACHINE CLEANING RECORD")
-                st.rerun()
+            render_executive_tile(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "r02")
+            render_executive_tile(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03")
+            render_executive_tile(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04")
+            render_executive_tile(col1, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", stat_cm01, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", "rcm01")
 
         with col2:
-            if st.button(f"RECORD 05 - COOLING OF FOOD RECORD\n\n{stat_05.replace('<br>', ' ')}", key="t_r05", use_container_width=True):
-                navigate_to("RECORD 05 - COOLING OF FOOD RECORD")
-                st.rerun()
-            if st.button(f"RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD\n\n{stat_06.replace('<br>', ' | ')}", key="t_r06", use_container_width=True):
-                navigate_to("RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD")
-                st.rerun()
-            if st.button(f"RECORD 12 - DEFROSTING TEMPERATURE RECORD\n\n{stat_12.replace('<br>', ' ')}", key="t_r12", use_container_width=True):
-                navigate_to("RECORD 12 - DEFROSTING TEMPERATURE RECORD")
-                st.rerun()
-            if st.button(f"RECORD PH01 - PERSONAL HYGIENE RECORD\n\n{stat_ph01.replace('<br>', ' ')}", key="t_rph01", use_container_width=True):
-                navigate_to("RECORD PH01 - PERSONAL HYGIENE RECORD")
-                st.rerun()
+            render_executive_tile(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
+            render_executive_tile(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
+            render_executive_tile(col2, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "r12")
+            render_executive_tile(col2, "RECORD PH01 - PERSONAL HYGIENE RECORD", stat_ph01, "RECORD PH01 - PERSONAL HYGIENE RECORD", "rph01")
 
         with col3:
-            if st.button(f"RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD\n\n{stat_13.replace('<br>', ' ')}", key="t_r13", use_container_width=True):
-                navigate_to("RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD")
-                st.rerun()
-            if st.button(f"RECORD 15 - PESTICIDE USAGE RECORD\n\n{stat_15.replace('<br>', ' ')}", key="t_r15", use_container_width=True):
-                navigate_to("RECORD 15 - PESTICIDE USAGE RECORD")
-                st.rerun()
-            if st.button(f"RECORD 21 - FOOD WASH RECORD - CHLORINE WASH\n\n{stat_21.replace('<br>', ' ')}", key="t_r21", use_container_width=True):
-                navigate_to("RECORD 21 - FOOD WASH RECORD - CHLORINE WASH")
-                st.rerun()
-            if st.button(f"RECORD 25 - ICE MACHINE CLEANING RECORD\n\n{stat_25.replace('<br>', ' ')}", key="t_r25", use_container_width=True):
-                navigate_to("RECORD 25 - ICE MACHINE CLEANING RECORD")
-                st.rerun()
+            render_executive_tile(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
+            render_executive_tile(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
+            render_executive_tile(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
+            render_executive_tile(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
     else:
         st.markdown(f"<h3 style='color:#f8fafc; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
         st.write("Department-wise overview for Fairmont Mumbai")
