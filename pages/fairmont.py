@@ -34,12 +34,12 @@ st.markdown("""
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
         border: 1px solid rgba(56, 189, 248, 0.15);
         border-radius: 16px;
-        padding: 24px 32px;
-        margin-bottom: 24px;
+        padding: 20px 28px;
+        margin-bottom: 20px;
         box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
     }
     .serif-title { 
-        font-size: 2.2rem; 
+        font-size: 1.9rem; 
         font-weight: 800; 
         letter-spacing: -0.03em; 
         margin: 0; 
@@ -48,20 +48,20 @@ st.markdown("""
         -webkit-text-fill-color: transparent; 
     }
     
-    /* Glassmorphic Compliance Cards */
+    /* Compact Glassmorphic Compliance Cards */
     .exec-card {
         background: linear-gradient(145deg, #111e38 0%, #0f172a 100%);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-top: 3px solid #38bdf8;
-        border-radius: 14px;
-        padding: 20px;
+        border-radius: 12px;
+        padding: 14px 16px;
         color: #ffffff;
-        margin-bottom: 12px;
-        min-height: 205px;
+        margin-bottom: 10px;
+        min-height: 155px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
         transition: transform 0.2s ease, border-color 0.2s ease;
     }
     .exec-card:hover {
@@ -69,15 +69,15 @@ st.markdown("""
         transform: translateY(-2px);
     }
 
-    /* Sleek Luxury Action Button */
+    /* Sleek Inline Luxury Action Button */
     .stButton > button {
         background: rgba(56, 189, 248, 0.1) !important;
         color: #38bdf8 !important;
         border: 1px solid rgba(56, 189, 248, 0.3) !important;
-        border-radius: 8px !important;
+        border-radius: 6px !important;
         font-weight: 700 !important;
-        font-size: 0.78rem !important;
-        padding: 6px 14px !important;
+        font-size: 0.72rem !important;
+        padding: 4px 10px !important;
         transition: all 0.2s ease-in-out !important;
         box-shadow: none !important;
         text-transform: uppercase;
@@ -87,7 +87,7 @@ st.markdown("""
         background: #38bdf8 !important;
         color: #0f172a !important;
         border-color: #38bdf8 !important;
-        box-shadow: 0 4px 12px rgba(56,189,248,0.3);
+        box-shadow: 0 4px 10px rgba(56,189,248,0.3);
         transform: translateY(-1px);
     }
 
@@ -136,15 +136,15 @@ def go_to_overview():
     st.session_state.fairmont_nav_selectbox = "🏠 Fairmont Mumbai - EHCO Status Overview"
 
 st.sidebar.markdown("""
-<div style="padding: 10px 0; border-bottom: 1px solid #cbd5e1; margin-bottom: 15px;">
-    <span style="font-size: 1.05rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">🛡️ EXECUTIVE CONTROLS</span>
+<div style="padding: 8px 0; border-bottom: 1px solid #cbd5e1; margin-bottom: 12px;">
+    <span style="font-size: 1rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">🛡️ EXECUTIVE CONTROLS</span>
 </div>
 """, unsafe_allow_html=True)
 
 # --- STYLIZED CARD CONTAINER FOR BANQUET OPERATIONS ---
 st.sidebar.markdown("""
-<div style="background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border-radius: 10px; padding: 12px 14px; color: white; margin-bottom: 14px; box-shadow: 0 4px 8px rgba(0,0,0,0.12);">
-    <div style="font-size: 0.8rem; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px;">
+<div style="background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border-radius: 8px; padding: 10px 12px; color: white; margin-bottom: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.12);">
+    <div style="font-size: 0.78rem; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em;">
         🏨 Banquet Operations
     </div>
 </div>
@@ -209,7 +209,7 @@ with st.sidebar.expander("🛠️ Advanced API & Token Settings"):
     token_input = st.text_area(
         "Bearer Token", 
         value=st.session_state["fairmont_auth_token"], 
-        height=80, 
+        height=70, 
         key="sb_fairmont_bearer_token_input"
     )
 
@@ -315,13 +315,13 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     <div class="executive-header">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
             <div>
-                <div style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; color: #38bdf8; font-weight: 700; margin-bottom: 4px;">🏰 Fairmont Hotel & Resorts • Mumbai</div>
+                <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: #38bdf8; font-weight: 700; margin-bottom: 2px;">🏰 Fairmont Hotel & Resorts • Mumbai</div>
                 <div class="serif-title">EHCO Executive Compliance Dashboard</div>
             </div>
             <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 10px; text-align: right;">
-                    <div style="font-size: 0.7rem; color: #94a3b8;">SYSTEM TIME (IST)</div>
-                    <div style="font-size: 0.95rem; font-weight: 700; color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</div>
+                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.1); padding: 6px 14px; border-radius: 8px; text-align: right;">
+                    <div style="font-size: 0.65rem; color: #94a3b8;">SYSTEM TIME (IST)</div>
+                    <div style="font-size: 0.88rem; font-weight: 700; color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</div>
                 </div>
             </div>
         </div>
@@ -331,8 +331,8 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     mode_cols = st.columns([6, 3])
     with mode_cols[0]:
         st.markdown(f"""
-            <div style="background: #111e38; border: 1px solid rgba(255,255,255,0.08); padding: 12px 18px; border-radius: 12px; font-weight: 600; font-size: 0.88rem; color: #f8fafc; display: inline-flex; align-items:center; gap:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
-                <span style="font-size:1.1rem;">📅</span> Focus Audit Date: <span style="color:#38bdf8; font-weight:700;">{selected_day_str}</span>
+            <div style="background: #111e38; border: 1px solid rgba(255,255,255,0.08); padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.85rem; color: #f8fafc; display: inline-flex; align-items:center; gap:8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <span style="font-size:1.05rem;">📅</span> Focus Audit Date: <span style="color:#38bdf8; font-weight:700;">{selected_day_str}</span>
             </div>
         """, unsafe_allow_html=True)
     with mode_cols[1]:
@@ -387,7 +387,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     day_02 = get_day_df(df_02_parsed, selected_day_variants, target_date_obj)
     stat_02 = f'<span style="color: {"#4ade80" if not day_02.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_02.empty else "Pending"} - {len(day_02)} entries</span>'
 
-    # --- RECORD 03 METRICS (WITH PROPER PENDING LOCATIONS) ---
+    # --- RECORD 03 METRICS ---
     if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns:
         if "Timestamp_DT" in df_03_parsed.columns:
             df_03_parsed["Timestamp_DT"] = pd.to_datetime(df_03_parsed["Timestamp_DT"], errors="coerce")
@@ -435,8 +435,8 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if is_op_complete and is_cl_complete:
         html_03 = '<span style="color: #4ade80; font-weight: 600;">Completed - All shifts logged</span>'
     else:
-        op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending ({global_opening_logged}/{global_total_units})<br><span style='font-size:0.7rem; color:#94a3b8;'>Missing Opening: {', '.join(pending_locs_03_opening)}</span>"
-        cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending ({global_closing_logged}/{global_total_units})<br><span style='font-size:0.7rem; color:#94a3b8;'>Missing Closing: {', '.join(pending_locs_03_closing)}</span>"
+        op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending ({global_opening_logged}/{global_total_units})<br><span style='font-size:0.68rem; color:#94a3b8;'>Missing Opening: {', '.join(pending_locs_03_opening)}</span>"
+        cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending ({global_closing_logged}/{global_total_units})<br><span style='font-size:0.68rem; color:#94a3b8;'>Missing Closing: {', '.join(pending_locs_03_closing)}</span>"
         html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{cl_str}</span>'
 
     # --- RECORD 04 METRICS ---
@@ -474,11 +474,11 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
     html_04 = (
         f'Breakfast: <span style="color: {"#4ade80" if b_req_04 > 0 and b_done_04 >= b_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_04 > 0 and b_done_04 >= b_req_04 else "Pending"} - {b_done_04}/{b_req_04}</span>'
-        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Breakfast"]) + "</span>" if b_done_04 < b_req_04 else ""}<br>'
+        f'{"<br><span style=\'font-size:0.68rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Breakfast"]) + "</span>" if b_done_04 < b_req_04 else ""}<br>'
         f'Lunch: <span style="color: {"#4ade80" if l_req_04 > 0 and l_done_04 >= l_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_04 > 0 and l_done_04 >= l_req_04 else "Pending"} - {l_done_04}/{l_req_04}</span>'
-        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Lunch"]) + "</span>" if l_done_04 < l_req_04 else ""}<br>'
+        f'{"<br><span style=\'font-size:0.68rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Lunch"]) + "</span>" if l_done_04 < l_req_04 else ""}<br>'
         f'Dinner: <span style="color: {"#4ade80" if d_req_04 > 0 and d_done_04 >= d_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_04 > 0 and d_done_04 >= d_req_04 else "Pending"} - {d_done_04}/{d_req_04}</span>'
-        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Dinner"]) + "</span>" if d_done_04 < d_req_04 else ""}'
+        f'{"<br><span style=\'font-size:0.68rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Dinner"]) + "</span>" if d_done_04 < d_req_04 else ""}'
     )
 
     # --- RECORD 05 METRICS ---
@@ -491,7 +491,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if is_05_complete:
         stat_05 = '<span style="color: #4ade80; font-weight: 600;">Completed - All 10 kitchens logged</span>'
     else:
-        stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.7rem; color:#94a3b8;">Missing: {", ".join(pending_locs_05)}</span>'
+        stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.68rem; color:#94a3b8;">Missing: {", ".join(pending_locs_05)}</span>'
 
     # --- RECORD 06 METRICS ---
     day_06 = get_day_df(df_06_parsed, selected_day_variants, target_date_obj)
@@ -528,11 +528,11 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
     stat_06 = (
         f'Breakfast: <span style="color: {"#4ade80" if b_req_06 > 0 and b_done_06 >= b_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_06 > 0 and b_done_06 >= b_req_06 else "Pending"} - {b_done_06}/{b_req_06}</span>'
-        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Breakfast"]) + "</span>" if b_done_06 < b_req_06 else ""}<br>'
+        f'{"<br><span style=\'font-size:0.68rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Breakfast"]) + "</span>" if b_done_06 < b_req_06 else ""}<br>'
         f'Lunch: <span style="color: {"#4ade80" if l_req_06 > 0 and l_done_06 >= l_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_06 > 0 and l_done_06 >= l_req_06 else "Pending"} - {l_done_06}/{l_req_06}</span>'
-        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Lunch"]) + "</span>" if l_done_06 < l_req_06 else ""}<br>'
+        f'{"<br><span style=\'font-size:0.68rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Lunch"]) + "</span>" if l_done_06 < l_req_06 else ""}<br>'
         f'Dinner: <span style="color: {"#4ade80" if d_req_06 > 0 and d_done_06 >= d_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_06 > 0 and d_done_06 >= d_req_06 else "Pending"} - {d_done_06}/{d_req_06}</span>'
-        f'{"<br><span style=\'font-size:0.7rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Dinner"]) + "</span>" if d_done_06 < d_req_06 else ""}'
+        f'{"<br><span style=\'font-size:0.68rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Dinner"]) + "</span>" if d_done_06 < d_req_06 else ""}'
     )
 
     # --- RECORD 12 METRICS ---
@@ -580,29 +580,42 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
-    # --- RECORD CM01 METRICS (WITH PROPER PENDING LOCATIONS) ---
+    # --- RECORD CM01 METRICS (AM & PM SEPARATE BREAKDOWN) ---
     day_cm01 = get_day_df(df_cm01_parsed, selected_day_variants, target_date_obj)
-    pending_locs_cm01 = []
-    cm01_completed_locs = 0
+    pending_am_cm01 = []
+    pending_pm_cm01 = []
+    cm01_fully_completed_locs = 0
+
     for loc_name, expected_units in CM01_LOCATION_UNITS.items():
         loc_logs = day_cm01[day_cm01["Location"].str.strip().str.lower() == loc_name.lower()] if not day_cm01.empty else pd.DataFrame()
-        am_units = loc_logs[loc_logs["Shift"] == "AM"]["Sub_Location"].str.strip().str.lower().tolist()
-        pm_units = loc_logs[loc_logs["Shift"] == "PM"]["Sub_Location"].str.strip().str.lower().tolist()
+        am_units = loc_logs[loc_logs["Shift"].astype(str).str.upper() == "AM"]["Sub_Location"].str.strip().str.lower().tolist()
+        pm_units = loc_logs[loc_logs["Shift"].astype(str).str.upper() == "PM"]["Sub_Location"].str.strip().str.lower().tolist()
         expected_lower = [str(u).strip().lower() for u in expected_units]
+        
         am_complete = all(any(eu in lu for lu in am_units) for eu in expected_lower)
         pm_complete = all(any(eu in lu for lu in pm_units) for eu in expected_lower)
+        
+        if not am_complete:
+            pending_am_cm01.append(loc_name)
+        if not pm_complete:
+            pending_pm_cm01.append(loc_name)
+            
         if am_complete and pm_complete:
-            cm01_completed_locs += 1
-        else:
-            pending_locs_cm01.append(loc_name)
+            cm01_fully_completed_locs += 1
 
     total_cm01_locs = len(CM01_LOCATION_UNITS)
-    is_cm01_complete = (cm01_completed_locs >= total_cm01_locs)
+    is_cm01_complete = (cm01_fully_completed_locs >= total_cm01_locs)
+
     if is_cm01_complete:
-        stat_cm01 = f'<span style="color: #4ade80; font-weight: 600;">Completed - All {total_cm01_locs} locations</span>'
+        stat_cm01 = f'<span style="color: #4ade80; font-weight: 600;">Completed - All {total_cm01_locs} locations (AM & PM)</span>'
     else:
-        pending_str_cm01 = ", ".join(pending_locs_cm01)
-        stat_cm01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({cm01_completed_locs}/{total_cm01_locs})</span><br><span style="font-size:0.7rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_cm01}</span>'
+        am_missing_str = ", ".join(pending_am_cm01) if pending_am_cm01 else "None"
+        pm_missing_str = ", ".join(pending_pm_cm01) if pending_pm_cm01 else "None"
+        stat_cm01 = (
+            f'<span style="color: #fbbf24; font-weight: 600;">Pending ({cm01_fully_completed_locs}/{total_cm01_locs} locations)</span><br>'
+            f'<span style="font-size:0.68rem; color:#94a3b8;">🌅 AM Missing: {am_missing_str}</span><br>'
+            f'<span style="font-size:0.68rem; color:#94a3b8;">🌙 PM Missing: {pm_missing_str}</span>'
+        )
 
     # --- RECORD PH01 METRICS ---
     day_ph01 = get_day_df(df_ph01_parsed, selected_day_variants, target_date_obj)
@@ -615,7 +628,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         stat_ph01 = f'<span style="color: #4ade80; font-weight: 600;">Completed - All 22 locations ({len(day_ph01)} staff)</span>'
     else:
         pending_str_ph01 = ", ".join(pending_locs_ph01)
-        stat_ph01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_locs_ph01}/22 locations)</span><br><span style="font-size:0.7rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_ph01}</span>'
+        stat_ph01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_locs_ph01}/22 locations)</span><br><span style="font-size:0.68rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_ph01}</span>'
 
     completed_cats = sum([
         1 if not day_02.empty else 0,
@@ -637,13 +650,13 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
     if st.session_state.fairmont_dashboard_view_mode == "📊 Overview Cards":
         st.markdown(f"""
-        <div style="background: #111e38; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 8px 20px rgba(0,0,0,0.2);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-                <span style="font-weight: 700; font-size: 0.95rem; color: #f8fafc; display:flex; align-items:center; gap:8px;">📊 Daily Compliance & Progression Tracker</span>
-                <span style="font-weight: 800; font-size: 0.92rem; color: {bar_color}; background: rgba(15,23,42,0.8); padding: 4px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
+        <div style="background: #111e38; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 700; font-size: 0.9rem; color: #f8fafc; display:flex; align-items:center; gap:8px;">📊 Daily Compliance & Progression Tracker</span>
+                <span style="font-weight: 800; font-size: 0.88rem; color: {bar_color}; background: rgba(15,23,42,0.8); padding: 3px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
             </div>
-            <div style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 8px; height: 10px; overflow: hidden;">
-                <div style="width: {progress_pct}%; background: linear-gradient(90deg, {bar_color} 0%, #0284c7 100%); height: 100%; border-radius: 8px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+            <div style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 6px; height: 8px; overflow: hidden;">
+                <div style="width: {progress_pct}%; background: linear-gradient(90deg, {bar_color} 0%, #0284c7 100%); height: 100%; border-radius: 6px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);"></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -653,10 +666,10 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             col.markdown(f"""
             <div class="exec-card">
                 <div>
-                    <div style="font-size: 0.85rem; font-weight: 700; line-height: 1.35; margin-bottom: 8px; letter-spacing: -0.01em; color: #f8fafc;">{title}</div>
-                    <div style="font-size: 0.78rem; color: #94a3b8; font-weight: 500; line-height: 1.45;">{status_html}</div>
+                    <div style="font-size: 0.82rem; font-weight: 700; line-height: 1.3; margin-bottom: 6px; letter-spacing: -0.01em; color: #f8fafc;">{title}</div>
+                    <div style="font-size: 0.74rem; color: #94a3b8; font-weight: 500; line-height: 1.4;">{status_html}</div>
                 </div>
-                <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
+                <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
             """, unsafe_allow_html=True)
             col.button("Inspect ➔", key=f"btn_fairmont_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
             col.markdown("</div></div>", unsafe_allow_html=True)
