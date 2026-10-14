@@ -51,7 +51,7 @@ st.markdown("""
         padding: 16px 18px;
         color: #ffffff;
         margin-bottom: 6px;
-        min-height: 195px;
+        min-height: 205px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -383,12 +383,16 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
     ] if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns else filter_by_focus_date(df_03_parsed, selected_day_str)
 
-    # --- RECORD 03 STATS ---
+    # --- RECORD 03 STATS (WITH PENDING LOCATIONS) ---
     global_opening_logged = 0
     global_closing_logged = 0
     global_total_units = 0
+    pending_locs_03_opening = []
+    pending_locs_03_closing = []
 
     for loc_name, units in UNIT_CATALOG.items():
+        loc_op_missing = False
+        loc_cl_missing = False
         for u in units:
             global_total_units += 1
             u_id = u["Unit_ID"]
@@ -397,18 +401,29 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             n_logs = len(unit_logs)
             if n_logs == 1:
                 global_opening_logged += 1
+                loc_cl_missing = True
             elif n_logs >= 2:
                 global_opening_logged += 1
                 global_closing_logged += 1
+            else:
+                loc_op_missing = True
+                loc_cl_missing = True
+        if loc_op_missing and loc_name not in pending_locs_03_opening:
+            pending_locs_03_opening.append(loc_name)
+        if loc_cl_missing and loc_name not in pending_locs_03_closing:
+            pending_locs_03_closing.append(loc_name)
 
     is_op_complete = (global_opening_logged >= global_total_units)
     is_cl_complete = (global_closing_logged >= global_total_units)
 
-    stat_03_op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending - {global_opening_logged}/{global_total_units}"
-    stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending - {global_closing_logged}/{global_total_units}"
-    html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
+    if is_op_complete and is_cl_complete:
+        html_03 = '<span style="color: #4ade80; font-weight: 600;">Completed - All shifts logged</span>'
+    else:
+        op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending ({global_opening_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#94a3b8;'>Opening Missing: {', '.join(pending_locs_03_opening)}</span>"
+        cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending ({global_closing_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#94a3b8;'>Closing Missing: {', '.join(pending_locs_03_closing)}</span>"
+        html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{cl_str}</span>'
 
-    # --- RECORD 04 EXACT RULES (Filia: B, L, D | Black Lacquer: D) ---
+    # --- RECORD 04 EXACT RULES ---
     ROSWYN_KITCHEN_RULES = {
         "Filia Kitchen": ["Breakfast", "Lunch", "Dinner"],
         "Black Lacquer Kitchen": ["Dinner"]
@@ -432,26 +447,41 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     html_04 = "<br>".join(r04_status_lines)
     is_04_complete = (r04_completed_shifts >= r04_total_shifts)
 
-    # --- TRUE-DATA METRICS FOR 05, 13, 15, 21, 25 (STRICTLY FOCUS DAY) ---
+    # --- RECORD 05 METRICS ---
     day_05 = filter_by_focus_date(df_05_parsed, selected_day_str)
     if not day_05.empty:
         stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {len(day_05)} items cooled</span>'
     else:
         stat_05 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Cooling Logged</span>'
 
+    # --- RECORD 06 METRICS ---
     day_06 = filter_by_focus_date(df_06_parsed, selected_day_str)
     is_06_complete = not day_06.empty
     stat_06 = f'<span style="color: {"#4ade80" if is_06_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_06_complete else "Pending"} - {1 if is_06_complete else 0}/1</span>'
     
+    # --- RECORD 13 METRICS (WITH MISSING PENDING UNITS) ---
     day_13 = filter_by_focus_date(df_13_parsed, selected_day_str)
-    if not day_13.empty:
-        unit_col = next((c for c in ["Unit_ID", "Machine_Name", "Equipment", "Name"] if c in day_13.columns), None)
-        units_logged = day_13[unit_col].dropna().unique().tolist() if unit_col else []
-        logged_13_count = min(11, len(units_logged))
-        is_13_complete = (logged_13_count >= 11)
-        stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13_count}/11 unique machines</span>'
+    ROSWYN_DISHWASHERS = [
+        "FLA/DISH/01", "FLA/GLS/01", "BLK/DISH/01", "BLK/GLS/01",
+        "STW/DISH/01", "BQT/DISH/01", "BQT/GLS/01", "EMP/DISH/01",
+        "EMP/GLS/01", "KID/DISH/01", "BAR/GLS/01"
+    ]
+    if not day_13.empty and "Unit_ID" in day_13.columns:
+        unique_logged_13 = day_13.dropna(subset=["Unit_ID"]).copy()
+        unique_logged_13["Clean_Machine"] = unique_logged_13["Unit_ID"].apply(clean_unit_token)
+        logged_machines = unique_logged_13["Clean_Machine"].tolist()
+        logged_13_count = min(11, len(set(logged_machines)))
+        pending_machines = [m for m in ROSWYN_DISHWASHERS if clean_unit_token(m) not in logged_machines]
     else:
-        stat_13 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0/11 unique machines</span>'
+        logged_13_count = 0
+        pending_machines = ROSWYN_DISHWASHERS
+
+    is_13_complete = (logged_13_count >= 11)
+    if is_13_complete:
+        stat_13 = '<span style="color: #4ade80; font-weight: 600;">Completed - 11/11 unique machines</span>'
+    else:
+        pending_str_13 = ", ".join(pending_machines[:3]) + ("..." if len(pending_machines) > 3 else "")
+        stat_13 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({logged_13_count}/11 unique machines)</span><br><span style="font-size:0.65rem; color:#94a3b8;">Missing: {pending_str_13}</span>'
     
     day_15 = filter_by_focus_date(df_15_parsed, selected_day_str)
     if not day_15.empty:
