@@ -518,15 +518,14 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
         def render_executive_tile(col, title, status_html, target_nav, unique_key):
             with col:
-                card_html = f"""
+                st.markdown(f"""
                 <div class="exec-card">
                     <div>
                         <div style="font-size: 0.82rem; font-weight: 700; line-height: 1.3; margin-bottom: 6px; letter-spacing: -0.01em; color: #ffffff;">{title}</div>
                         <div style="font-size: 0.74rem; color: #94a3b8; font-weight: 500; line-height: 1.4;">{status_html}</div>
                     </div>
                 </div>
-                """
-                st.markdown(card_html, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
                 if st.button("Open ➔", key=f"tile_btn_{unique_key}", use_container_width=True):
                     navigate_to(target_nav)
 
