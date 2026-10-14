@@ -121,11 +121,13 @@ if "nav_choice" not in st.session_state:
 
 def navigate_to(target_nav):
     st.session_state.nav_choice = target_nav
-    st.session_state.nav_selectbox = target_nav
+    if "nav_selectbox" in st.session_state:
+        st.session_state.nav_selectbox = target_nav
 
 def go_to_overview():
     st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
-    st.session_state.nav_selectbox = "🏠 Roswyn - EHCO Status Overview"
+    if "nav_selectbox" in st.session_state:
+        st.session_state.nav_selectbox = "🏠 Roswyn - EHCO Status Overview"
 
 # --- CLEANED SIDEBAR: INSPECTION CONTROLS ONLY ---
 st.sidebar.markdown("""
@@ -622,7 +624,7 @@ else:
         render_record_03_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.nav_choice == "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD":
         render_record_04_view(raw_records_df, selected_day_str, start_date, end_date)
-    elif st.session_state.nav_choice == "RECORD 05 - COOLING OF FOOD RECORD":
+    elif st.session_state.nav_choice == "RECORD 05 - FOOD DISPLAY TEMPERATURE RECORD":
         render_record_05_view(raw_records_df, selected_day_str, start_date, end_date)
     elif st.session_state.nav_choice == "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD":
         render_record_06_view(raw_records_df, selected_day_str, start_date, end_date)
