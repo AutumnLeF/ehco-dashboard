@@ -56,7 +56,6 @@ st.markdown("""
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     }
 
-    /* Fixed Open Button Styling & Clickability */
     .stButton > button {
         background: #ffffff !important;
         color: #000000 !important;
@@ -443,26 +442,26 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_06_complete = not day_06.empty
     stat_06 = f'<span style="color: {"#4ade80" if is_06_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_06_complete else "Pending"} - {1 if is_06_complete else 0}/1</span>'
     
-    # --- RECORD 13 METRICS (DYNAMIC DISHWASHER EXTRACTION FROM RECORD_13 MODULE) ---
+    # --- RECORD 13 METRICS ---
     day_13 = filter_by_focus_date(df_13_parsed, selected_day_str)
-    from records.record_13 import ROSWYN_MACHINES if "ROSWYN_MACHINES" in dir() else ["FLA/DISH/01", "FLA/GLS/01", "BLK/DISH/01", "BLK/GLS/01", "STW/DISH/01", "BQT/DISH/01", "BQT/GLS/01", "EMP/DISH/01", "EMP/GLS/01", "KID/DISH/01", "BAR/GLS/01"]
-    
-    # Extract unique machines logged from actual parsed records
-    logged_machines_clean = set()
-    if not day_13.empty:
-        for _, r in day_13.iterrows():
-            m_id = r.get("Unit_ID") or r.get("Machine_Name") or r.get("Equipment") or ""
-            if m_id:
-                logged_machines_clean.add(clean_unit_token(m_id))
+    MASTER_DISHWASHERS = [
+        "FLA/DISH/01", "FLA/GLS/01", "BLK/DISH/01", "BLK/GLS/01",
+        "STW/DISH/01", "BQT/DISH/01", "BQT/GLS/01", "EMP/DISH/01",
+        "EMP/GLS/01", "KID/DISH/01", "BAR/GLS/01"
+    ]
+    if not day_13.empty and "Unit_ID" in day_13.columns:
+        unique_logged_13 = day_13.dropna(subset=["Unit_ID"]).copy()
+        unique_logged_13["Clean_Machine"] = unique_logged_13["Unit_ID"].apply(clean_unit_token)
+        logged_machines = unique_logged_13["Clean_Machine"].tolist()
+        logged_13_count = min(11, len(set(logged_machines)))
+        pending_machines = [m for m in MASTER_DISHWASHERS if clean_unit_token(m) not in logged_machines]
+    else:
+        logged_13_count = 0
+        pending_machines = MASTER_DISHWASHERS
 
-    # Standard Roswyn dishwasher list fallback
-    MASTER_DISHWASHERS = ["FLA/DISH/01", "FLA/GLS/01", "BLK/DISH/01", "BLK/GLS/01", "STW/DISH/01", "BQT/DISH/01", "BQT/GLS/01", "EMP/DISH/01", "EMP/GLS/01", "KID/DISH/01", "BAR/GLS/01"]
-    pending_machines = [m for m in MASTER_DISHWASHERS if clean_unit_token(m) not in logged_machines_clean]
-    logged_13_count = len(logged_machines_clean)
     is_13_complete = (logged_13_count >= 11 or len(pending_machines) == 0)
-
     if is_13_complete:
-        stat_13 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {max(logged_13_count, 11)}/11 unique machines</span>'
+        stat_13 = '<span style="color: #4ade80; font-weight: 600;">Completed - 11/11 unique machines</span>'
     else:
         pending_str_13 = ", ".join(pending_machines[:3]) + ("..." if len(pending_machines) > 3 else "")
         stat_13 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({logged_13_count}/11 unique machines)</span><br><span style="font-size:0.65rem; color:#94a3b8;">Missing: {pending_str_13}</span>'
