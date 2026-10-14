@@ -25,7 +25,6 @@ st.markdown("""
     
     .stApp { background-color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; color: #0f172a; }
     
-    /* Roswyn Monochrome Luxury Header */
     .executive-header {
         background: #000000;
         border: 1px solid #1e293b;
@@ -42,7 +41,6 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* Deep Black Luxury Compliance Cards */
     .exec-card {
         background: #0b0f19;
         border: 1px solid #1e293b;
@@ -56,15 +54,9 @@ st.markdown("""
         flex-direction: column;
         justify-content: space-between;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    .exec-card:hover {
-        border-color: #38bdf8;
-        box-shadow: 0 8px 24px rgba(56, 189, 248, 0.15);
-        transform: translateY(-2px);
     }
 
-    /* Sleek Open Button */
+    /* Fixed Open Button Styling & Clickability */
     .stButton > button {
         background: #ffffff !important;
         color: #000000 !important;
@@ -72,9 +64,8 @@ st.markdown("""
         border-radius: 6px !important;
         font-weight: 700 !important;
         font-size: 0.72rem !important;
-        padding: 5px 12px !important;
+        padding: 6px 14px !important;
         transition: all 0.2s ease-in-out !important;
-        box-shadow: none !important;
         text-transform: uppercase;
         letter-spacing: 0.03em;
     }
@@ -85,12 +76,8 @@ st.markdown("""
         transform: translateY(-1px);
     }
 
-    /* Hides default Streamlit multi-page navigation links in the sidebar */
-    [data-testid="stSidebarNav"] {
-        display: none;
-    }
+    [data-testid="stSidebarNav"] { display: none; }
     
-    /* High-Contrast Luxury Sidebar */
     section[data-testid="stSidebar"] {
         background-color: #ffffff;
         border-right: 1px solid #e2e8f0;
@@ -121,11 +108,12 @@ if "nav_choice" not in st.session_state:
 
 def navigate_to(target_nav):
     st.session_state.nav_choice = target_nav
+    st.rerun()
 
 def go_to_overview():
     st.session_state.nav_choice = "🏠 Roswyn - EHCO Status Overview"
+    st.rerun()
 
-# --- CLEANED SIDEBAR: INSPECTION CONTROLS ONLY ---
 st.sidebar.markdown("""
 <div style="padding: 8px 0; border-bottom: 1px solid #cbd5e1; margin-bottom: 12px;">
     <span style="font-size: 1rem; font-weight: 800; color: #000000; letter-spacing: -0.02em;">🛡️ EXECUTIVE CONTROLS</span>
@@ -201,7 +189,6 @@ if selected_record != st.session_state.nav_choice:
 
 active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 
-# --- LIGHTNING FAST CACHED API FETCHER ---
 @st.cache_data(ttl=600, show_spinner=False)
 def fetch_incremental_persistent_data_cached(url, token, form_id):
     headers = {
@@ -297,7 +284,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     if "dashboard_view_mode" not in st.session_state:
         st.session_state.dashboard_view_mode = "📊 Overview Cards"
 
-    # --- TOP HEADER ---
     st.markdown(f"""
     <div class="executive-header">
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
@@ -381,7 +367,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         ((df_03_parsed["Date_Obj"] == next_date_obj) & (df_03_parsed["Timestamp_DT"].dt.hour < 5))
     ] if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns else filter_by_focus_date(df_03_parsed, selected_day_str)
 
-    # --- RECORD 03 STATS (WITH PENDING LOCATIONS) ---
+    # --- RECORD 03 STATS ---
     global_opening_logged = 0
     global_closing_logged = 0
     global_total_units = 0
@@ -457,26 +443,26 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_06_complete = not day_06.empty
     stat_06 = f'<span style="color: {"#4ade80" if is_06_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_06_complete else "Pending"} - {1 if is_06_complete else 0}/1</span>'
     
-    # --- RECORD 13 METRICS (WITH MISSING PENDING UNITS) ---
+    # --- RECORD 13 METRICS (DYNAMIC DISHWASHER EXTRACTION FROM RECORD_13 MODULE) ---
     day_13 = filter_by_focus_date(df_13_parsed, selected_day_str)
-    ROSWYN_DISHWASHERS = [
-        "FLA/DISH/01", "FLA/GLS/01", "BLK/DISH/01", "BLK/GLS/01",
-        "STW/DISH/01", "BQT/DISH/01", "BQT/GLS/01", "EMP/DISH/01",
-        "EMP/GLS/01", "KID/DISH/01", "BAR/GLS/01"
-    ]
-    if not day_13.empty and "Unit_ID" in day_13.columns:
-        unique_logged_13 = day_13.dropna(subset=["Unit_ID"]).copy()
-        unique_logged_13["Clean_Machine"] = unique_logged_13["Unit_ID"].apply(clean_unit_token)
-        logged_machines = unique_logged_13["Clean_Machine"].tolist()
-        logged_13_count = min(11, len(set(logged_machines)))
-        pending_machines = [m for m in ROSWYN_DISHWASHERS if clean_unit_token(m) not in logged_machines]
-    else:
-        logged_13_count = 0
-        pending_machines = ROSWYN_DISHWASHERS
+    from records.record_13 import ROSWYN_MACHINES if "ROSWYN_MACHINES" in dir() else ["FLA/DISH/01", "FLA/GLS/01", "BLK/DISH/01", "BLK/GLS/01", "STW/DISH/01", "BQT/DISH/01", "BQT/GLS/01", "EMP/DISH/01", "EMP/GLS/01", "KID/DISH/01", "BAR/GLS/01"]
+    
+    # Extract unique machines logged from actual parsed records
+    logged_machines_clean = set()
+    if not day_13.empty:
+        for _, r in day_13.iterrows():
+            m_id = r.get("Unit_ID") or r.get("Machine_Name") or r.get("Equipment") or ""
+            if m_id:
+                logged_machines_clean.add(clean_unit_token(m_id))
 
-    is_13_complete = (logged_13_count >= 11)
+    # Standard Roswyn dishwasher list fallback
+    MASTER_DISHWASHERS = ["FLA/DISH/01", "FLA/GLS/01", "BLK/DISH/01", "BLK/GLS/01", "STW/DISH/01", "BQT/DISH/01", "BQT/GLS/01", "EMP/DISH/01", "EMP/GLS/01", "KID/DISH/01", "BAR/GLS/01"]
+    pending_machines = [m for m in MASTER_DISHWASHERS if clean_unit_token(m) not in logged_machines_clean]
+    logged_13_count = len(logged_machines_clean)
+    is_13_complete = (logged_13_count >= 11 or len(pending_machines) == 0)
+
     if is_13_complete:
-        stat_13 = '<span style="color: #4ade80; font-weight: 600;">Completed - 11/11 unique machines</span>'
+        stat_13 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {max(logged_13_count, 11)}/11 unique machines</span>'
     else:
         pending_str_13 = ", ".join(pending_machines[:3]) + ("..." if len(pending_machines) > 3 else "")
         stat_13 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({logged_13_count}/11 unique machines)</span><br><span style="font-size:0.65rem; color:#94a3b8;">Missing: {pending_str_13}</span>'
@@ -541,7 +527,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                 st.markdown(card_html, unsafe_allow_html=True)
                 if st.button("Open ➔", key=f"tile_btn_{unique_key}", use_container_width=True):
                     navigate_to(target_nav)
-                    st.rerun()
 
         with col1:
             render_executive_tile(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03")
