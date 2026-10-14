@@ -48,47 +48,25 @@ st.markdown("""
         -webkit-text-fill-color: transparent; 
     }
     
-    /* Compact Glassmorphic Compliance Cards */
-    .exec-card {
-        background: linear-gradient(145deg, #111e38 0%, #0f172a 100%);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-top: 3px solid #38bdf8;
-        border-radius: 12px;
-        padding: 14px 16px;
-        color: #ffffff;
-        margin-bottom: 10px;
-        min-height: 155px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
-        transition: transform 0.2s ease, border-color 0.2s ease;
-    }
-    .exec-card:hover {
-        border-color: rgba(56, 189, 248, 0.4);
-        transform: translateY(-2px);
-    }
-
-    /* Sleek Inline Luxury Action Button */
+    /* Full-tile clickable card buttons styling */
     .stButton > button {
-        background: rgba(56, 189, 248, 0.1) !important;
-        color: #38bdf8 !important;
-        border: 1px solid rgba(56, 189, 248, 0.3) !important;
-        border-radius: 6px !important;
-        font-weight: 700 !important;
-        font-size: 0.72rem !important;
-        padding: 4px 10px !important;
+        background: linear-gradient(145deg, #111e38 0%, #0f172a 100%) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.08) !important;
+        border-top: 3px solid #38bdf8 !important;
+        border-radius: 12px !important;
+        padding: 16px 20px !important;
+        text-align: left !important;
+        width: 100% !important;
+        min-height: 165px !important;
+        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2) !important;
         transition: all 0.2s ease-in-out !important;
-        box-shadow: none !important;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
     }
     .stButton > button:hover {
-        background: #38bdf8 !important;
-        color: #0f172a !important;
-        border-color: #38bdf8 !important;
-        box-shadow: 0 4px 10px rgba(56,189,248,0.3);
-        transform: translateY(-1px);
+        border-color: rgba(56, 189, 248, 0.5) !important;
+        background: linear-gradient(145deg, #162647 0%, #111e38 100%) !important;
+        box-shadow: 0 8px 24px rgba(56, 189, 248, 0.15) !important;
+        transform: translateY(-2px);
     }
 
     /* Hide default sidebar nav */
@@ -435,8 +413,8 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if is_op_complete and is_cl_complete:
         html_03 = '<span style="color: #4ade80; font-weight: 600;">Completed - All shifts logged</span>'
     else:
-        op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending ({global_opening_logged}/{global_total_units})<br><span style='font-size:0.68rem; color:#94a3b8;'>Missing Opening: {', '.join(pending_locs_03_opening)}</span>"
-        cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending ({global_closing_logged}/{global_total_units})<br><span style='font-size:0.68rem; color:#94a3b8;'>Missing Closing: {', '.join(pending_locs_03_closing)}</span>"
+        op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending ({global_opening_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#94a3b8;'>Opening Missing: {', '.join(pending_locs_03_opening)}</span>"
+        cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending ({global_closing_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#94a3b8;'>Closing Missing: {', '.join(pending_locs_03_closing)}</span>"
         html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{cl_str}</span>'
 
     # --- RECORD 04 METRICS ---
@@ -474,11 +452,11 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
     html_04 = (
         f'Breakfast: <span style="color: {"#4ade80" if b_req_04 > 0 and b_done_04 >= b_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_04 > 0 and b_done_04 >= b_req_04 else "Pending"} - {b_done_04}/{b_req_04}</span>'
-        f'{"<br><span style=\'font-size:0.68rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Breakfast"]) + "</span>" if b_done_04 < b_req_04 else ""}<br>'
+        f'{"<br><span style=\'font-size:0.65rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Breakfast"]) + "</span>" if b_done_04 < b_req_04 else ""}<br>'
         f'Lunch: <span style="color: {"#4ade80" if l_req_04 > 0 and l_done_04 >= l_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_04 > 0 and l_done_04 >= l_req_04 else "Pending"} - {l_done_04}/{l_req_04}</span>'
-        f'{"<br><span style=\'font-size:0.68rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Lunch"]) + "</span>" if l_done_04 < l_req_04 else ""}<br>'
+        f'{"<br><span style=\'font-size:0.65rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Lunch"]) + "</span>" if l_done_04 < l_req_04 else ""}<br>'
         f'Dinner: <span style="color: {"#4ade80" if d_req_04 > 0 and d_done_04 >= d_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_04 > 0 and d_done_04 >= d_req_04 else "Pending"} - {d_done_04}/{d_req_04}</span>'
-        f'{"<br><span style=\'font-size:0.68rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Dinner"]) + "</span>" if d_done_04 < d_req_04 else ""}'
+        f'{"<br><span style=\'font-size:0.65rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Dinner"]) + "</span>" if d_done_04 < d_req_04 else ""}'
     )
 
     # --- RECORD 05 METRICS ---
@@ -491,7 +469,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if is_05_complete:
         stat_05 = '<span style="color: #4ade80; font-weight: 600;">Completed - All 10 kitchens logged</span>'
     else:
-        stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.68rem; color:#94a3b8;">Missing: {", ".join(pending_locs_05)}</span>'
+        stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.65rem; color:#94a3b8;">Missing: {", ".join(pending_locs_05)}</span>'
 
     # --- RECORD 06 METRICS ---
     day_06 = get_day_df(df_06_parsed, selected_day_variants, target_date_obj)
@@ -528,11 +506,11 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
     stat_06 = (
         f'Breakfast: <span style="color: {"#4ade80" if b_req_06 > 0 and b_done_06 >= b_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_06 > 0 and b_done_06 >= b_req_06 else "Pending"} - {b_done_06}/{b_req_06}</span>'
-        f'{"<br><span style=\'font-size:0.68rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Breakfast"]) + "</span>" if b_done_06 < b_req_06 else ""}<br>'
+        f'{"<br><span style=\'font-size:0.65rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Breakfast"]) + "</span>" if b_done_06 < b_req_06 else ""}<br>'
         f'Lunch: <span style="color: {"#4ade80" if l_req_06 > 0 and l_done_06 >= l_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_06 > 0 and l_done_06 >= l_req_06 else "Pending"} - {l_done_06}/{l_req_06}</span>'
-        f'{"<br><span style=\'font-size:0.68rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Lunch"]) + "</span>" if l_done_06 < l_req_06 else ""}<br>'
+        f'{"<br><span style=\'font-size:0.65rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Lunch"]) + "</span>" if l_done_06 < l_req_06 else ""}<br>'
         f'Dinner: <span style="color: {"#4ade80" if d_req_06 > 0 and d_done_06 >= d_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_06 > 0 and d_done_06 >= d_req_06 else "Pending"} - {d_done_06}/{d_req_06}</span>'
-        f'{"<br><span style=\'font-size:0.68rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Dinner"]) + "</span>" if d_done_06 < d_req_06 else ""}'
+        f'{"<br><span style=\'font-size:0.65rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Dinner"]) + "</span>" if d_done_06 < d_req_06 else ""}'
     )
 
     # --- RECORD 12 METRICS ---
@@ -613,8 +591,8 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         pm_missing_str = ", ".join(pending_pm_cm01) if pending_pm_cm01 else "None"
         stat_cm01 = (
             f'<span style="color: #fbbf24; font-weight: 600;">Pending ({cm01_fully_completed_locs}/{total_cm01_locs} locations)</span><br>'
-            f'<span style="font-size:0.68rem; color:#94a3b8;">🌅 AM Missing: {am_missing_str}</span><br>'
-            f'<span style="font-size:0.68rem; color:#94a3b8;">🌙 PM Missing: {pm_missing_str}</span>'
+            f'<span style="font-size:0.65rem; color:#94a3b8;">🌅 AM Missing: {am_missing_str}</span><br>'
+            f'<span style="font-size:0.65rem; color:#94a3b8;">🌙 PM Missing: {pm_missing_str}</span>'
         )
 
     # --- RECORD PH01 METRICS ---
@@ -628,7 +606,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         stat_ph01 = f'<span style="color: #4ade80; font-weight: 600;">Completed - All 22 locations ({len(day_ph01)} staff)</span>'
     else:
         pending_str_ph01 = ", ".join(pending_locs_ph01)
-        stat_ph01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_locs_ph01}/22 locations)</span><br><span style="font-size:0.68rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_ph01}</span>'
+        stat_ph01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_locs_ph01}/22 locations)</span><br><span style="font-size:0.65rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_ph01}</span>'
 
     completed_cats = sum([
         1 if not day_02.empty else 0,
@@ -650,7 +628,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
     if st.session_state.fairmont_dashboard_view_mode == "📊 Overview Cards":
         st.markdown(f"""
-        <div style="background: #111e38; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.2);">
+        <div style="background: #111e38; border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.2);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                 <span style="font-weight: 700; font-size: 0.9rem; color: #f8fafc; display:flex; align-items:center; gap:8px;">📊 Daily Compliance & Progression Tracker</span>
                 <span style="font-weight: 800; font-size: 0.88rem; color: {bar_color}; background: rgba(15,23,42,0.8); padding: 3px 10px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1);">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
@@ -662,33 +640,55 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         """, unsafe_allow_html=True)
 
         col1, col2, col3 = st.columns(3)
-        def render_theme_card(col, title, status_html, target_nav, unique_key):
-            col.markdown(f"""
-            <div class="exec-card">
-                <div>
-                    <div style="font-size: 0.82rem; font-weight: 700; line-height: 1.3; margin-bottom: 6px; letter-spacing: -0.01em; color: #f8fafc;">{title}</div>
-                    <div style="font-size: 0.74rem; color: #94a3b8; font-weight: 500; line-height: 1.4;">{status_html}</div>
-                </div>
-                <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
-            """, unsafe_allow_html=True)
-            col.button("Inspect ➔", key=f"btn_fairmont_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
-            col.markdown("</div></div>", unsafe_allow_html=True)
+        def render_interactive_tile(col, title, status_html, target_nav, unique_key):
+            # Using st.button as a full-tile interactive container matching reference dashboard style
+            button_label = f"{title}\n\n{status_html.replace('<br>', ' | ').replace('<span>','').replace('</span>','')}"
+            if col.button(f"{title}\n\n{status_html}", key=f"tile_{unique_key}", use_container_width=True):
+                navigate_to(target_nav)
+                st.rerun()
 
+        # Custom rendering inside columns to make tiles act as direct click-through targets
         with col1:
-            render_theme_card(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "card_r02")
-            render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
-            render_theme_card(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04")
-            render_theme_card(col1, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", stat_cm01, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", "card_rcm01")
+            if st.button(f"RECORD 02 - FOOD DELIVERY RECORD\n\n{stat_02.replace('<br>', ' ')}", key="t_r02", use_container_width=True):
+                navigate_to("RECORD 02 - FOOD DELIVERY RECORD")
+                st.rerun()
+            if st.button(f"RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD\n\n{html_03.replace('<br>', ' | ')}", key="t_r03", use_container_width=True):
+                navigate_to("RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD")
+                st.rerun()
+            if st.button(f"RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD\n\n{html_04.replace('<br>', ' | ')}", key="t_r04", use_container_width=True):
+                navigate_to("RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD")
+                st.rerun()
+            if st.button(f"RECORD CM01 - COFFEE MACHINE CLEANING RECORD\n\n{stat_cm01.replace('<br>', ' | ')}", key="t_rcm01", use_container_width=True):
+                navigate_to("RECORD CM01 - COFFEE MACHINE CLEANING RECORD")
+                st.rerun()
+
         with col2:
-            render_theme_card(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
-            render_theme_card(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
-            render_theme_card(col2, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "card_r12")
-            render_theme_card(col2, "RECORD PH01 - PERSONAL HYGIENE RECORD", stat_ph01, "RECORD PH01 - PERSONAL HYGIENE RECORD", "card_rph01")
+            if st.button(f"RECORD 05 - COOLING OF FOOD RECORD\n\n{stat_05.replace('<br>', ' ')}", key="t_r05", use_container_width=True):
+                navigate_to("RECORD 05 - COOLING OF FOOD RECORD")
+                st.rerun()
+            if st.button(f"RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD\n\n{stat_06.replace('<br>', ' | ')}", key="t_r06", use_container_width=True):
+                navigate_to("RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD")
+                st.rerun()
+            if st.button(f"RECORD 12 - DEFROSTING TEMPERATURE RECORD\n\n{stat_12.replace('<br>', ' ')}", key="t_r12", use_container_width=True):
+                navigate_to("RECORD 12 - DEFROSTING TEMPERATURE RECORD")
+                st.rerun()
+            if st.button(f"RECORD PH01 - PERSONAL HYGIENE RECORD\n\n{stat_ph01.replace('<br>', ' ')}", key="t_rph01", use_container_width=True):
+                navigate_to("RECORD PH01 - PERSONAL HYGIENE RECORD")
+                st.rerun()
+
         with col3:
-            render_theme_card(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
-            render_theme_card(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
-            render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "card_r21")
-            render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
+            if st.button(f"RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD\n\n{stat_13.replace('<br>', ' ')}", key="t_r13", use_container_width=True):
+                navigate_to("RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD")
+                st.rerun()
+            if st.button(f"RECORD 15 - PESTICIDE USAGE RECORD\n\n{stat_15.replace('<br>', ' ')}", key="t_r15", use_container_width=True):
+                navigate_to("RECORD 15 - PESTICIDE USAGE RECORD")
+                st.rerun()
+            if st.button(f"RECORD 21 - FOOD WASH RECORD - CHLORINE WASH\n\n{stat_21.replace('<br>', ' ')}", key="t_r21", use_container_width=True):
+                navigate_to("RECORD 21 - FOOD WASH RECORD - CHLORINE WASH")
+                st.rerun()
+            if st.button(f"RECORD 25 - ICE MACHINE CLEANING RECORD\n\n{stat_25.replace('<br>', ' ')}", key="t_r25", use_container_width=True):
+                navigate_to("RECORD 25 - ICE MACHINE CLEANING RECORD")
+                st.rerun()
     else:
         st.markdown(f"<h3 style='color:#f8fafc; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
         st.write("Department-wise overview for Fairmont Mumbai")
