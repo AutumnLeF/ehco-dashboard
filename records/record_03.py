@@ -139,7 +139,7 @@ def parse_record_03_submissions(raw_df):
         )
         raw_time_str = str(raw_time).strip()
         
-        if raw_time_str and len(raw_time_str) >= 3:
+        if raw_time_str and len(raw_time_str) >= 3 and ":" in raw_time_str:
             if "T" in raw_time_str:
                 try:
                     t_part = raw_time_str.split("T")[1][:5]
@@ -148,16 +148,12 @@ def parse_record_03_submissions(raw_df):
                 except Exception:
                     time_clean = raw_time_str[-8:]
             else:
-                time_clean = raw_time_str
+                time_clean = raw_time_str[:5]
         else:
-            if pd.notna(parsed_dt):
-                if parsed_dt.tzinfo is None:
-                    dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
-                else:
-                    dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
-                time_clean = dt_ist.strftime("%H:%M")
+            if pd.notna(parsed_dt_ist):
+                time_clean = parsed_dt_ist.strftime("%H:%M")
             else:
-                time_clean = "Shift Log"
+                time_clean = "00:00"
 
         location = str(sub.get("Location") or "").strip()
 
@@ -428,7 +424,9 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         all_dates = [start_date + timedelta(days=i) for i in range(total_days)]
         max_page = max(0, (total_days - 1) // 4)
 
-        if "rec03_page" not in st.session_state or st.session_state.rec03_page > max_page:
+        if "rec03_page" not in st.session_state:
+            st.session_state.rec03_page = max_page
+        elif st.session_state.rec03_page > max_page:
             st.session_state.rec03_page = max_page
 
         nav1, nav2, nav3 = st.columns([1, 3, 1])
