@@ -647,14 +647,15 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     bar_color = "#4ade80" if progress_pct > 70 else ("#38bdf8" if progress_pct > 30 else "#fbbf24")
 
     if st.session_state.fairmont_dashboard_view_mode == "📊 Overview Cards":
+        # --- LUXURY GRADIENT PROGRESS TRACKER ---
         st.markdown(f"""
-        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-weight: 700; font-size: 0.9rem; color: #0f172a; display:flex; align-items:center; gap:8px;">📊 Daily Compliance & Progression Tracker</span>
-                <span style="font-weight: 800; font-size: 0.88rem; color: {bar_color}; background: #f1f5f9; padding: 3px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.04);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a; display:flex; align-items:center; gap:8px;">📊 Daily Compliance & Progression Tracker</span>
+                <span style="font-weight: 800; font-size: 0.92rem; color: #0f172a; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 4px 12px; border-radius: 8px; border: 1px solid #cbd5e1;">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
             </div>
-            <div style="width: 100%; background: #e2e8f0; border-radius: 6px; height: 8px; overflow: hidden;">
-                <div style="width: {progress_pct}%; background: linear-gradient(90deg, {bar_color} 0%, #000000 100%); height: 100%; border-radius: 6px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+            <div style="width: 100%; background: #f1f5f9; border-radius: 10px; height: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 1px;">
+                <div style="width: {progress_pct}%; background: linear-gradient(90deg, #000000 0%, #38bdf8 50%, #4ade80 100%); height: 100%; border-radius: 8px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 2px 6px rgba(56, 189, 248, 0.3);"></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
