@@ -57,7 +57,7 @@ st.markdown("""
         padding: 20px;
         color: #ffffff;
         margin-bottom: 12px;
-        min-height: 190px;
+        min-height: 205px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -387,7 +387,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     day_02 = get_day_df(df_02_parsed, selected_day_variants, target_date_obj)
     stat_02 = f'<span style="color: {"#4ade80" if not day_02.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_02.empty else "Pending"} - {len(day_02)} entries</span>'
 
-    # --- RECORD 03 METRICS ---
+    # --- RECORD 03 METRICS (WITH PROPER PENDING LOCATIONS) ---
     if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns:
         if "Timestamp_DT" in df_03_parsed.columns:
             df_03_parsed["Timestamp_DT"] = pd.to_datetime(df_03_parsed["Timestamp_DT"], errors="coerce")
@@ -403,8 +403,12 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     global_opening_logged = 0
     global_closing_logged = 0
     global_total_units = 0
+    pending_locs_03_opening = []
+    pending_locs_03_closing = []
 
     for loc_name, units in UNIT_CATALOG.items():
+        loc_op_missing = False
+        loc_cl_missing = False
         for u in units:
             global_total_units += 1
             u_id = u["Unit_ID"]
@@ -413,16 +417,27 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             n_logs = len(unit_logs)
             if n_logs == 1:
                 global_opening_logged += 1
+                loc_cl_missing = True
             elif n_logs >= 2:
                 global_opening_logged += 1
                 global_closing_logged += 1
+            else:
+                loc_op_missing = True
+                loc_cl_missing = True
+        if loc_op_missing and loc_name not in pending_locs_03_opening:
+            pending_locs_03_opening.append(loc_name)
+        if loc_cl_missing and loc_name not in pending_locs_03_closing:
+            pending_locs_03_closing.append(loc_name)
 
     is_op_complete = (global_opening_logged >= global_total_units)
     is_cl_complete = (global_closing_logged >= global_total_units)
 
-    stat_03_op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending - {global_opening_logged}/{global_total_units}"
-    stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending - {global_closing_logged}/{global_total_units}"
-    html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
+    if is_op_complete and is_cl_complete:
+        html_03 = '<span style="color: #4ade80; font-weight: 600;">Completed - All shifts logged</span>'
+    else:
+        op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending ({global_opening_logged}/{global_total_units})<br><span style='font-size:0.7rem; color:#94a3b8;'>Missing Opening: {', '.join(pending_locs_03_opening)}</span>"
+        cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending ({global_closing_logged}/{global_total_units})<br><span style='font-size:0.7rem; color:#94a3b8;'>Missing Closing: {', '.join(pending_locs_03_closing)}</span>"
+        html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{cl_str}</span>'
 
     # --- RECORD 04 METRICS ---
     day_04 = get_day_df(df_04_parsed, selected_day_variants, target_date_obj)
@@ -565,7 +580,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
-    # --- RECORD CM01 METRICS ---
+    # --- RECORD CM01 METRICS (WITH PROPER PENDING LOCATIONS) ---
     day_cm01 = get_day_df(df_cm01_parsed, selected_day_variants, target_date_obj)
     pending_locs_cm01 = []
     cm01_completed_locs = 0
