@@ -144,7 +144,7 @@ def parse_record_03_submissions(raw_df):
                 try:
                     t_part = raw_time_str.split("T")[1][:5]
                     t_obj = datetime.strptime(t_part, "%H:%M")
-                    time_clean = t_obj.strftime("%I:%M %p")
+                    time_clean = t_obj.strftime("%H:%M")
                 except Exception:
                     time_clean = raw_time_str[-8:]
             else:
@@ -155,7 +155,7 @@ def parse_record_03_submissions(raw_df):
                     dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
                 else:
                     dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
-                time_clean = dt_ist.strftime("%I:%M %p")
+                time_clean = dt_ist.strftime("%H:%M")
             else:
                 time_clean = "Shift Log"
 
@@ -530,7 +530,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                         for idx, ent in enumerate(distinct_shifts[:2]):
                             t_color = "#dc2626" if ent["Has_Breach"] else "#0f172a"
                             t_val = ent["Temp_Disp"]
-                            t_time = ent["Time"][:8]
+                            t_time = ent["Time"][:5]
                             readings_str += f'<div style="display:flex; justify-content:space-between; font-size:0.72rem; margin-top:2px;"><span style="color:#64748b;">#{idx+1} ({t_time})</span><b style="color:{t_color};">{t_val}</b></div>'
 
                         footer_info = f"By: {distinct_shifts[0]['Sign']}"
