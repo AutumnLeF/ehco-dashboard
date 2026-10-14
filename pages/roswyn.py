@@ -21,37 +21,85 @@ st.set_page_config(
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    .stApp { background-color: #f8fafc; font-family: 'Inter', sans-serif; color: #0f172a; }
-    .serif-title { font-size: 1.8rem; font-weight: 700; color: #0f172a; text-align: center; letter-spacing: -0.02em; margin: 0; }
-    .sub-head { font-size: 0.82rem; color: #475569; font-weight: 600; text-align: center; }
-    .record-header-box { background-color: #0b192c; padding: 18px 24px; border-radius: 10px; color: white; margin-bottom: 1.5rem; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 1.6rem; font-weight: 700; }
-    .kpi-card {
-        background-color: #0b192c;
-        border-radius: 10px;
-        padding: 16px;
-        color: white;
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+    
+    .stApp { background-color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; color: #0f172a; }
+    
+    /* Fairmont Monochrome Luxury Header */
+    .executive-header {
+        background: #000000;
+        border: 1px solid #1e293b;
+        border-radius: 14px;
+        padding: 22px 30px;
+        margin-bottom: 22px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+    }
+    .serif-title { 
+        font-size: 2rem; 
+        font-weight: 800; 
+        letter-spacing: -0.03em; 
+        margin: 0; 
+        color: #ffffff;
+    }
+    
+    /* Deep Black Luxury Compliance Cards */
+    .exec-card {
+        background: #0b0f19;
+        border: 1px solid #1e293b;
+        border-top: 3px solid #38bdf8;
+        border-radius: 12px;
+        padding: 16px 18px;
+        color: #ffffff;
         margin-bottom: 6px;
-        min-height: 125px;
+        min-height: 195px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
     }
-    .dept-card {
-        background-color: #0b192c;
-        border-radius: 10px;
-        padding: 20px;
-        color: white;
-        margin-bottom: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        border-top: 4px solid #38bdf8;
-        min-height: 220px;
+    .exec-card:hover {
+        border-color: #38bdf8;
+        box-shadow: 0 8px 24px rgba(56, 189, 248, 0.15);
+        transform: translateY(-2px);
     }
-    
+
+    /* Sleek Open Button */
+    .stButton > button {
+        background: #ffffff !important;
+        color: #000000 !important;
+        border: 1px solid #ffffff !important;
+        border-radius: 6px !important;
+        font-weight: 700 !important;
+        font-size: 0.72rem !important;
+        padding: 5px 12px !important;
+        transition: all 0.2s ease-in-out !important;
+        box-shadow: none !important;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+    .stButton > button:hover {
+        background: #38bdf8 !important;
+        border-color: #38bdf8 !important;
+        color: #0f172a !important;
+        transform: translateY(-1px);
+    }
+
     /* Hides default Streamlit multi-page navigation links in the sidebar */
     [data-testid="stSidebarNav"] {
         display: none;
+    }
+    
+    /* High-Contrast Luxury Sidebar */
+    section[data-testid="stSidebar"] {
+        background-color: #ffffff;
+        border-right: 1px solid #e2e8f0;
+    }
+    section[data-testid="stSidebar"] label, 
+    section[data-testid="stSidebar"] .stMarkdown, 
+    section[data-testid="stSidebar"] span {
+        color: #0f172a !important;
+        font-weight: 600;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -80,7 +128,11 @@ def go_to_overview():
     st.session_state.nav_selectbox = "🏠 Roswyn - EHCO Status Overview"
 
 # --- CLEANED SIDEBAR: INSPECTION CONTROLS ONLY ---
-st.sidebar.title("⚙️ Inspection Controls")
+st.sidebar.markdown("""
+<div style="padding: 8px 0; border-bottom: 1px solid #cbd5e1; margin-bottom: 12px;">
+    <span style="font-size: 1rem; font-weight: 800; color: #000000; letter-spacing: -0.02em;">🛡️ EXECUTIVE CONTROLS</span>
+</div>
+""", unsafe_allow_html=True)
 
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
 today = ist_now.date()
@@ -116,19 +168,20 @@ if not DEFAULT_TOKEN:
 if "auth_token" not in st.session_state:
     st.session_state["auth_token"] = DEFAULT_TOKEN
 
-api_url = st.sidebar.text_input(
-    "Endpoint URL", value="https://auth-api.blinkm.io/form-store", key="sb_api_endpoint_input"
-)
+with st.sidebar.expander("🛠️ Advanced API & Token Settings"):
+    api_url = st.text_input(
+        "Endpoint URL", value="https://auth-api.blinkm.io/form-store", key="sb_api_endpoint_input"
+    )
 
-token_input = st.sidebar.text_area(
-    "Bearer Token", 
-    value=st.session_state["auth_token"], 
-    height=90, 
-    key="sb_bearer_token_input"
-)
+    token_input = st.text_area(
+        "Bearer Token", 
+        value=st.session_state["auth_token"], 
+        height=70, 
+        key="sb_bearer_token_input"
+    )
 
-if token_input != st.session_state["auth_token"]:
-    st.session_state["auth_token"] = token_input.strip()
+    if token_input != st.session_state["auth_token"]:
+        st.session_state["auth_token"] = token_input.strip()
 
 active_token = st.session_state.get("auth_token", DEFAULT_TOKEN).strip()
 clean_token = active_token.replace("Bearer ", "").strip()
@@ -136,6 +189,7 @@ clean_token = active_token.replace("Bearer ", "").strip()
 nav_options = list(FORM_MAPPING.keys())
 current_nav_index = nav_options.index(st.session_state.nav_choice) if st.session_state.nav_choice in nav_options else 0
 
+st.sidebar.write("")
 selected_record = st.sidebar.selectbox(
     "SELECT FOOD SAFETY RECORD", 
     options=nav_options, 
@@ -281,8 +335,25 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         st.session_state.dashboard_view_mode = "📊 Overview Cards"
 
     # --- TOP HEADER ---
-    hdr_cols = st.columns([3, 4, 3])
-    with hdr_cols[0]:
+    st.markdown(f"""
+    <div class="executive-header">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+            <div>
+                <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; font-weight: 700; margin-bottom: 2px;">🏨 Roswyn • Mumbai</div>
+                <div class="serif-title">EHCO Executive Compliance Dashboard</div>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="background: #111827; border: 1px solid #374151; padding: 6px 14px; border-radius: 8px; text-align: right;">
+                    <div style="font-size: 0.65rem; color: #9ca3af;">SYSTEM TIME (IST)</div>
+                    <div style="font-size: 0.88rem; font-weight: 700; color: #ffffff;">{ist_now.strftime("%I:%M:%S %p")}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    mode_cols = st.columns([6, 3])
+    with mode_cols[0]:
         selected_site = st.selectbox(
             "Select Site Portal",
             options=["🏨 Roswyn Mumbai", "🏰 Fairmont Mumbai"],
@@ -293,25 +364,6 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         if selected_site.startswith("🏰"):
             st.switch_page("pages/fairmont.py")
 
-    with hdr_cols[1]:
-        st.markdown('<div class="serif-title">Roswyn - EHCO Status</div>', unsafe_allow_html=True)
-
-    with hdr_cols[2]:
-        st.markdown(f"""
-            <div style="background: #0b192c; color: white; padding: 6px 12px; border-radius: 8px; font-weight: 500; font-size: 0.78rem; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                <div>🕒 IST: <span style="color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</span></div>
-                <div style="color: #94a3b8; font-size: 0.72rem; margin-top: 2px;">Last Sync: {last_sync_display}</div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    st.write("")
-    mode_cols = st.columns([6, 3])
-    with mode_cols[0]:
-        st.markdown(f"""
-            <div style="background: #ffffff; border: 1px solid #cbd5e1; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 0.88rem; color: #0f172a; display: inline-block; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                📅 Focus Date: <span style="color:#0284c7;">{selected_day_str}</span>
-            </div>
-        """, unsafe_allow_html=True)
     with mode_cols[1]:
         view_choice = st.radio(
             "Dashboard Display Mode", 
@@ -323,6 +375,14 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         if view_choice != st.session_state.dashboard_view_mode:
             st.session_state.dashboard_view_mode = view_choice
             st.rerun()
+
+    st.write("")
+    st.markdown(f"""
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.88rem; color: #0f172a; display: inline-flex; align-items:center; gap:8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
+            <span style="font-size:1.1rem;">📅</span> Focus Audit Date: <span style="color:#000000; font-weight:700;">{selected_day_str}</span>
+        </div>
+    """, unsafe_allow_html=True)
+    st.write("")
 
     raw_03 = fetch_incremental_persistent_data(api_url, clean_token, 31373)
     raw_04 = fetch_incremental_persistent_data(api_url, clean_token, 31374)
@@ -460,77 +520,55 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     ])
     total_cats = 8
     progress_pct = int((completed_cats / total_cats) * 100)
-    bar_color = "#4ade80" if progress_pct > 70 else ("#3b82f6" if progress_pct > 30 else "#fbbf24")
+    bar_color = "#4ade80" if progress_pct > 70 else ("#38bdf8" if progress_pct > 30 else "#fbbf24")
 
     if st.session_state.dashboard_view_mode == "📊 Overview Cards":
         st.markdown(f"""
-        <div style="background: #ffffff; border: 1px solid #cbd5e1; border-radius: 10px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-                <span style="font-weight: 700; font-size: 0.88rem; color: #0f172a;">📊 Daily Compliance & Progression Tracker</span>
-                <span style="font-weight: 700; font-size: 0.88rem; color: {bar_color};">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
+        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                <span style="font-weight: 700; font-size: 0.9rem; color: #0f172a; display:flex; align-items:center; gap:8px;">📊 Daily Compliance & Progression Tracker</span>
+                <span style="font-weight: 800; font-size: 0.88rem; color: {bar_color}; background: #f1f5f9; padding: 3px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
             </div>
-            <div style="width: 100%; background: #e2e8f0; border-radius: 8px; height: 12px; overflow: hidden;">
-                <div style="width: {progress_pct}%; background: {bar_color}; height: 100%; border-radius: 8px; transition: width 0.5s ease;"></div>
+            <div style="width: 100%; background: #e2e8f0; border-radius: 6px; height: 8px; overflow: hidden;">
+                <div style="width: {progress_pct}%; background: linear-gradient(90deg, {bar_color} 0%, #000000 100%); height: 100%; border-radius: 6px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);"></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        def render_theme_card(col, title, status_html, target_nav, unique_key):
-            col.markdown(f"""
-            <div class="kpi-card">
-                <div style="font-size: 0.85rem; font-weight: 600; line-height: 1.3; margin-bottom: 4px;">{title}</div>
-                <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.4;">{status_html}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            col.button("Open ➔", use_container_width=True, key=f"btn_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
-
-        # --- EXACT 3-CARD ROW LAYOUT ---
-        # Top Row (3 Cards): Record 03, Record 04, Record 05
         col1, col2, col3 = st.columns(3)
-        with col1:
-            render_theme_card(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "card_r03")
-        with col2:
-            render_theme_card(col2, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "card_r04")
-        with col3:
-            render_theme_card(col3, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "card_r05")
 
-        # Middle Row (3 Cards): Record 06, Completion Card, Record 13
+        def render_executive_tile(col, title, status_html, target_nav, unique_key):
+            with col:
+                card_html = f"""
+                <div class="exec-card">
+                    <div>
+                        <div style="font-size: 0.82rem; font-weight: 700; line-height: 1.3; margin-bottom: 6px; letter-spacing: -0.01em; color: #ffffff;">{title}</div>
+                        <div style="font-size: 0.74rem; color: #94a3b8; font-weight: 500; line-height: 1.4;">{status_html}</div>
+                    </div>
+                </div>
+                """
+                st.markdown(card_html, unsafe_allow_html=True)
+                if st.button("Open ➔", key=f"tile_btn_{unique_key}", use_container_width=True):
+                    navigate_to(target_nav)
+                    st.rerun()
+
+        with col1:
+            render_executive_tile(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03")
+            render_executive_tile(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04")
+
+        with col2:
+            render_executive_tile(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
+            render_executive_tile(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
+
+        with col3:
+            render_executive_tile(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
+            render_executive_tile(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
+
         col4, col5, col6 = st.columns(3)
         with col4:
-            render_theme_card(col4, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "card_r06")
+            render_executive_tile(col4, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
         with col5:
-            latest_04_time = "No timestamp"
-            if not day_04.empty and "Timestamp_DT" in day_04.columns:
-                try:
-                    valid_dt = pd.to_datetime(day_04["Timestamp_DT"], errors="coerce").dropna()
-                    if not valid_dt.empty:
-                        if valid_dt.dt.tz is not None:
-                            valid_dt = valid_dt.dt.tz_localize(None)
-                        latest_04_time = valid_dt.max().strftime('%d/%m/%Y %I:%M %p')
-                except Exception:
-                    pass
-            comp_badge = f"✓ Logged at {latest_04_time}" if is_04_complete else "⏳ Shift Pending Completion"
-            
-            col5.markdown(f"""
-            <div class="kpi-card" style="border: 2px dashed #38bdf8; background: #071120;">
-                <div style="font-size: 0.85rem; font-weight: 700; color: #38bdf8; margin-bottom: 2px;">🏁 DAILY SHIFT COMPLETION</div>
-                <div style="font-size: 0.78rem; color: #ffffff; font-weight: 500;">Status: {comp_badge}</div>
-                <div style="background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; font-size: 0.72rem; padding: 4px 8px; border-radius: 6px; margin-top: 4px; font-weight: 600; text-align: center;">Focus Date: {selected_day_str}</div>
-            </div>
-            """, unsafe_allow_html=True)
-            col5.write("")
-        with col6:
-            render_theme_card(col6, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "card_r13")
-
-        # Last Row (3 Cards): Record 15, Record 21, Record 25
-        col7, col8, col9 = st.columns(3)
-        with col7:
-            render_theme_card(col7, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "card_r15")
-        with col8:
-            render_theme_card(col8, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "card_r21")
-        with col9:
-            render_theme_card(col9, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
-            
+            render_executive_tile(col5, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
     else:
         st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
         st.write("Department-wise overview for Roswyn")
@@ -540,14 +578,14 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
             items_html = ""
             for r_title, r_status in rec_tuples:
                 items_html += f"""
-                <div style="background: rgba(255,255,255,0.06); padding: 10px 12px; border-radius: 6px; margin-bottom: 8px;">
-                    <div style="font-weight: 600; font-size: 0.85rem; color: #f8fafc; margin-bottom: 2px;">{r_title}</div>
-                    <div style="font-size: 0.75rem; color: #cbd5e1;">{r_status}</div>
+                <div style="background: #0b0f19; padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid #1e293b;">
+                    <div style="font-weight: 600; font-size: 0.85rem; color: #ffffff; margin-bottom: 2px;">{r_title}</div>
+                    <div style="font-size: 0.75rem; color: #94a3b8;">{r_status}</div>
                 </div>
                 """
             col.markdown(f"""
-            <div class="dept-card">
-                <div style="font-size: 1.1rem; font-weight: 700; color: #38bdf8; margin-bottom: 12px; border-bottom: 1px solid rgba(255,255,255,0.15); padding-bottom: 8px;">🏢 {dept_name}</div>
+            <div style="background: #ffffff; border-radius: 14px; padding: 20px; color: #0f172a; margin-bottom: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.04); border: 1px solid #e2e8f0; border-top: 3px solid #000000;">
+                <div style="font-size: 1.1rem; font-weight: 800; color: #000000; margin-bottom: 14px; border-bottom: 1px solid #e2e8f0; padding-bottom: 10px;">🏢 {dept_name}</div>
                 {items_html}
             </div>
             """, unsafe_allow_html=True)
@@ -577,9 +615,9 @@ else:
 
     with hdr_cols[2]:
         st.markdown(f"""
-            <div style="background: #0b192c; color: white; padding: 6px 12px; border-radius: 8px; font-weight: 500; font-size: 0.78rem; text-align: right; box-shadow: 0 1px 2px rgba(0,0,0,0.04);">
-                <div>🕒 IST: <span style="color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</span></div>
-                <div style="color: #94a3b8; font-size: 0.72rem; margin-top: 2px;">Last Sync: {last_sync_display}</div>
+            <div style="background: #000000; color: white; padding: 8px 14px; border-radius: 10px; font-weight: 500; font-size: 0.78rem; text-align: right; box-shadow: 0 4px 12px rgba(0,0,0,0.1); border: 1px solid #334155;">
+                <div>🕒 IST: <span style="color: #ffffff; font-weight:700;">{ist_now.strftime("%I:%M:%S %p")}</span></div>
+                <div style="color: #94a3b8; font-size: 0.7rem; margin-top: 2px;">Status: <span style="color:#4ade80; font-weight:600;">Live Synced</span></div>
             </div>
         """, unsafe_allow_html=True)
 
