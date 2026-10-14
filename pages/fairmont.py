@@ -18,7 +18,7 @@ from records_fairmont.record_cm01 import render_record_cm01_view, parse_record_c
 from records_fairmont.record_ph01 import render_record_ph01_view, parse_record_ph01_submissions, PH01_LOCATIONS
 
 st.set_page_config(
-    page_title="Fairmont Mumbai - EHCO Status",
+    page_title="Fairmont Mumbai - EHCO Executive Suite",
     page_icon="🛡️",
     layout="wide",
 )
@@ -26,29 +26,75 @@ st.set_page_config(
 st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-    .stApp { background-color: #f4f6f9; font-family: 'Plus Jakarta Sans', sans-serif; color: #0f172a; }
-    .serif-title { font-size: 1.8rem; font-weight: 800; color: #0f172a; text-align: center; letter-spacing: -0.03em; margin: 0; background: linear-gradient(135deg, #0f172a 0%, #334155 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     
+    .stApp { background-color: #0b1320; font-family: 'Plus Jakarta Sans', sans-serif; color: #f8fafc; }
+    
+    /* Luxury Header Title */
+    .executive-header {
+        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+        border: 1px solid rgba(56, 189, 248, 0.15);
+        border-radius: 16px;
+        padding: 24px 32px;
+        margin-bottom: 24px;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+    }
+    .serif-title { 
+        font-size: 2.2rem; 
+        font-weight: 800; 
+        letter-spacing: -0.03em; 
+        margin: 0; 
+        background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%); 
+        -webkit-background-clip: text; 
+        -webkit-text-fill-color: transparent; 
+    }
+    
+    /* Glassmorphic Compliance Cards */
+    .exec-card {
+        background: linear-gradient(145deg, #111e38 0%, #0f172a 100%);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-top: 3px solid #38bdf8;
+        border-radius: 14px;
+        padding: 20px;
+        color: #ffffff;
+        margin-bottom: 12px;
+        min-height: 170px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+        transition: transform 0.2s ease, border-color 0.2s ease;
+    }
+    .exec-card:hover {
+        border-color: rgba(56, 189, 248, 0.4);
+        transform: translateY(-2px);
+    }
+
+    /* Premium Button Override */
     .stButton > button {
-        background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
+        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
         color: #ffffff !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
+        border: 1px solid rgba(255,255,255,0.15) !important;
         border-radius: 8px !important;
         font-weight: 600 !important;
         font-size: 0.82rem !important;
         padding: 8px 16px !important;
         transition: all 0.2s ease-in-out !important;
-        box-shadow: 0 4px 6px -1px rgba(15,23,42,0.1);
+        box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
     }
     .stButton > button:hover {
-        background: linear-gradient(135deg, #1e293b 0%, #334155 100%) !important;
+        background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
         border-color: #38bdf8 !important;
-        box-shadow: 0 6px 12px -2px rgba(56,189,248,0.25);
+        box-shadow: 0 6px 16px rgba(56,189,248,0.4);
         transform: translateY(-1px);
     }
 
-    [data-testid="stSidebarNav"] {
-        display: none;
+    /* Hide default sidebar nav */
+    [data-testid="stSidebarNav"] { display: none; }
+    
+    /* Custom Sidebar Styling */
+    section[data-testid="stSidebar"] {
+        background-color: #080e1a;
+        border-right: 1px solid rgba(255, 255, 255, 0.06);
     }
 </style>
 """, unsafe_allow_html=True)
@@ -80,19 +126,23 @@ def go_to_overview():
     st.session_state.fairmont_nav_choice = "🏠 Fairmont Mumbai - EHCO Status Overview"
     st.session_state.fairmont_nav_selectbox = "🏠 Fairmont Mumbai - EHCO Status Overview"
 
-st.sidebar.title("⚙️ Inspection Controls")
+st.sidebar.markdown("""
+<div style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 15px;">
+    <span style="font-size: 1.1rem; font-weight: 800; color: #f8fafc; letter-spacing: -0.02em;">🛡️ EXECUTIVE CONTROLS</span>
+</div>
+""", unsafe_allow_html=True)
 
 # --- STYLIZED CARD CONTAINER FOR BANQUET OPERATIONS ---
 st.sidebar.markdown("""
-<div style="background: linear-gradient(145deg, #0b192c 0%, #1e293b 100%); border-radius: 10px; padding: 12px 14px; color: white; margin-bottom: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.08);">
-    <div style="font-size: 0.8rem; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; display: flex; align-items: center; gap: 6px;">
-        🏨 Banquet Operations
+<div style="background: linear-gradient(145deg, #111e38 0%, #0f172a 100%); border-radius: 12px; padding: 14px 16px; color: white; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08);">
+    <div style="font-size: 0.82rem; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
+        🏨 BANQUET OPERATIONS
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-banquet_lunch = st.sidebar.toggle("🍽️ Lunch", value=True, key="sb_banquet_l")
-banquet_dinner = st.sidebar.toggle("🌙 Dinner", value=True, key="sb_banquet_d")
+banquet_lunch = st.sidebar.toggle("🍽️ Lunch Active", value=True, key="sb_banquet_l")
+banquet_dinner = st.sidebar.toggle("🌙 Dinner Active", value=True, key="sb_banquet_d")
 banquet_breakfast = True
 
 st.sidebar.write("")
@@ -142,7 +192,6 @@ if not DEFAULT_TOKEN:
 if "fairmont_auth_token" not in st.session_state:
     st.session_state["fairmont_auth_token"] = DEFAULT_TOKEN
 
-# --- COLLAPSED DEVELOPER SETTINGS TO CLEAN UP SIDEBAR ---
 with st.sidebar.expander("🛠️ Advanced API & Token Settings"):
     api_url = st.text_input(
         "Endpoint URL", value="https://auth-api.blinkm.io/form-store", key="sb_fairmont_api_endpoint_input"
@@ -164,6 +213,7 @@ clean_token = active_token.replace("Bearer ", "").strip()
 nav_options = list(FORM_MAPPING.keys())
 current_nav_index = nav_options.index(st.session_state.fairmont_nav_choice) if st.session_state.fairmont_nav_choice in nav_options else 0
 
+st.sidebar.write("")
 selected_record = st.sidebar.selectbox(
     "SELECT FOOD SAFETY RECORD", 
     options=nav_options, 
@@ -251,35 +301,29 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if "fairmont_dashboard_view_mode" not in st.session_state:
         st.session_state.fairmont_dashboard_view_mode = "📊 Overview Cards"
 
-    hdr_cols = st.columns([3, 4, 3])
-    with hdr_cols[0]:
-        selected_site = st.selectbox(
-            "Select Site Portal",
-            options=["🏰 Fairmont Mumbai", "🏨 Roswyn Mumbai"],
-            index=0,
-            label_visibility="collapsed",
-            key="global_site_switcher_select_fairmont"
-        )
-        if selected_site.startswith("🏨"):
-            st.switch_page("pages/roswyn.py")
-
-    with hdr_cols[1]:
-        st.markdown('<div class="serif-title">Fairmont Mumbai - EHCO Status</div>', unsafe_allow_html=True)
-
-    with hdr_cols[2]:
-        st.markdown(f"""
-            <div style="background: linear-gradient(135deg, #0b192c 0%, #1e293b 100%); color: white; padding: 8px 14px; border-radius: 10px; font-weight: 500; font-size: 0.78rem; text-align: right; box-shadow: 0 4px 12px rgba(15,23,42,0.08); border: 1px solid rgba(255,255,255,0.1);">
-                <div>🕒 IST: <span style="color: #38bdf8; font-weight:700;">{ist_now.strftime("%I:%M:%S %p")}</span></div>
-                <div style="color: #94a3b8; font-size: 0.7rem; margin-top: 2px;">Status: <span style="color:#4ade80; font-weight:600;">Live Synced</span></div>
+    # --- EXECUTIVE LUXURY HEADER ---
+    st.markdown(f"""
+    <div class="executive-header">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+            <div>
+                <div style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.1em; color: #38bdf8; font-weight: 700; margin-bottom: 4px;">🏰 Fairmont Hotel & Resorts • Mumbai</div>
+                <div class="serif-title">EHCO Executive Compliance Dashboard</div>
             </div>
-        """, unsafe_allow_html=True)
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(255,255,255,0.1); padding: 8px 16px; border-radius: 10px; text-align: right;">
+                    <div style="font-size: 0.7rem; color: #94a3b8;">SYSTEM TIME (IST)</div>
+                    <div style="font-size: 0.95rem; font-weight: 700; color: #38bdf8;">{ist_now.strftime("%I:%M:%S %p")}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.write("")
     mode_cols = st.columns([6, 3])
     with mode_cols[0]:
         st.markdown(f"""
-            <div style="background: #ffffff; border: 1px solid #e2e8f0; padding: 10px 16px; border-radius: 10px; font-weight: 600; font-size: 0.88rem; color: #0f172a; display: inline-flex; align-items:center; gap:8px; box-shadow: 0 2px 4px rgba(0,0,0,0.02);">
-                <span style="font-size:1.1rem;">📅</span> Focus Audit Date: <span style="color:#0284c7; font-weight:700;">{selected_day_str}</span>
+            <div style="background: #111e38; border: 1px solid rgba(255,255,255,0.08); padding: 12px 18px; border-radius: 12px; font-weight: 600; font-size: 0.88rem; color: #f8fafc; display: inline-flex; align-items:center; gap:10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                <span style="font-size:1.1rem;">📅</span> Focus Audit Date: <span style="color:#38bdf8; font-weight:700;">{selected_day_str}</span>
             </div>
         """, unsafe_allow_html=True)
     with mode_cols[1]:
@@ -293,6 +337,8 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         if view_choice != st.session_state.fairmont_dashboard_view_mode:
             st.session_state.fairmont_dashboard_view_mode = view_choice
             st.rerun()
+
+    st.write("")
 
     @st.cache_data(show_spinner=False)
     def load_all_parsed_records(token):
@@ -369,7 +415,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending - {global_closing_logged}/{global_total_units}"
     html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # --- RECORD 04 METRICS (LUNCH & DINNER BANQUET FILTERING) ---
+    # --- RECORD 04 METRICS ---
     day_04 = get_day_df(df_04_parsed, selected_day_variants, target_date_obj)
     
     adjusted_rules_04 = {}
@@ -423,7 +469,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     else:
         stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.7rem; color:#94a3b8;">Missing: {", ".join(pending_locs_05)}</span>'
 
-    # --- RECORD 06 METRICS (LUNCH & DINNER BANQUET FILTERING) ---
+    # --- RECORD 06 METRICS ---
     day_06 = get_day_df(df_06_parsed, selected_day_variants, target_date_obj)
     
     adjusted_rules_06 = {}
@@ -477,7 +523,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     is_12_complete = (completed_areas_12 >= total_areas_12)
     stat_12 = f'<span style="color: {"#4ade80" if is_12_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_12_complete else "Pending"} - {completed_areas_12}/{total_areas_12} areas</span>'
 
-    # --- RECORD 13 METRICS (UNIQUE MACHINES, CAPPED AT 11) ---
+    # --- RECORD 13 METRICS ---
     day_13 = get_day_df(df_13_parsed, selected_day_variants, target_date_obj)
     if not day_13.empty and "Unit_ID" in day_13.columns:
         unique_logged_13 = day_13.dropna(subset=["Unit_ID"]).copy()
@@ -510,7 +556,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
-    # --- RECORD CM01 METRICS (WITH PROPER PENDING LOCATIONS) ---
+    # --- RECORD CM01 METRICS ---
     day_cm01 = get_day_df(df_cm01_parsed, selected_day_variants, target_date_obj)
     pending_locs_cm01 = []
     cm01_completed_locs = 0
@@ -563,16 +609,16 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     ])
     total_cats = 12
     progress_pct = int((completed_cats / total_cats) * 100)
-    bar_color = "#4ade80" if progress_pct > 70 else ("#3b82f6" if progress_pct > 30 else "#fbbf24")
+    bar_color = "#4ade80" if progress_pct > 70 else ("#38bdf8" if progress_pct > 30 else "#fbbf24")
 
     if st.session_state.fairmont_dashboard_view_mode == "📊 Overview Cards":
         st.markdown(f"""
-        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px 22px; margin-bottom: 22px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.03), 0 2px 4px -1px rgba(0,0,0,0.02);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-weight: 700; font-size: 0.92rem; color: #0f172a; display:flex; align-items:center; gap:6px;">📊 Daily Compliance & Progression Tracker</span>
-                <span style="font-weight: 800; font-size: 0.92rem; color: {bar_color}; background: #f8fafc; padding: 4px 10px; border-radius: 6px; border: 1px solid #e2e8f0;">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
+        <div style="background: #111e38; border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 8px 20px rgba(0,0,0,0.2);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-weight: 700; font-size: 0.95rem; color: #f8fafc; display:flex; align-items:center; gap:8px;">📊 Daily Compliance & Progression Tracker</span>
+                <span style="font-weight: 800; font-size: 0.92rem; color: {bar_color}; background: rgba(15,23,42,0.8); padding: 4px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1);">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
             </div>
-            <div style="width: 100%; background: #e2e8f0; border-radius: 8px; height: 10px; overflow: hidden;">
+            <div style="width: 100%; background: rgba(255,255,255,0.1); border-radius: 8px; height: 10px; overflow: hidden;">
                 <div style="width: {progress_pct}%; background: linear-gradient(90deg, {bar_color} 0%, #0284c7 100%); height: 100%; border-radius: 8px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);"></div>
             </div>
         </div>
@@ -581,9 +627,9 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         col1, col2, col3 = st.columns(3)
         def render_theme_card(col, title, status_html, target_nav, unique_key):
             col.markdown(f"""
-            <div style="background: linear-gradient(145deg, #0b192c 0%, #112238 100%); border-radius: 12px; padding: 18px; color: white; margin-bottom: 8px; min-height: 155px; display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 10px 15px -3px rgba(11,25,44,0.15), 0 4px 6px -4px rgba(11,25,44,0.1); border: 1px solid rgba(255,255,255,0.06);">
-                <div style="font-size: 0.85rem; font-weight: 700; line-height: 1.35; margin-bottom: 6px; letter-spacing: -0.01em; color: #f8fafc;">{title}</div>
-                <div style="font-size: 0.78rem; color: #cbd5e1; font-weight: 500; line-height: 1.45;">{status_html}</div>
+            <div class="exec-card">
+                <div style="font-size: 0.85rem; font-weight: 700; line-height: 1.35; margin-bottom: 8px; letter-spacing: -0.01em; color: #f8fafc;">{title}</div>
+                <div style="font-size: 0.78rem; color: #94a3b8; font-weight: 500; line-height: 1.45;">{status_html}</div>
             </div>
             """, unsafe_allow_html=True)
             col.button("Open Module ➔", use_container_width=True, key=f"btn_fairmont_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
@@ -604,7 +650,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             render_theme_card(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "card_r21")
             render_theme_card(col3, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "card_r25")
     else:
-        st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
+        st.markdown(f"<h3 style='color:#f8fafc; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
         st.write("Department-wise overview for Fairmont Mumbai")
 
         dept_cols = st.columns(3)
@@ -612,14 +658,14 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
             items_html = ""
             for r_title, r_status in rec_tuples:
                 items_html += f"""
-                <div style="background: rgba(255,255,255,0.06); padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.04);">
+                <div style="background: rgba(255,255,255,0.04); padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; border: 1px solid rgba(255,255,255,0.04);">
                     <div style="font-weight: 600; font-size: 0.85rem; color: #f8fafc; margin-bottom: 2px;">{r_title}</div>
-                    <div style="font-size: 0.75rem; color: #cbd5e1;">{r_status}</div>
+                    <div style="font-size: 0.75rem; color: #94a3b8;">{r_status}</div>
                 </div>
                 """
             col.markdown(f"""
-            <div style="background: linear-gradient(145deg, #0b192c 0%, #112238 100%); border-radius: 12px; padding: 20px; color: white; margin-bottom: 12px; box-shadow: 0 10px 15px -3px rgba(11,25,44,0.15); border: 1px solid rgba(255,255,255,0.06);">
-                <div style="font-size: 1.1rem; font-weight: 800; color: #38bdf8; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.12); padding-bottom: 10px;">🏢 {dept_name}</div>
+            <div style="background: linear-gradient(145deg, #111e38 0%, #0f172a 100%); border-radius: 14px; padding: 20px; color: white; margin-bottom: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08);">
+                <div style="font-size: 1.1rem; font-weight: 800; color: #38bdf8; margin-bottom: 14px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px;">🏢 {dept_name}</div>
                 {items_html}
             </div>
             """, unsafe_allow_html=True)
