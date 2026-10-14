@@ -57,7 +57,7 @@ st.markdown("""
         padding: 20px;
         color: #ffffff;
         margin-bottom: 12px;
-        min-height: 170px;
+        min-height: 190px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -69,32 +69,41 @@ st.markdown("""
         transform: translateY(-2px);
     }
 
-    /* Premium Button Override */
+    /* Sleek Luxury Action Button */
     .stButton > button {
-        background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%) !important;
-        color: #ffffff !important;
-        border: 1px solid rgba(255,255,255,0.15) !important;
+        background: rgba(56, 189, 248, 0.1) !important;
+        color: #38bdf8 !important;
+        border: 1px solid rgba(56, 189, 248, 0.3) !important;
         border-radius: 8px !important;
-        font-weight: 600 !important;
-        font-size: 0.82rem !important;
-        padding: 8px 16px !important;
+        font-weight: 700 !important;
+        font-size: 0.78rem !important;
+        padding: 6px 14px !important;
         transition: all 0.2s ease-in-out !important;
-        box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3);
+        box-shadow: none !important;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
     }
     .stButton > button:hover {
-        background: linear-gradient(135deg, #0369a1 0%, #075985 100%) !important;
+        background: #38bdf8 !important;
+        color: #0f172a !important;
         border-color: #38bdf8 !important;
-        box-shadow: 0 6px 16px rgba(56,189,248,0.4);
+        box-shadow: 0 4px 12px rgba(56,189,248,0.3);
         transform: translateY(-1px);
     }
 
     /* Hide default sidebar nav */
     [data-testid="stSidebarNav"] { display: none; }
     
-    /* Custom Sidebar Styling */
+    /* Clean High-Contrast Sidebar */
     section[data-testid="stSidebar"] {
-        background-color: #080e1a;
-        border-right: 1px solid rgba(255, 255, 255, 0.06);
+        background-color: #f8fafc;
+        border-right: 1px solid #e2e8f0;
+    }
+    section[data-testid="stSidebar"] label, 
+    section[data-testid="stSidebar"] .stMarkdown, 
+    section[data-testid="stSidebar"] span {
+        color: #0f172a !important;
+        font-weight: 600;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -127,16 +136,16 @@ def go_to_overview():
     st.session_state.fairmont_nav_selectbox = "🏠 Fairmont Mumbai - EHCO Status Overview"
 
 st.sidebar.markdown("""
-<div style="padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.08); margin-bottom: 15px;">
-    <span style="font-size: 1.1rem; font-weight: 800; color: #f8fafc; letter-spacing: -0.02em;">🛡️ EXECUTIVE CONTROLS</span>
+<div style="padding: 10px 0; border-bottom: 1px solid #cbd5e1; margin-bottom: 15px;">
+    <span style="font-size: 1.05rem; font-weight: 800; color: #0f172a; letter-spacing: -0.02em;">🛡️ EXECUTIVE CONTROLS</span>
 </div>
 """, unsafe_allow_html=True)
 
 # --- STYLIZED CARD CONTAINER FOR BANQUET OPERATIONS ---
 st.sidebar.markdown("""
-<div style="background: linear-gradient(145deg, #111e38 0%, #0f172a 100%); border-radius: 12px; padding: 14px 16px; color: white; margin-bottom: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08);">
-    <div style="font-size: 0.82rem; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 6px; display: flex; align-items: center; gap: 6px;">
-        🏨 BANQUET OPERATIONS
+<div style="background: linear-gradient(145deg, #0f172a 0%, #1e293b 100%); border-radius: 10px; padding: 12px 14px; color: white; margin-bottom: 14px; box-shadow: 0 4px 8px rgba(0,0,0,0.12);">
+    <div style="font-size: 0.8rem; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px;">
+        🏨 Banquet Operations
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -628,11 +637,14 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         def render_theme_card(col, title, status_html, target_nav, unique_key):
             col.markdown(f"""
             <div class="exec-card">
-                <div style="font-size: 0.85rem; font-weight: 700; line-height: 1.35; margin-bottom: 8px; letter-spacing: -0.01em; color: #f8fafc;">{title}</div>
-                <div style="font-size: 0.78rem; color: #94a3b8; font-weight: 500; line-height: 1.45;">{status_html}</div>
-            </div>
+                <div>
+                    <div style="font-size: 0.85rem; font-weight: 700; line-height: 1.35; margin-bottom: 8px; letter-spacing: -0.01em; color: #f8fafc;">{title}</div>
+                    <div style="font-size: 0.78rem; color: #94a3b8; font-weight: 500; line-height: 1.45;">{status_html}</div>
+                </div>
+                <div style="margin-top: 12px; display: flex; justify-content: flex-end;">
             """, unsafe_allow_html=True)
-            col.button("Open Module ➔", use_container_width=True, key=f"btn_fairmont_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
+            col.button("Inspect ➔", key=f"btn_fairmont_theme_{unique_key}", on_click=navigate_to, args=(target_nav,))
+            col.markdown("</div></div>", unsafe_allow_html=True)
 
         with col1:
             render_theme_card(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "card_r02")
