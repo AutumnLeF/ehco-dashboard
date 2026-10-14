@@ -27,7 +27,7 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
     .stApp { background-color: #f4f6f9; font-family: 'Plus Jakarta Sans', sans-serif; color: #0f172a; }
-    .serif-title { font-size: 2rem; font-weight: 800; color: #0f172a; text-align: center; letter-spacing: -0.03em; margin: 0; background: linear-gradient(135deg, #0f172a 0%, #334155 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+    .serif-title { font-size: 1.8rem; font-weight: 800; color: #0f172a; text-align: center; letter-spacing: -0.03em; margin: 0; background: linear-gradient(135deg, #0f172a 0%, #334155 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
     
     .stButton > button {
         background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%) !important;
@@ -82,10 +82,11 @@ def go_to_overview():
 
 st.sidebar.title("⚙️ Inspection Controls")
 
+# --- STYLIZED CARD CONTAINER FOR BANQUET OPERATIONS ---
 st.sidebar.markdown("""
-<div style="background: linear-gradient(145deg, #0b192c 0%, #1e293b 100%); border-radius: 10px; padding: 14px 16px; color: white; margin-bottom: 14px; box-shadow: 0 4px 8px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.08);">
-    <div style="font-size: 0.82rem; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-        🏨 BANQUET OPERATIONS
+<div style="background: linear-gradient(145deg, #0b192c 0%, #1e293b 100%); border-radius: 10px; padding: 12px 14px; color: white; margin-bottom: 12px; box-shadow: 0 4px 8px rgba(0,0,0,0.12); border: 1px solid rgba(255,255,255,0.08);">
+    <div style="font-size: 0.8rem; font-weight: 800; color: #38bdf8; text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 2px; display: flex; align-items: center; gap: 6px;">
+        🏨 Banquet Operations
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -94,6 +95,7 @@ banquet_lunch = st.sidebar.toggle("🍽️ Lunch", value=True, key="sb_banquet_l
 banquet_dinner = st.sidebar.toggle("🌙 Dinner", value=True, key="sb_banquet_d")
 banquet_breakfast = True
 
+st.sidebar.write("")
 ist_now = datetime.now(timezone(timedelta(hours=5, minutes=30)))
 today = ist_now.date()
 default_start_7d = today - timedelta(days=6)
@@ -140,19 +142,21 @@ if not DEFAULT_TOKEN:
 if "fairmont_auth_token" not in st.session_state:
     st.session_state["fairmont_auth_token"] = DEFAULT_TOKEN
 
-api_url = st.sidebar.text_input(
-    "Endpoint URL", value="https://auth-api.blinkm.io/form-store", key="sb_fairmont_api_endpoint_input"
-)
+# --- COLLAPSED DEVELOPER SETTINGS TO CLEAN UP SIDEBAR ---
+with st.sidebar.expander("🛠️ Advanced API & Token Settings"):
+    api_url = st.text_input(
+        "Endpoint URL", value="https://auth-api.blinkm.io/form-store", key="sb_fairmont_api_endpoint_input"
+    )
 
-token_input = st.sidebar.text_area(
-    "Bearer Token", 
-    value=st.session_state["fairmont_auth_token"], 
-    height=90, 
-    key="sb_fairmont_bearer_token_input"
-)
+    token_input = st.text_area(
+        "Bearer Token", 
+        value=st.session_state["fairmont_auth_token"], 
+        height=80, 
+        key="sb_fairmont_bearer_token_input"
+    )
 
-if token_input != st.session_state["fairmont_auth_token"]:
-    st.session_state["fairmont_auth_token"] = token_input.strip()
+    if token_input != st.session_state["fairmont_auth_token"]:
+        st.session_state["fairmont_auth_token"] = token_input.strip()
 
 active_token = st.session_state.get("fairmont_auth_token", DEFAULT_TOKEN).strip()
 clean_token = active_token.replace("Bearer ", "").strip()
@@ -365,7 +369,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     stat_03_cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending - {global_closing_logged}/{global_total_units}"
     html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{stat_03_op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{stat_03_cl_str}</span>'
 
-    # --- RECORD 04 METRICS ---
+    # --- RECORD 04 METRICS (LUNCH & DINNER BANQUET FILTERING) ---
     day_04 = get_day_df(df_04_parsed, selected_day_variants, target_date_obj)
     
     adjusted_rules_04 = {}
@@ -419,7 +423,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     else:
         stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.7rem; color:#94a3b8;">Missing: {", ".join(pending_locs_05)}</span>'
 
-    # --- RECORD 06 METRICS ---
+    # --- RECORD 06 METRICS (LUNCH & DINNER BANQUET FILTERING) ---
     day_06 = get_day_df(df_06_parsed, selected_day_variants, target_date_obj)
     
     adjusted_rules_06 = {}
