@@ -25,7 +25,7 @@ st.markdown("""
     
     .stApp { background-color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; color: #0f172a; }
     
-    /* Fairmont Monochrome Luxury Header */
+    /* Roswyn Monochrome Luxury Header */
     .executive-header {
         background: #000000;
         border: 1px solid #1e293b;
@@ -203,28 +203,9 @@ if selected_record != st.session_state.nav_choice:
 
 active_form_id = FORM_MAPPING[st.session_state.nav_choice]
 
-# --- PERSISTENT SESSION STATE INITIALIZATION ---
-cache_key_df = f"roswyn_persistent_records_df_{active_form_id}"
-cache_key_time = f"roswyn_last_sync_timestamp_{active_form_id}"
-
-if cache_key_df not in st.session_state:
-    st.session_state[cache_key_df] = pd.DataFrame()
-
-if cache_key_time not in st.session_state:
-    st.session_state[cache_key_time] = "No sync performed yet"
-
-def fetch_incremental_persistent_data(url, token, form_id):
-    existing_df = st.session_state[cache_key_df]
-    
-    newest_dt = None
-    if not existing_df.empty:
-        for col in ["dateTimeSubmitted", "CreatedAt", "submissionDate"]:
-            if col in existing_df.columns:
-                parsed_col = pd.to_datetime(existing_df[col], errors="coerce")
-                if not parsed_col.isna().all():
-                    newest_dt = parsed_col.max()
-                    break
-
+# --- LIGHTNING FAST CACHED API FETCHER ---
+@st.cache_data(ttl=600, show_spinner=False)
+def fetch_incremental_persistent_data_cached(url, token, form_id):
     headers = {
         "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
@@ -233,16 +214,9 @@ def fetch_incremental_persistent_data(url, token, form_id):
         "Origin": "https://tehc-roswyn.data-manager.oneblink.io",
         "Referer": "https://tehc-roswyn.data-manager.oneblink.io/",
     }
-
-    if not token or token == "PASTE_FALLBACK_TOKEN_HERE":
-        if not existing_df.empty:
-            st.toast("⚠️ Using cached offline data (Bearer token expired or missing).", icon="🔒")
-            return existing_df
-
     new_rows = []
     base_url = url.strip()
-
-    for page in range(15):
+    for page in range(8):
         payload = {
             "formId": form_id,
             "paging": {"limit": 50, "offset": page * 50},
@@ -250,51 +224,42 @@ def fetch_incremental_persistent_data(url, token, form_id):
             "unwindRepeatableSets": True,
         }
         try:
-            res = requests.post(base_url, headers=headers, json=payload, timeout=15)
+            res = requests.post(base_url, headers=headers, json=payload, timeout=10)
             if res.status_code != 200:
                 break
             data = res.json()
             items = data.get("submissions", []) if isinstance(data, dict) else data
             if not items:
                 break
-            
-            stop_fetching = False
-            filtered_items = []
-            for item in items:
-                sub_dt = pd.to_datetime(item.get("dateTimeSubmitted"), errors="coerce")
-                if newest_dt and sub_dt <= newest_dt:
-                    stop_fetching = True
-                    break
-                filtered_items.append(item)
-            
-            new_rows.extend(filtered_items)
-            if stop_fetching or len(items) < 50:
+            new_rows.extend(items)
+            if len(items) < 50:
                 break
         except Exception:
             break
-
-    if new_rows:
-        new_df = pd.DataFrame({"raw_record": new_rows})
-        if not existing_df.empty:
-            combined_df = pd.concat([new_df, existing_df]).drop_duplicates().reset_index(drop=True)
-            st.session_state[cache_key_df] = combined_df
-        else:
-            st.session_state[cache_key_df] = new_df
-        
-        current_time_str = datetime.now(timezone(timedelta(hours=5, minutes=30))).strftime("%d/%m/%Y %I:%M:%S %p")
-        st.session_state[cache_key_time] = current_time_str
-        st.toast(f"📥 Appended {len(new_rows)} new entries successfully!", icon="🚀")
-    elif existing_df.empty:
-        st.session_state[cache_key_df] = pd.DataFrame()
-
-    return st.session_state[cache_key_df]
+    return new_rows
 
 force_refresh = st.sidebar.button("🔄 Sync Live Feed", key="sync_live_feed_btn", use_container_width=True)
 if force_refresh:
-    st.session_state[cache_key_df] = pd.DataFrame()
+    st.cache_data.clear()
+    st.toast("⚡ Cache cleared and live feed resynced!", icon="🔄")
 
-raw_records_df = fetch_incremental_persistent_data(api_url, clean_token, active_form_id) if active_form_id != 0 else pd.DataFrame()
-last_sync_display = st.session_state[cache_key_time]
+raw_records_df = fetch_incremental_persistent_data_cached(api_url, clean_token, active_form_id) if active_form_id != 0 else []
+if isinstance(raw_records_df, list):
+    raw_records_df = pd.DataFrame({"raw_record": raw_records_df})
+
+def get_day_df(df, date_variants, target_date_obj):
+    if df is None or df.empty:
+        return pd.DataFrame()
+    for col in ["Date_Str", "Date", "Audit_Date", "submissionDate", "Date_Display"]:
+        if col in df.columns:
+            m = df[df[col].astype(str).isin(date_variants)]
+            if not m.empty:
+                return m
+    if "Date_Obj" in df.columns:
+        m = df[df["Date_Obj"] == target_date_obj]
+        if not m.empty:
+            return m
+    return pd.DataFrame()
 
 def filter_by_focus_date(df, selected_day_str):
     if df is None or df.empty:
@@ -384,23 +349,28 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     """, unsafe_allow_html=True)
     st.write("")
 
-    raw_03 = fetch_incremental_persistent_data(api_url, clean_token, 31373)
-    raw_04 = fetch_incremental_persistent_data(api_url, clean_token, 31374)
-    raw_05 = fetch_incremental_persistent_data(api_url, clean_token, 31375)
-    raw_06 = fetch_incremental_persistent_data(api_url, clean_token, 31376)
-    raw_13 = fetch_incremental_persistent_data(api_url, clean_token, 31382)
-    raw_15 = fetch_incremental_persistent_data(api_url, clean_token, 31384)
-    raw_21 = fetch_incremental_persistent_data(api_url, clean_token, 31390)
-    raw_25 = fetch_incremental_persistent_data(api_url, clean_token, 31393)
+    @st.cache_data(ttl=600, show_spinner=False)
+    def load_all_roswyn_records(token, endpoint):
+        return {
+            31373: parse_record_03_submissions(pd.DataFrame({"raw_record": fetch_incremental_persistent_data_cached(endpoint, token, 31373)})),
+            31374: parse_all_record_04_dishes(pd.DataFrame({"raw_record": fetch_incremental_persistent_data_cached(endpoint, token, 31374)})),
+            31375: parse_record_05_submissions(pd.DataFrame({"raw_record": fetch_incremental_persistent_data_cached(endpoint, token, 31375)})),
+            31376: parse_record_06_submissions(pd.DataFrame({"raw_record": fetch_incremental_persistent_data_cached(endpoint, token, 31376)})),
+            31382: parse_record_13_submissions(pd.DataFrame({"raw_record": fetch_incremental_persistent_data_cached(endpoint, token, 31382)})),
+            31384: parse_record_15_submissions(pd.DataFrame({"raw_record": fetch_incremental_persistent_data_cached(endpoint, token, 31384)})),
+            31390: parse_record_21_submissions(pd.DataFrame({"raw_record": fetch_incremental_persistent_data_cached(endpoint, token, 31390)})),
+            31393: parse_record_25_submissions(pd.DataFrame({"raw_record": fetch_incremental_persistent_data_cached(endpoint, token, 31393)})),
+        }
 
-    df_03_parsed = parse_record_03_submissions(raw_03)
-    df_04_parsed = parse_all_record_04_dishes(raw_04)
-    df_05_parsed = parse_record_05_submissions(raw_05)
-    df_06_parsed = parse_record_06_submissions(raw_06)
-    df_13_parsed = parse_record_13_submissions(raw_13)
-    df_15_parsed = parse_record_15_submissions(raw_15)
-    df_21_parsed = parse_record_21_submissions(raw_21)
-    df_25_parsed = parse_record_25_submissions(raw_25)
+    cache = load_all_roswyn_records(clean_token, api_url)
+    df_03_parsed = cache.get(31373, pd.DataFrame())
+    df_04_parsed = cache.get(31374, pd.DataFrame())
+    df_05_parsed = cache.get(31375, pd.DataFrame())
+    df_06_parsed = cache.get(31376, pd.DataFrame())
+    df_13_parsed = cache.get(31382, pd.DataFrame())
+    df_15_parsed = cache.get(31384, pd.DataFrame())
+    df_21_parsed = cache.get(31390, pd.DataFrame())
+    df_25_parsed = cache.get(31393, pd.DataFrame())
 
     target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
     next_date_obj = target_date_obj + timedelta(days=1)
@@ -477,36 +447,29 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     if not day_13.empty:
         unit_col = next((c for c in ["Unit_ID", "Machine_Name", "Equipment", "Name"] if c in day_13.columns), None)
         units_logged = day_13[unit_col].dropna().unique().tolist() if unit_col else []
-        logged_13_count = len(units_logged)
+        logged_13_count = min(11, len(units_logged))
         is_13_complete = (logged_13_count >= 11)
-        stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13_count}/11</span>'
+        stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13_count}/11 unique machines</span>'
     else:
-        stat_13 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0/11</span>'
+        stat_13 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0/11 unique machines</span>'
     
     day_15 = filter_by_focus_date(df_15_parsed, selected_day_str)
     if not day_15.empty:
-        stat_15 = '<span style="color: #4ade80; font-weight: 600;">Completed</span>'
+        stat_15 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {len(day_15)} entries</span>'
     else:
-        stat_15 = '<span style="color: #fbbf24; font-weight: 600;">Pending</span>'
+        stat_15 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0 entries</span>'
     
     day_21 = filter_by_focus_date(df_21_parsed, selected_day_str)
     if not day_21.empty:
-        wash_col = next((c for c in ["Location", "Area", "Food", "Item"] if c in day_21.columns), None)
-        washes = day_21[wash_col].dropna().unique().tolist() if wash_col else []
-        stat_21 = f'<span style="color: #4ade80; font-weight: 600;">Washed: {", ".join(str(w) for w in washes) if washes else f"{len(day_21)} batches"}</span>'
+        stat_21 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {len(day_21)} areas</span>'
     else:
-        stat_21 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Food Wash Logged</span>'
+        stat_21 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0 areas</span>'
     
     day_25 = filter_by_focus_date(df_25_parsed, selected_day_str)
     if not day_25.empty:
-        raw_name_col = next((c for c in ["Machine_Name", "Ice_Machine", "Equipment", "Unit_Name", "Name"] if c in day_25.columns), None)
-        if raw_name_col:
-            machine_names = day_25[raw_name_col].dropna().unique().tolist()
-            stat_25 = f'<span style="color: #4ade80; font-weight: 600;">Cleaned: {", ".join(str(m) for m in machine_names) if machine_names else "Not Specified"}</span>'
-        else:
-            stat_25 = '<span style="color: #4ade80; font-weight: 600;">Cleaned (Name Not Specified by API)</span>'
+        stat_25 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {len(day_25)} entries</span>'
     else:
-        stat_25 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Ice Machine Logged</span>'
+        stat_25 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0 entries</span>'
 
     completed_cats = sum([
         1 if is_op_complete and is_cl_complete else 0,
