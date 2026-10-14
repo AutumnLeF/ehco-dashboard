@@ -8,7 +8,7 @@ from records.record_03 import render_record_03_view, parse_record_03_submissions
 from records.record_04 import render_record_04_view, parse_all_record_04_dishes
 from records.record_05 import render_record_05_view, parse_record_05_submissions
 from records.record_06 import render_record_06_view, parse_record_06_submissions
-from records.record_13 import render_record_13_view, parse_record_13_submissions
+from records.record_13 import render_record_13_view, parse_record_13_submissions, LOCATION_CATALOG as RECORD_13_CATALOG
 from records.record_15 import render_record_15_view, parse_record_15_submissions
 from records.record_21 import render_record_21_view, parse_record_21_submissions
 from records.record_25 import render_record_25_view, parse_record_25_submissions
@@ -442,29 +442,32 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
     is_06_complete = not day_06.empty
     stat_06 = f'<span style="color: {"#4ade80" if is_06_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_06_complete else "Pending"} - {1 if is_06_complete else 0}/1</span>'
     
-    # --- RECORD 13 METRICS ---
+    # --- RECORD 13 METRICS (DYNAMIC CATALOG EXTRACTION) ---
     day_13 = filter_by_focus_date(df_13_parsed, selected_day_str)
-    MASTER_DISHWASHERS = [
-        "FLA/DISH/01", "FLA/GLS/01", "BLK/DISH/01", "BLK/GLS/01",
-        "STW/DISH/01", "BQT/DISH/01", "BQT/GLS/01", "EMP/DISH/01",
-        "EMP/GLS/01", "KID/DISH/01", "BAR/GLS/01"
-    ]
-    if not day_13.empty and "Unit_ID" in day_13.columns:
-        unique_logged_13 = day_13.dropna(subset=["Unit_ID"]).copy()
-        unique_logged_13["Clean_Machine"] = unique_logged_13["Unit_ID"].apply(clean_unit_token)
-        logged_machines = unique_logged_13["Clean_Machine"].tolist()
-        logged_13_count = min(11, len(set(logged_machines)))
-        pending_machines = [m for m in MASTER_DISHWASHERS if clean_unit_token(m) not in logged_machines]
-    else:
-        logged_13_count = 0
-        pending_machines = MASTER_DISHWASHERS
+    
+    flat_master_13 = []
+    for loc, units in RECORD_13_CATALOG.items():
+        for u in units:
+            flat_master_13.append({"Unit_ID": u["Unit_ID"], "Type": u["Type"]})
 
-    is_13_complete = (logged_13_count >= 11 or len(pending_machines) == 0)
+    logged_machines_clean = set()
+    if not day_13.empty and "Unit_ID" in day_13.columns:
+        for _, r in day_13.iterrows():
+            m_id = r.get("Unit_ID") or ""
+            if m_id:
+                logged_machines_clean.add(clean_unit_token(m_id))
+
+    master_machine_ids = [m["Unit_ID"] for m in flat_master_13]
+    pending_machines = [m for m in master_machine_ids if clean_unit_token(m) not in logged_machines_clean]
+    logged_13_count = min(len(master_machine_ids), len(logged_machines_clean))
+    total_13_units = len(master_machine_ids)
+    is_13_complete = (logged_13_count >= total_13_units or len(pending_machines) == 0)
+
     if is_13_complete:
-        stat_13 = '<span style="color: #4ade80; font-weight: 600;">Completed - 11/11 unique machines</span>'
+        stat_13 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {total_13_units}/{total_13_units} machines</span>'
     else:
         pending_str_13 = ", ".join(pending_machines[:3]) + ("..." if len(pending_machines) > 3 else "")
-        stat_13 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({logged_13_count}/11 unique machines)</span><br><span style="font-size:0.65rem; color:#94a3b8;">Missing: {pending_str_13}</span>'
+        stat_13 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({logged_13_count}/{total_13_units} machines)</span><br><span style="font-size:0.65rem; color:#94a3b8;">Missing: {pending_str_13}</span>'
     
     day_15 = filter_by_focus_date(df_15_parsed, selected_day_str)
     if not day_15.empty:
