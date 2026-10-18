@@ -9,7 +9,7 @@ RECORD_PH01_FORM_ID = 24146
 PH01_LOCATIONS = [
     "Banquet Kitchen",
     "Banquet Service",
-    "Bakery/Pastry/Halwai",
+    "Bakery",
     "Beyond Oryn",
     "Bombay Café",
     "Commissary",
