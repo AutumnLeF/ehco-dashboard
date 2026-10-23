@@ -48,8 +48,8 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* Deep Black Luxury Frosted Glass Compliance Cards */
-    .exec-card {
+    /* Completed Cards */
+    .exec-card-completed {
         background: rgba(11, 15, 25, 0.95);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
@@ -66,9 +66,33 @@ st.markdown("""
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
         transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
     }
-    .exec-card:hover {
+    .exec-card-completed:hover {
         border-color: #38bdf8;
         box-shadow: 0 10px 30px rgba(56, 189, 248, 0.22);
+        transform: translateY(-3px);
+    }
+
+    /* Pending Cards - Amber/Yellow Distinction */
+    .exec-card-pending {
+        background: rgba(15, 17, 26, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(60, 50, 30, 0.8);
+        border-top: 3px solid #fbbf24;
+        border-radius: 12px;
+        padding: 16px 18px;
+        color: #ffffff;
+        margin-bottom: 6px;
+        min-height: 200px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
+    }
+    .exec-card-pending:hover {
+        border-color: #fbbf24;
+        box-shadow: 0 10px 30px rgba(251, 191, 36, 0.22);
         transform: translateY(-3px);
     }
 
@@ -409,6 +433,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     # --- RECORD 02 METRICS ---
     day_02 = get_day_df(df_02_parsed, selected_day_variants, target_date_obj)
     stat_02 = f'<span style="color: {"#4ade80" if not day_02.empty else "#fbbf24"}; font-weight: 600;">{"Completed" if not day_02.empty else "Pending"} - {len(day_02)} entries</span>'
+    is_02_complete = not day_02.empty
 
     # --- RECORD 03 METRICS ---
     if not df_03_parsed.empty and "Date_Obj" in df_03_parsed.columns:
@@ -454,8 +479,9 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
     is_op_complete = (global_opening_logged >= global_total_units)
     is_cl_complete = (global_closing_logged >= global_total_units)
+    is_03_complete = is_op_complete and is_cl_complete
 
-    if is_op_complete and is_cl_complete:
+    if is_03_complete:
         html_03 = '<span style="color: #4ade80; font-weight: 600;">Completed - All shifts logged</span>'
     else:
         op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending ({global_opening_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#94a3b8;'>Opening Missing: {', '.join(pending_locs_03_opening)}</span>"
@@ -494,6 +520,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     b_done_04, b_req_04 = shift_totals_04["Breakfast"]["done"], shift_totals_04["Breakfast"]["req"]
     l_done_04, l_req_04 = shift_totals_04["Lunch"]["done"], shift_totals_04["Lunch"]["req"]
     d_done_04, d_req_04 = shift_totals_04["Dinner"]["done"], shift_totals_04["Dinner"]["req"]
+    is_04_complete = (b_req_04 > 0 and b_done_04 >= b_req_04) and (l_req_04 > 0 and l_done_04 >= l_req_04) and (d_req_04 > 0 and d_done_04 >= d_req_04)
 
     html_04 = (
         f'Breakfast: <span style="color: {"#4ade80" if b_req_04 > 0 and b_done_04 >= b_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_04 > 0 and b_done_04 >= b_req_04 else "Pending"} - {b_done_04}/{b_req_04}</span>'
@@ -548,6 +575,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     b_done_06, b_req_06 = shift_totals_06["Breakfast"]["done"], shift_totals_06["Breakfast"]["req"]
     l_done_06, l_req_06 = shift_totals_06["Lunch"]["done"], shift_totals_06["Lunch"]["req"]
     d_done_06, d_req_06 = shift_totals_06["Dinner"]["done"], shift_totals_06["Dinner"]["req"]
+    is_06_complete = (b_req_06 > 0 and b_done_06 >= b_req_06) and (l_req_06 > 0 and l_done_06 >= l_req_06) and (d_req_06 > 0 and d_done_06 >= d_req_06)
 
     stat_06 = (
         f'Breakfast: <span style="color: {"#4ade80" if b_req_06 > 0 and b_done_06 >= b_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_06 > 0 and b_done_06 >= b_req_06 else "Pending"} - {b_done_06}/{b_req_06}</span>'
@@ -584,6 +612,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     # --- RECORD 15 METRICS ---
     day_15 = get_day_df(df_15_parsed, selected_day_variants, target_date_obj)
     logged_15 = len(day_15) if not day_15.empty else 0
+    is_15_complete = logged_15 > 0
     stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15} entries</span>'
     
     # --- RECORD 21 METRICS ---
@@ -601,6 +630,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     # --- RECORD 25 METRICS ---
     day_25 = get_day_df(df_25_parsed, selected_day_variants, target_date_obj)
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
+    is_25_complete = logged_25 > 0
     stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
     # --- RECORD CM01 METRICS (AM & PM SEPARATE BREAKDOWN) ---
@@ -654,16 +684,16 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         stat_ph01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_locs_ph01}/22 locations)</span><br><span style="font-size:0.65rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_ph01}</span>'
 
     completed_cats = sum([
-        1 if not day_02.empty else 0,
-        1 if is_op_complete and is_cl_complete else 0,
-        1 if l_req_04 > 0 and l_done_04 >= l_req_04 and d_done_04 >= d_req_04 else 0,
+        1 if is_02_complete else 0,
+        1 if is_03_complete else 0,
+        1 if is_04_complete else 0,
         1 if is_05_complete else 0,
-        1 if l_req_06 > 0 and l_done_06 >= l_req_06 and d_done_06 >= d_req_06 else 0,
+        1 if is_06_complete else 0,
         1 if is_12_complete else 0,
         1 if is_13_complete else 0,
-        1 if logged_15 > 0 else 0,
+        1 if is_15_complete else 0,
         1 if is_21_complete else 0,
-        1 if logged_25 > 0 else 0,
+        1 if is_25_complete else 0,
         1 if is_cm01_complete else 0,
         1 if is_ph01_complete else 0
     ])
@@ -687,10 +717,11 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
         col1, col2, col3, col4 = st.columns(4)
 
-        def render_executive_tile(col, title, status_html, target_nav, unique_key):
+        def render_executive_tile(col, title, status_html, target_nav, unique_key, is_complete):
             with col:
+                card_class = "exec-card-completed" if is_complete else "exec-card-pending"
                 card_html = f"""
-                <div class="exec-card">
+                <div class="{card_class}">
                     <div>
                         <div class="exec-card-title">{title}</div>
                         <div class="exec-card-body">{status_html}</div>
@@ -703,24 +734,24 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
                     st.rerun()
 
         with col1:
-            render_executive_tile(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "r02")
-            render_executive_tile(col1, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
-            render_executive_tile(col1, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
+            render_executive_tile(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "r02", is_02_complete)
+            render_executive_tile(col1, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05", is_05_complete)
+            render_executive_tile(col1, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13", is_13_complete)
 
         with col2:
-            render_executive_tile(col2, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03")
-            render_executive_tile(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
-            render_executive_tile(col2, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
+            render_executive_tile(col2, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03", is_03_complete)
+            render_executive_tile(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06", is_06_complete)
+            render_executive_tile(col2, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15", is_15_complete)
 
         with col3:
-            render_executive_tile(col3, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04")
-            render_executive_tile(col3, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "r12")
-            render_executive_tile(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
+            render_executive_tile(col3, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04", is_04_complete)
+            render_executive_tile(col3, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "r12", is_12_complete)
+            render_executive_tile(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21", is_21_complete)
 
         with col4:
-            render_executive_tile(col4, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", stat_cm01, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", "rcm01")
-            render_executive_tile(col4, "RECORD PH01 - PERSONAL HYGIENE RECORD", stat_ph01, "RECORD PH01 - PERSONAL HYGIENE RECORD", "rph01")
-            render_executive_tile(col4, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
+            render_executive_tile(col4, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", stat_cm01, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", "rcm01", is_cm01_complete)
+            render_executive_tile(col4, "RECORD PH01 - PERSONAL HYGIENE RECORD", stat_ph01, "RECORD PH01 - PERSONAL HYGIENE RECORD", "rph01", is_ph01_complete)
+            render_executive_tile(col4, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25", is_25_complete)
     else:
         st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
         st.write("Department-wise overview for Fairmont Mumbai")
