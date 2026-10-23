@@ -29,14 +29,16 @@ st.markdown("""
     
     .stApp { background-color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; color: #0f172a; }
     
-    /* Fairmont Monochrome Luxury Header */
+    /* Fairmont Monochrome Luxury Header with Glassmorphism */
     .executive-header {
-        background: #000000;
-        border: 1px solid #1e293b;
+        background: rgba(0, 0, 0, 0.92);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border: 1px solid rgba(56, 189, 248, 0.2);
         border-radius: 14px;
         padding: 22px 30px;
         margin-bottom: 22px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.25);
     }
     .serif-title { 
         font-size: 2rem; 
@@ -46,10 +48,12 @@ st.markdown("""
         color: #ffffff;
     }
     
-    /* Deep Black Luxury Compliance Cards */
+    /* Deep Black Luxury Frosted Glass Compliance Cards */
     .exec-card {
-        background: #0b0f19;
-        border: 1px solid #1e293b;
+        background: rgba(11, 15, 25, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(30, 41, 59, 0.8);
         border-top: 3px solid #38bdf8;
         border-radius: 12px;
         padding: 16px 18px;
@@ -59,16 +63,16 @@ st.markdown("""
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
     }
     .exec-card:hover {
         border-color: #38bdf8;
-        box-shadow: 0 8px 24px rgba(56, 189, 248, 0.15);
-        transform: translateY(-2px);
+        box-shadow: 0 10px 30px rgba(56, 189, 248, 0.22);
+        transform: translateY(-3px);
     }
 
-    /* Sleek Open Button */
+    /* Sleek Micro-Interaction Open Button */
     .stButton > button {
         background: #ffffff !important;
         color: #000000 !important;
@@ -77,7 +81,7 @@ st.markdown("""
         font-weight: 700 !important;
         font-size: 0.72rem !important;
         padding: 5px 12px !important;
-        transition: all 0.2s ease-in-out !important;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
         box-shadow: none !important;
         text-transform: uppercase;
         letter-spacing: 0.03em;
@@ -86,7 +90,8 @@ st.markdown("""
         background: #38bdf8 !important;
         border-color: #38bdf8 !important;
         color: #0f172a !important;
-        transform: translateY(-1px);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3) !important;
     }
 
     /* Hide default sidebar nav */
@@ -317,7 +322,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
                 <div class="serif-title">EHCO Dashboard</div>
             </div>
             <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="background: #111827; border: 1px solid #374151; padding: 6px 14px; border-radius: 8px; text-align: right;">
+                <div style="background: rgba(17, 24, 39, 0.8); border: 1px solid rgba(55, 65, 81, 0.8); padding: 6px 14px; border-radius: 8px; text-align: right;">
                     <div style="font-size: 0.65rem; color: #9ca3af;">SYSTEM TIME (IST)</div>
                     <div style="font-size: 0.88rem; font-weight: 700; color: #ffffff;">{ist_now.strftime("%I:%M:%S %p")}</div>
                 </div>
@@ -649,7 +654,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if st.session_state.fairmont_dashboard_view_mode == "📊 Overview Cards":
         # --- LUXURY GRADIENT PROGRESS TRACKER ---
         st.markdown(f"""
-        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.04);">
+        <div style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.04);">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
                 <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a; display:flex; align-items:center; gap:8px;">📊 Daily Compliance & Progression Tracker</span>
                 <span style="font-weight: 800; font-size: 0.92rem; color: #0f172a; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 4px 12px; border-radius: 8px; border: 1px solid #cbd5e1;">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
