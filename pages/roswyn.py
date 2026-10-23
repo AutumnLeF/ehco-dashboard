@@ -25,13 +25,16 @@ st.markdown("""
     
     .stApp { background-color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; color: #0f172a; }
     
+    /* Roswyn Monochrome Luxury Header with Glassmorphism */
     .executive-header {
-        background: #000000;
-        border: 1px solid #1e293b;
+        background: rgba(0, 0, 0, 0.92);
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border: 1px solid rgba(56, 189, 248, 0.2);
         border-radius: 14px;
         padding: 22px 30px;
         margin-bottom: 22px;
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.25);
     }
     .serif-title { 
         font-size: 2rem; 
@@ -41,38 +44,82 @@ st.markdown("""
         color: #ffffff;
     }
     
-    .exec-card {
-        background: #0b0f19;
-        border: 1px solid #1e293b;
-        border-top: 3px solid #38bdf8;
+    /* Completed Cards */
+    .exec-card-completed {
+        background: rgba(11, 15, 25, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(30, 41, 59, 0.8);
+        border-top: 4px solid #38bdf8;
         border-radius: 12px;
-        padding: 16px 18px;
+        padding: 18px 20px;
         color: #ffffff;
-        margin-bottom: 6px;
-        min-height: 205px;
+        margin-bottom: 12px;
+        min-height: 220px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
+    }
+    .exec-card-completed:hover {
+        border-color: #38bdf8;
+        box-shadow: 0 10px 30px rgba(56, 189, 248, 0.25);
+        transform: translateY(-3px);
     }
 
-    .stButton > button {
-        background: #ffffff !important;
-        color: #000000 !important;
-        border: 1px solid #ffffff !important;
-        border-radius: 6px !important;
-        font-weight: 700 !important;
-        font-size: 0.72rem !important;
-        padding: 6px 14px !important;
-        transition: all 0.2s ease-in-out !important;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
+    /* Pending Cards - Highly Visible Amber Tint & Border */
+    .exec-card-pending {
+        background: rgba(26, 21, 10, 0.95);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(120, 90, 20, 0.8);
+        border-top: 4px solid #fbbf24;
+        border-radius: 12px;
+        padding: 18px 20px;
+        color: #ffffff;
+        margin-bottom: 12px;
+        min-height: 220px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        box-shadow: 0 4px 25px rgba(251, 191, 36, 0.15);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
     }
-    .stButton > button:hover {
-        background: #38bdf8 !important;
-        border-color: #38bdf8 !important;
-        color: #0f172a !important;
-        transform: translateY(-1px);
+    .exec-card-pending:hover {
+        border-color: #fbbf24;
+        box-shadow: 0 10px 35px rgba(251, 191, 36, 0.3);
+        transform: translateY(-3px);
+    }
+
+    /* Executive Typography & Pill Badge Polish */
+    .exec-card-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        line-height: 1.35;
+        margin-bottom: 8px;
+        letter-spacing: -0.01em;
+        color: #ffffff;
+    }
+    .exec-card-body {
+        font-size: 0.74rem;
+        color: #cbd5e1;
+        font-weight: 500;
+        line-height: 1.45;
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(51, 65, 85, 0.5);
+        border-radius: 8px;
+        padding: 8px 10px;
+    }
+    .exec-card-body-pending {
+        font-size: 0.74rem;
+        color: #fef08a;
+        font-weight: 500;
+        line-height: 1.45;
+        background: rgba(40, 30, 10, 0.6);
+        border: 1px solid rgba(120, 90, 20, 0.6);
+        border-radius: 8px;
+        padding: 8px 10px;
     }
 
     [data-testid="stSidebarNav"] { display: none; }
@@ -291,7 +338,7 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                 <div class="serif-title">EHCO Executive Compliance Dashboard</div>
             </div>
             <div style="display: flex; align-items: center; gap: 12px;">
-                <div style="background: #111827; border: 1px solid #374151; padding: 6px 14px; border-radius: 8px; text-align: right;">
+                <div style="background: rgba(17, 24, 39, 0.8); border: 1px solid rgba(55, 65, 81, 0.8); padding: 6px 14px; border-radius: 8px; text-align: right;">
                     <div style="font-size: 0.65rem; color: #9ca3af;">SYSTEM TIME (IST)</div>
                     <div style="font-size: 0.88rem; font-weight: 700; color: #ffffff;">{ist_now.strftime("%I:%M:%S %p")}</div>
                 </div>
@@ -398,13 +445,14 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
 
     is_op_complete = (global_opening_logged >= global_total_units)
     is_cl_complete = (global_closing_logged >= global_total_units)
+    is_03_complete = is_op_complete and is_cl_complete
 
-    if is_op_complete and is_cl_complete:
+    if is_03_complete:
         html_03 = '<span style="color: #4ade80; font-weight: 600;">Completed - All shifts logged</span>'
     else:
-        op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending ({global_opening_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#94a3b8;'>Opening Missing: {', '.join(pending_locs_03_opening)}</span>"
-        cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending ({global_closing_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#94a3b8;'>Closing Missing: {', '.join(pending_locs_03_closing)}</span>"
-        html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{cl_str}</span>'
+        op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending ({global_opening_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#cbd5e1;'>Opening Missing: {', '.join(pending_locs_03_opening)}</span>"
+        cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending ({global_closing_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#cbd5e1;'>Closing Missing: {', '.join(pending_locs_03_closing)}</span>"
+        html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fde047"}; font-weight: 600;">{op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fde047"}; font-weight: 600;">{cl_str}</span>'
 
     # --- RECORD 04 EXACT RULES ---
     ROSWYN_KITCHEN_RULES = {
@@ -425,22 +473,23 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
                 r04_completed_shifts += 1
                 r04_status_lines.append(f'{meal} ({kitchen.split()[0]}): <span style="color: #4ade80; font-weight: 600;">Completed</span>')
             else:
-                r04_status_lines.append(f'{meal} ({kitchen.split()[0]}): <span style="color: #fbbf24; font-weight: 600;">Pending</span>')
+                r04_status_lines.append(f'{meal} ({kitchen.split()[0]}): <span style="color: #fde047; font-weight: 600;">Pending</span>')
 
     html_04 = "<br>".join(r04_status_lines)
     is_04_complete = (r04_completed_shifts >= r04_total_shifts)
 
     # --- RECORD 05 METRICS ---
     day_05 = filter_by_focus_date(df_05_parsed, selected_day_str)
-    if not day_05.empty:
+    is_05_complete = not day_05.empty
+    if is_05_complete:
         stat_05 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {len(day_05)} items cooled</span>'
     else:
-        stat_05 = '<span style="color: #fbbf24; font-weight: 600;">Pending - No Cooling Logged</span>'
+        stat_05 = '<span style="color: #fde047; font-weight: 600;">Pending - No Cooling Logged</span>'
 
     # --- RECORD 06 METRICS ---
     day_06 = filter_by_focus_date(df_06_parsed, selected_day_str)
     is_06_complete = not day_06.empty
-    stat_06 = f'<span style="color: {"#4ade80" if is_06_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_06_complete else "Pending"} - {1 if is_06_complete else 0}/1</span>'
+    stat_06 = f'<span style="color: {"#4ade80" if is_06_complete else "#fde047"}; font-weight: 600;">{"Completed" if is_06_complete else "Pending"} - {1 if is_06_complete else 0}/1</span>'
     
     # --- RECORD 13 METRICS (DYNAMIC CATALOG EXTRACTION) ---
     day_13 = filter_by_focus_date(df_13_parsed, selected_day_str)
@@ -467,85 +516,90 @@ if st.session_state.nav_choice == "🏠 Roswyn - EHCO Status Overview":
         stat_13 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {total_13_units}/{total_13_units} machines</span>'
     else:
         pending_str_13 = ", ".join(pending_machines[:3]) + ("..." if len(pending_machines) > 3 else "")
-        stat_13 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({logged_13_count}/{total_13_units} machines)</span><br><span style="font-size:0.65rem; color:#94a3b8;">Missing: {pending_str_13}</span>'
+        stat_13 = f'<span style="color: #fde047; font-weight: 600;">Pending ({logged_13_count}/{total_13_units} machines)</span><br><span style="font-size:0.65rem; color:#cbd5e1;">Missing: {pending_str_13}</span>'
     
     day_15 = filter_by_focus_date(df_15_parsed, selected_day_str)
-    if not day_15.empty:
+    is_15_complete = not day_15.empty
+    if is_15_complete:
         stat_15 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {len(day_15)} entries</span>'
     else:
-        stat_15 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0 entries</span>'
+        stat_15 = '<span style="color: #fde047; font-weight: 600;">Pending - 0 entries</span>'
     
     day_21 = filter_by_focus_date(df_21_parsed, selected_day_str)
-    if not day_21.empty:
+    is_21_complete = not day_21.empty
+    if is_21_complete:
         stat_21 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {len(day_21)} areas</span>'
     else:
-        stat_21 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0 areas</span>'
+        stat_21 = '<span style="color: #fde047; font-weight: 600;">Pending - 0 areas</span>'
     
     day_25 = filter_by_focus_date(df_25_parsed, selected_day_str)
-    if not day_25.empty:
+    is_25_complete = not day_25.empty
+    if is_25_complete:
         stat_25 = f'<span style="color: #4ade80; font-weight: 600;">Completed - {len(day_25)} entries</span>'
     else:
-        stat_25 = '<span style="color: #fbbf24; font-weight: 600;">Pending - 0 entries</span>'
+        stat_25 = '<span style="color: #fde047; font-weight: 600;">Pending - 0 entries</span>'
 
     completed_cats = sum([
-        1 if is_op_complete and is_cl_complete else 0,
+        1 if is_03_complete else 0,
         1 if is_04_complete else 0,
-        1 if not day_05.empty else 0,
+        1 if is_05_complete else 0,
         1 if is_06_complete else 0,
         1 if is_13_complete else 0,
-        1 if not day_15.empty else 0,
-        1 if not day_21.empty else 0,
-        1 if not day_25.empty else 0
+        1 if is_15_complete else 0,
+        1 if is_21_complete else 0,
+        1 if is_25_complete else 0
     ])
     total_cats = 8
     progress_pct = int((completed_cats / total_cats) * 100)
-    bar_color = "#4ade80" if progress_pct > 70 else ("#38bdf8" if progress_pct > 30 else "#fbbf24")
+    bar_color = "#4ade80" if progress_pct > 70 else ("#38bdf8" if progress_pct > 30 else "#fde047")
 
     if st.session_state.dashboard_view_mode == "📊 Overview Cards":
         st.markdown(f"""
-        <div style="background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; padding: 14px 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.04);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                <span style="font-weight: 700; font-size: 0.9rem; color: #0f172a; display:flex; align-items:center; gap:8px;">📊 Daily Compliance & Progression Tracker</span>
-                <span style="font-weight: 800; font-size: 0.88rem; color: {bar_color}; background: #f1f5f9; padding: 3px 10px; border-radius: 6px; border: 1px solid #cbd5e1;">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
+        <div style="background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border: 1px solid #e2e8f0; border-radius: 14px; padding: 18px 24px; margin-bottom: 24px; box-shadow: 0 4px 16px rgba(0,0,0,0.04);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                <span style="font-weight: 700; font-size: 0.95rem; color: #0f172a; display:flex; align-items:center; gap:8px;">📊 Daily Compliance & Progression Tracker</span>
+                <span style="font-weight: 800; font-size: 0.92rem; color: #0f172a; background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%); padding: 4px 12px; border-radius: 8px; border: 1px solid #cbd5e1;">{progress_pct}% Completed ({completed_cats}/{total_cats} Categories)</span>
             </div>
-            <div style="width: 100%; background: #e2e8f0; border-radius: 6px; height: 8px; overflow: hidden;">
-                <div style="width: {progress_pct}%; background: linear-gradient(90deg, {bar_color} 0%, #000000 100%); height: 100%; border-radius: 6px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);"></div>
+            <div style="width: 100%; background: #f1f5f9; border-radius: 10px; height: 12px; overflow: hidden; border: 1px solid #e2e8f0; padding: 1px;">
+                <div style="width: {progress_pct}%; background: linear-gradient(90deg, #000000 0%, #38bdf8 50%, #4ade80 100%); height: 100%; border-radius: 8px; transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 2px 6px rgba(56, 189, 248, 0.3);"></div>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        col1, col2, col3 = st.columns(3)
+        col1, col2, col3, col4 = st.columns(4)
 
-        def render_executive_tile(col, title, status_html, target_nav, unique_key):
+        def render_executive_tile(col, title, status_html, is_complete):
             with col:
-                st.markdown(f"""
-                <div class="exec-card">
+                card_class = "exec-card-completed" if is_complete else "exec-card-pending"
+                body_class = "exec-card-body" if is_complete else "exec-card-body-pending"
+                badge_html = '<div style="font-size:0.65rem; font-weight:800; color:#4ade80; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.05em;">✓ COMPLETED</div>' if is_complete else '<div style="font-size:0.65rem; font-weight:800; color:#fde047; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.05em;">⏳ PENDING ACTION</div>'
+                
+                card_html = f"""
+                <div class="{card_class}">
                     <div>
-                        <div style="font-size: 0.82rem; font-weight: 700; line-height: 1.3; margin-bottom: 6px; letter-spacing: -0.01em; color: #ffffff;">{title}</div>
-                        <div style="font-size: 0.74rem; color: #94a3b8; font-weight: 500; line-height: 1.4;">{status_html}</div>
+                        {badge_html}
+                        <div class="exec-card-title">{title}</div>
+                        <div class="{body_class}">{status_html}</div>
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
-                if st.button("Open ➔", key=f"tile_btn_{unique_key}", use_container_width=True):
-                    navigate_to(target_nav)
+                """
+                st.markdown(card_html, unsafe_allow_html=True)
 
         with col1:
-            render_executive_tile(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03")
-            render_executive_tile(col1, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04")
+            render_executive_tile(col1, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, is_03_complete)
+            render_executive_tile(col1, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, is_13_complete)
 
         with col2:
-            render_executive_tile(col2, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05")
-            render_executive_tile(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06")
+            render_executive_tile(col2, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, is_04_complete)
+            render_executive_tile(col2, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, is_15_complete)
 
         with col3:
-            render_executive_tile(col3, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13")
-            render_executive_tile(col3, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15")
+            render_executive_tile(col3, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, is_05_complete)
+            render_executive_tile(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, is_21_complete)
 
-        col4, col5, col6 = st.columns(3)
         with col4:
-            render_executive_tile(col4, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21")
-        with col5:
-            render_executive_tile(col5, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25")
+            render_executive_tile(col4, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, is_06_complete)
+            render_executive_tile(col4, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, is_25_complete)
     else:
         st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
         st.write("Department-wise overview for Roswyn")
