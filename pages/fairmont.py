@@ -705,7 +705,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
 
         col1, col2, col3, col4 = st.columns(4)
 
-        def render_executive_tile(col, title, status_html, target_nav, unique_key, is_complete):
+        def render_executive_tile(col, title, status_html, is_complete):
             with col:
                 card_class = "exec-card-completed" if is_complete else "exec-card-pending"
                 body_class = "exec-card-body" if is_complete else "exec-card-body-pending"
@@ -721,29 +721,26 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
                 </div>
                 """
                 st.markdown(card_html, unsafe_allow_html=True)
-                if st.button("🔍 Click to Open Record", key=f"tile_btn_{unique_key}", use_container_width=True):
-                    navigate_to(target_nav)
-                    st.rerun()
 
         with col1:
-            render_executive_tile(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, "RECORD 02 - FOOD DELIVERY RECORD", "r02", is_02_complete)
-            render_executive_tile(col1, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, "RECORD 05 - COOLING OF FOOD RECORD", "r05", is_05_complete)
-            render_executive_tile(col1, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", "r13", is_13_complete)
+            render_executive_tile(col1, "RECORD 02 - FOOD DELIVERY RECORD", stat_02, is_02_complete)
+            render_executive_tile(col1, "RECORD 05 - COOLING OF FOOD RECORD", stat_05, is_05_complete)
+            render_executive_tile(col1, "RECORD 13 - DISHWASHER / GLASSWASHER / TEMPERATURE RECORD", stat_13, is_13_complete)
 
         with col2:
-            render_executive_tile(col2, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", "r03", is_03_complete)
-            render_executive_tile(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", "r06", is_06_complete)
-            render_executive_tile(col2, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, "RECORD 15 - PESTICIDE USAGE RECORD", "r15", is_15_complete)
+            render_executive_tile(col2, "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD", html_03, is_03_complete)
+            render_executive_tile(col2, "RECORD 06 - FOOD DISPLAY TEMPERATURE RECORD", stat_06, is_06_complete)
+            render_executive_tile(col2, "RECORD 15 - PESTICIDE USAGE RECORD", stat_15, is_15_complete)
 
         with col3:
-            render_executive_tile(col3, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", "r04", is_04_complete)
-            render_executive_tile(col3, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", "r12", is_12_complete)
-            render_executive_tile(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", "r21", is_21_complete)
+            render_executive_tile(col3, "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD", html_04, is_04_complete)
+            render_executive_tile(col3, "RECORD 12 - DEFROSTING TEMPERATURE RECORD", stat_12, is_12_complete)
+            render_executive_tile(col3, "RECORD 21 - FOOD WASH RECORD - CHLORINE WASH", stat_21, is_21_complete)
 
         with col4:
-            render_executive_tile(col4, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", stat_cm01, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", "rcm01", is_cm01_complete)
-            render_executive_tile(col4, "RECORD PH01 - PERSONAL HYGIENE RECORD", stat_ph01, "RECORD PH01 - PERSONAL HYGIENE RECORD", "rph01", is_ph01_complete)
-            render_executive_tile(col4, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, "RECORD 25 - ICE MACHINE CLEANING RECORD", "r25", is_25_complete)
+            render_executive_tile(col4, "RECORD CM01 - COFFEE MACHINE CLEANING RECORD", stat_cm01, is_cm01_complete)
+            render_executive_tile(col4, "RECORD PH01 - PERSONAL HYGIENE RECORD", stat_ph01, is_ph01_complete)
+            render_executive_tile(col4, "RECORD 25 - ICE MACHINE CLEANING RECORD", stat_25, is_25_complete)
     else:
         st.markdown(f"<h3 style='color:#0f172a; margin-top:0.5rem;'>🏢 Department-Wise Compliance Cards ({selected_day_str})</h3>", unsafe_allow_html=True)
         st.write("Department-wise overview for Fairmont Mumbai")
