@@ -202,9 +202,19 @@ def parse_record_03_submissions(raw_df):
 
         sign = str(sub.get("Sign") or sub.get("sign") or "Staff").strip()
 
+        # Custom shift attribution for Black Lacquer Bar:
+        # If entry happens in the midnight/early AM hours (00:00 to 05:00), 
+        # it belongs to the *previous* calendar day's closing shift.
+        effective_date_obj = date_obj
+        effective_date_str = date_str
+        if matched_loc.lower() == "black lacquer bar" and pd.notna(parsed_dt_ist) and parsed_dt_ist.hour < 5:
+            prev_day = parsed_dt_ist.date() - timedelta(days=1)
+            effective_date_obj = prev_day
+            effective_date_str = prev_day.strftime("%d/%m/%Y")
+
         rows.append({
-            "Date_Str": date_str,
-            "Date_Obj": date_obj,
+            "Date_Str": effective_date_str,
+            "Date_Obj": effective_date_obj,
             "Timestamp_DT": parsed_dt_ist,
             "Time": time_clean,
             "Location": matched_loc,
@@ -282,19 +292,40 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                     loc_breaches += 1
                     total_breaches += 1
 
-                n_logs = len(unit_logs)
-                if n_logs == 0:
-                    pending_opening.append(f"{u_id} ({u_type})")
-                    pending_closing.append(f"{u_id} ({u_type})")
-                elif n_logs == 1:
-                    opening_logged.append(u_id)
-                    global_opening_logged += 1
-                    pending_closing.append(f"{u_id} ({u_type})")
+                # Custom shift separation for Black Lacquer Bar:
+                # 1st entry is PM (>= 12:00 PM), 2nd entry is AM next day (< 5:00 AM)
+                if loc_name.lower() == "black lacquer bar":
+                    pm_logs = unit_logs[unit_logs["Timestamp_DT"].dt.hour >= 12]
+                    am_logs = unit_logs[unit_logs["Timestamp_DT"].dt.hour < 5]
+                    
+                    has_opening = not pm_logs.empty
+                    has_closing = not am_logs.empty
+
+                    if has_opening:
+                        opening_logged.append(u_id)
+                        global_opening_logged += 1
+                    else:
+                        pending_opening.append(f"{u_id} ({u_type})")
+
+                    if has_closing:
+                        closing_logged.append(u_id)
+                        global_closing_logged += 1
+                    else:
+                        pending_closing.append(f"{u_id} ({u_type})")
                 else:
-                    opening_logged.append(u_id)
-                    closing_logged.append(u_id)
-                    global_opening_logged += 1
-                    global_closing_logged += 1
+                    n_logs = len(unit_logs)
+                    if n_logs == 0:
+                        pending_opening.append(f"{u_id} ({u_type})")
+                        pending_closing.append(f"{u_id} ({u_type})")
+                    elif n_logs == 1:
+                        opening_logged.append(u_id)
+                        global_opening_logged += 1
+                        pending_closing.append(f"{u_id} ({u_type})")
+                    else:
+                        opening_logged.append(u_id)
+                        closing_logged.append(u_id)
+                        global_opening_logged += 1
+                        global_closing_logged += 1
 
             op_count = len(opening_logged)
             cl_count = len(closing_logged)
