@@ -54,12 +54,12 @@ st.markdown("""
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid rgba(30, 41, 59, 0.8);
-        border-top: 3px solid #38bdf8;
+        border-top: 4px solid #38bdf8;
         border-radius: 12px;
-        padding: 16px 18px;
+        padding: 18px 20px;
         color: #ffffff;
-        margin-bottom: 6px;
-        min-height: 200px;
+        margin-bottom: 12px;
+        min-height: 220px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
@@ -68,31 +68,31 @@ st.markdown("""
     }
     .exec-card-completed:hover {
         border-color: #38bdf8;
-        box-shadow: 0 10px 30px rgba(56, 189, 248, 0.22);
+        box-shadow: 0 10px 30px rgba(56, 189, 248, 0.25);
         transform: translateY(-3px);
     }
 
-    /* Pending Cards - Amber/Yellow Distinction */
+    /* Pending Cards - Highly Visible Amber Tint & Border */
     .exec-card-pending {
-        background: rgba(15, 17, 26, 0.95);
+        background: rgba(26, 21, 10, 0.95);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(60, 50, 30, 0.8);
-        border-top: 3px solid #fbbf24;
+        border: 1px solid rgba(120, 90, 20, 0.8);
+        border-top: 4px solid #fbbf24;
         border-radius: 12px;
-        padding: 16px 18px;
+        padding: 18px 20px;
         color: #ffffff;
-        margin-bottom: 6px;
-        min-height: 200px;
+        margin-bottom: 12px;
+        min-height: 220px;
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+        box-shadow: 0 4px 25px rgba(251, 191, 36, 0.15);
         transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1), border-color 0.25s ease;
     }
     .exec-card-pending:hover {
         border-color: #fbbf24;
-        box-shadow: 0 10px 30px rgba(251, 191, 36, 0.22);
+        box-shadow: 0 10px 35px rgba(251, 191, 36, 0.3);
         transform: translateY(-3px);
     }
 
@@ -115,27 +115,15 @@ st.markdown("""
         border-radius: 8px;
         padding: 8px 10px;
     }
-
-    /* Sleek Micro-Interaction Open Button */
-    .stButton > button {
-        background: #ffffff !important;
-        color: #000000 !important;
-        border: 1px solid #ffffff !important;
-        border-radius: 6px !important;
-        font-weight: 700 !important;
-        font-size: 0.72rem !important;
-        padding: 5px 12px !important;
-        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
-        box-shadow: none !important;
-        text-transform: uppercase;
-        letter-spacing: 0.03em;
-    }
-    .stButton > button:hover {
-        background: #38bdf8 !important;
-        border-color: #38bdf8 !important;
-        color: #0f172a !important;
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3) !important;
+    .exec-card-body-pending {
+        font-size: 0.74rem;
+        color: #fef08a;
+        font-weight: 500;
+        line-height: 1.45;
+        background: rgba(40, 30, 10, 0.6);
+        border: 1px solid rgba(120, 90, 20, 0.6);
+        border-radius: 8px;
+        padding: 8px 10px;
     }
 
     /* Hide default sidebar nav */
@@ -484,9 +472,9 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if is_03_complete:
         html_03 = '<span style="color: #4ade80; font-weight: 600;">Completed - All shifts logged</span>'
     else:
-        op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending ({global_opening_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#94a3b8;'>Opening Missing: {', '.join(pending_locs_03_opening)}</span>"
-        cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending ({global_closing_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#94a3b8;'>Closing Missing: {', '.join(pending_locs_03_closing)}</span>"
-        html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fbbf24"}; font-weight: 600;">{op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fbbf24"}; font-weight: 600;">{cl_str}</span>'
+        op_str = f"Completed - {global_opening_logged}/{global_total_units}" if is_op_complete else f"Pending ({global_opening_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#cbd5e1;'>Opening Missing: {', '.join(pending_locs_03_opening)}</span>"
+        cl_str = f"Completed - {global_closing_logged}/{global_total_units}" if is_cl_complete else f"Pending ({global_closing_logged}/{global_total_units})<br><span style='font-size:0.65rem; color:#cbd5e1;'>Closing Missing: {', '.join(pending_locs_03_closing)}</span>"
+        html_03 = f'Opening: <span style="color: {"#4ade80" if is_op_complete else "#fde047"}; font-weight: 600;">{op_str}</span><br>Closing: <span style="color: {"#4ade80" if is_cl_complete else "#fde047"}; font-weight: 600;">{cl_str}</span>'
 
     # --- RECORD 04 METRICS ---
     day_04 = get_day_df(df_04_parsed, selected_day_variants, target_date_obj)
@@ -523,12 +511,12 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     is_04_complete = (b_req_04 > 0 and b_done_04 >= b_req_04) and (l_req_04 > 0 and l_done_04 >= l_req_04) and (d_req_04 > 0 and d_done_04 >= d_req_04)
 
     html_04 = (
-        f'Breakfast: <span style="color: {"#4ade80" if b_req_04 > 0 and b_done_04 >= b_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_04 > 0 and b_done_04 >= b_req_04 else "Pending"} - {b_done_04}/{b_req_04}</span>'
-        f'{"<br><span style=\'font-size:0.65rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Breakfast"]) + "</span>" if b_done_04 < b_req_04 else ""}<br>'
-        f'Lunch: <span style="color: {"#4ade80" if l_req_04 > 0 and l_done_04 >= l_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_04 > 0 and l_done_04 >= l_req_04 else "Pending"} - {l_done_04}/{l_req_04}</span>'
-        f'{"<br><span style=\'font-size:0.65rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Lunch"]) + "</span>" if l_done_04 < l_req_04 else ""}<br>'
-        f'Dinner: <span style="color: {"#4ade80" if d_req_04 > 0 and d_done_04 >= d_req_04 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_04 > 0 and d_done_04 >= d_req_04 else "Pending"} - {d_done_04}/{d_req_04}</span>'
-        f'{"<br><span style=\'font-size:0.65rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_04["Dinner"]) + "</span>" if d_done_04 < d_req_04 else ""}'
+        f'Breakfast: <span style="color: {"#4ade80" if b_req_04 > 0 and b_done_04 >= b_req_04 else "#fde047"}; font-weight: 600;">{"Completed" if b_req_04 > 0 and b_done_04 >= b_req_04 else "Pending"} - {b_done_04}/{b_req_04}</span>'
+        f'{"<br><span style=\'font-size:0.65rem; color:#cbd5e1;\'>Missing: " + ", ".join(pending_details_04["Breakfast"]) + "</span>" if b_done_04 < b_req_04 else ""}<br>'
+        f'Lunch: <span style="color: {"#4ade80" if l_req_04 > 0 and l_done_04 >= l_req_04 else "#fde047"}; font-weight: 600;">{"Completed" if l_req_04 > 0 and l_done_04 >= l_req_04 else "Pending"} - {l_done_04}/{l_req_04}</span>'
+        f'{"<br><span style=\'font-size:0.65rem; color:#cbd5e1;\'>Missing: " + ", ".join(pending_details_04["Lunch"]) + "</span>" if l_done_04 < l_req_04 else ""}<br>'
+        f'Dinner: <span style="color: {"#4ade80" if d_req_04 > 0 and d_done_04 >= d_req_04 else "#fde047"}; font-weight: 600;">{"Completed" if d_req_04 > 0 and d_done_04 >= d_req_04 else "Pending"} - {d_done_04}/{d_req_04}</span>'
+        f'{"<br><span style=\'font-size:0.65rem; color:#cbd5e1;\'>Missing: " + ", ".join(pending_details_04["Dinner"]) + "</span>" if d_done_04 < d_req_04 else ""}'
     )
 
     # --- RECORD 05 METRICS ---
@@ -541,7 +529,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     if is_05_complete:
         stat_05 = '<span style="color: #4ade80; font-weight: 600;">Completed - All 10 kitchens logged</span>'
     else:
-        stat_05 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.65rem; color:#94a3b8;">Missing: {", ".join(pending_locs_05)}</span>'
+        stat_05 = f'<span style="color: #fde047; font-weight: 600;">Pending ({completed_kitchens_05}/10)</span><br><span style="font-size:0.65rem; color:#cbd5e1;">Missing: {", ".join(pending_locs_05)}</span>'
 
     # --- RECORD 06 METRICS ---
     day_06 = get_day_df(df_06_parsed, selected_day_variants, target_date_obj)
@@ -578,12 +566,12 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     is_06_complete = (b_req_06 > 0 and b_done_06 >= b_req_06) and (l_req_06 > 0 and l_done_06 >= l_req_06) and (d_req_06 > 0 and d_done_06 >= d_req_06)
 
     stat_06 = (
-        f'Breakfast: <span style="color: {"#4ade80" if b_req_06 > 0 and b_done_06 >= b_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if b_req_06 > 0 and b_done_06 >= b_req_06 else "Pending"} - {b_done_06}/{b_req_06}</span>'
-        f'{"<br><span style=\'font-size:0.65rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Breakfast"]) + "</span>" if b_done_06 < b_req_06 else ""}<br>'
-        f'Lunch: <span style="color: {"#4ade80" if l_req_06 > 0 and l_done_06 >= l_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if l_req_06 > 0 and l_done_06 >= l_req_06 else "Pending"} - {l_done_06}/{l_req_06}</span>'
-        f'{"<br><span style=\'font-size:0.65rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Lunch"]) + "</span>" if l_done_06 < l_req_06 else ""}<br>'
-        f'Dinner: <span style="color: {"#4ade80" if d_req_06 > 0 and d_done_06 >= d_req_06 else "#fbbf24"}; font-weight: 600;">{"Completed" if d_req_06 > 0 and d_done_06 >= d_req_06 else "Pending"} - {d_done_06}/{d_req_06}</span>'
-        f'{"<br><span style=\'font-size:0.65rem; color:#94a3b8;\'>Missing: " + ", ".join(pending_details_06["Dinner"]) + "</span>" if d_done_06 < d_req_06 else ""}'
+        f'Breakfast: <span style="color: {"#4ade80" if b_req_06 > 0 and b_done_06 >= b_req_06 else "#fde047"}; font-weight: 600;">{"Completed" if b_req_06 > 0 and b_done_06 >= b_req_06 else "Pending"} - {b_done_06}/{b_req_06}</span>'
+        f'{"<br><span style=\'font-size:0.65rem; color:#cbd5e1;\'>Missing: " + ", ".join(pending_details_06["Breakfast"]) + "</span>" if b_done_06 < b_req_06 else ""}<br>'
+        f'Lunch: <span style="color: {"#4ade80" if l_req_06 > 0 and l_done_06 >= l_req_06 else "#fde047"}; font-weight: 600;">{"Completed" if l_req_06 > 0 and l_done_06 >= l_req_06 else "Pending"} - {l_done_06}/{l_req_06}</span>'
+        f'{"<br><span style=\'font-size:0.65rem; color:#cbd5e1;\'>Missing: " + ", ".join(pending_details_06["Lunch"]) + "</span>" if l_done_06 < l_req_06 else ""}<br>'
+        f'Dinner: <span style="color: {"#4ade80" if d_req_06 > 0 and d_done_06 >= d_req_06 else "#fde047"}; font-weight: 600;">{"Completed" if d_req_06 > 0 and d_done_06 >= d_req_06 else "Pending"} - {d_done_06}/{d_req_06}</span>'
+        f'{"<br><span style=\'font-size:0.65rem; color:#cbd5e1;\'>Missing: " + ", ".join(pending_details_06["Dinner"]) + "</span>" if d_done_06 < d_req_06 else ""}'
     )
 
     # --- RECORD 12 METRICS ---
@@ -596,7 +584,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
                 completed_areas_12 += 1
     total_areas_12 = len(RECORD_12_AREAS)
     is_12_complete = (completed_areas_12 >= total_areas_12)
-    stat_12 = f'<span style="color: {"#4ade80" if is_12_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_12_complete else "Pending"} - {completed_areas_12}/{total_areas_12} areas</span>'
+    stat_12 = f'<span style="color: {"#4ade80" if is_12_complete else "#fde047"}; font-weight: 600;">{"Completed" if is_12_complete else "Pending"} - {completed_areas_12}/{total_areas_12} areas</span>'
 
     # --- RECORD 13 METRICS ---
     day_13 = get_day_df(df_13_parsed, selected_day_variants, target_date_obj)
@@ -607,13 +595,13 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     else:
         logged_13_count = 0
     is_13_complete = (logged_13_count >= 11)
-    stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13_count}/11 unique machines</span>'
+    stat_13 = f'<span style="color: {"#4ade80" if is_13_complete else "#fde047"}; font-weight: 600;">{"Completed" if is_13_complete else "Pending"} - {logged_13_count}/11 unique machines</span>'
     
     # --- RECORD 15 METRICS ---
     day_15 = get_day_df(df_15_parsed, selected_day_variants, target_date_obj)
     logged_15 = len(day_15) if not day_15.empty else 0
     is_15_complete = logged_15 > 0
-    stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15} entries</span>'
+    stat_15 = f'<span style="color: {"#4ade80" if logged_15 > 0 else "#fde047"}; font-weight: 600;">{"Completed" if logged_15 > 0 else "Pending"} - {logged_15} entries</span>'
     
     # --- RECORD 21 METRICS ---
     day_21 = get_day_df(df_21_parsed, selected_day_variants, target_date_obj)
@@ -625,13 +613,13 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
                 completed_areas_21 += 1
     total_areas_21 = len(RECORD_21_AREAS)
     is_21_complete = (completed_areas_21 >= total_areas_21)
-    stat_21 = f'<span style="color: {"#4ade80" if is_21_complete else "#fbbf24"}; font-weight: 600;">{"Completed" if is_21_complete else "Pending"} - {completed_areas_21}/{total_areas_21} areas</span>'
+    stat_21 = f'<span style="color: {"#4ade80" if is_21_complete else "#fde047"}; font-weight: 600;">{"Completed" if is_21_complete else "Pending"} - {completed_areas_21}/{total_areas_21} areas</span>'
     
     # --- RECORD 25 METRICS ---
     day_25 = get_day_df(df_25_parsed, selected_day_variants, target_date_obj)
     logged_25 = len(day_25["Clean_Unit"].dropna().unique()) if (not day_25.empty and "Clean_Unit" in day_25.columns) else 0
     is_25_complete = logged_25 > 0
-    stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fbbf24"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
+    stat_25 = f'<span style="color: {"#4ade80" if logged_25 > 0 else "#fde047"}; font-weight: 600;">{"Completed" if logged_25 > 0 else "Pending"} - {logged_25} entries</span>'
 
     # --- RECORD CM01 METRICS (AM & PM SEPARATE BREAKDOWN) ---
     day_cm01 = get_day_df(df_cm01_parsed, selected_day_variants, target_date_obj)
@@ -665,9 +653,9 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         am_missing_str = ", ".join(pending_am_cm01) if pending_am_cm01 else "None"
         pm_missing_str = ", ".join(pending_pm_cm01) if pending_pm_cm01 else "None"
         stat_cm01 = (
-            f'<span style="color: #fbbf24; font-weight: 600;">Pending ({cm01_fully_completed_locs}/{total_cm01_locs} locations)</span><br>'
-            f'<span style="font-size:0.65rem; color:#94a3b8;">🌅 AM Missing: {am_missing_str}</span><br>'
-            f'<span style="font-size:0.65rem; color:#94a3b8;">🌙 PM Missing: {pm_missing_str}</span>'
+            f'<span style="color: #fde047; font-weight: 600;">Pending ({cm01_fully_completed_locs}/{total_cm01_locs} locations)</span><br>'
+            f'<span style="font-size:0.65rem; color:#cbd5e1;">🌅 AM Missing: {am_missing_str}</span><br>'
+            f'<span style="font-size:0.65rem; color:#cbd5e1;">🌙 PM Missing: {pm_missing_str}</span>'
         )
 
     # --- RECORD PH01 METRICS ---
@@ -681,7 +669,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         stat_ph01 = f'<span style="color: #4ade80; font-weight: 600;">Completed - All 22 locations ({len(day_ph01)} staff)</span>'
     else:
         pending_str_ph01 = ", ".join(pending_locs_ph01)
-        stat_ph01 = f'<span style="color: #fbbf24; font-weight: 600;">Pending ({completed_locs_ph01}/22 locations)</span><br><span style="font-size:0.65rem; color:#94a3b8; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_ph01}</span>'
+        stat_ph01 = f'<span style="color: #fde047; font-weight: 600;">Pending ({completed_locs_ph01}/22 locations)</span><br><span style="font-size:0.65rem; color:#cbd5e1; line-height:1.2; display:block; margin-top:2px;">Missing: {pending_str_ph01}</span>'
 
     completed_cats = sum([
         1 if is_02_complete else 0,
@@ -699,7 +687,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
     ])
     total_cats = 12
     progress_pct = int((completed_cats / total_cats) * 100)
-    bar_color = "#4ade80" if progress_pct > 70 else ("#38bdf8" if progress_pct > 30 else "#fbbf24")
+    bar_color = "#4ade80" if progress_pct > 70 else ("#38bdf8" if progress_pct > 30 else "#fde047")
 
     if st.session_state.fairmont_dashboard_view_mode == "📊 Overview Cards":
         # --- LUXURY GRADIENT PROGRESS TRACKER ---
@@ -720,16 +708,20 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         def render_executive_tile(col, title, status_html, target_nav, unique_key, is_complete):
             with col:
                 card_class = "exec-card-completed" if is_complete else "exec-card-pending"
+                body_class = "exec-card-body" if is_complete else "exec-card-body-pending"
+                badge_html = '<div style="font-size:0.65rem; font-weight:800; color:#4ade80; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.05em;">✓ COMPLETED</div>' if is_complete else '<div style="font-size:0.65rem; font-weight:800; color:#fde047; text-transform:uppercase; margin-bottom:4px; letter-spacing:0.05em;">⏳ PENDING ACTION</div>'
+                
                 card_html = f"""
                 <div class="{card_class}">
                     <div>
+                        {badge_html}
                         <div class="exec-card-title">{title}</div>
-                        <div class="exec-card-body">{status_html}</div>
+                        <div class="{body_class}">{status_html}</div>
                     </div>
                 </div>
                 """
                 st.markdown(card_html, unsafe_allow_html=True)
-                if st.button("Open ➔", key=f"tile_btn_{unique_key}", use_container_width=True):
+                if st.button("🔍 Click to Open Record", key=f"tile_btn_{unique_key}", use_container_width=True):
                     navigate_to(target_nav)
                     st.rerun()
 
