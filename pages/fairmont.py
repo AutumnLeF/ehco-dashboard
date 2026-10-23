@@ -72,6 +72,26 @@ st.markdown("""
         transform: translateY(-3px);
     }
 
+    /* Executive Typography & Pill Badge Polish */
+    .exec-card-title {
+        font-size: 0.82rem;
+        font-weight: 700;
+        line-height: 1.35;
+        margin-bottom: 8px;
+        letter-spacing: -0.01em;
+        color: #ffffff;
+    }
+    .exec-card-body {
+        font-size: 0.74rem;
+        color: #cbd5e1;
+        font-weight: 500;
+        line-height: 1.45;
+        background: rgba(15, 23, 42, 0.6);
+        border: 1px solid rgba(51, 65, 85, 0.5);
+        border-radius: 8px;
+        padding: 8px 10px;
+    }
+
     /* Sleek Micro-Interaction Open Button */
     .stButton > button {
         background: #ffffff !important;
@@ -672,8 +692,8 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
                 card_html = f"""
                 <div class="exec-card">
                     <div>
-                        <div style="font-size: 0.82rem; font-weight: 700; line-height: 1.3; margin-bottom: 6px; letter-spacing: -0.01em; color: #ffffff;">{title}</div>
-                        <div style="font-size: 0.74rem; color: #94a3b8; font-weight: 500; line-height: 1.4;">{status_html}</div>
+                        <div class="exec-card-title">{title}</div>
+                        <div class="exec-card-body">{status_html}</div>
                     </div>
                 </div>
                 """
