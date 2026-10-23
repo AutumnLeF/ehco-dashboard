@@ -107,7 +107,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 FORM_MAPPING = {
-    "🏠 Fairmont Mumbai - EHCO Status Overview": 0,
+    "🏠 Fairmont Mumbai - EHCO Status": 0,
     "RECORD 02 - FOOD DELIVERY RECORD": 23703,
     "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD": 23705,
     "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD": 23706,
@@ -314,7 +314,7 @@ if st.session_state.fairmont_nav_choice == "🏠 Fairmont Mumbai - EHCO Status O
         <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
             <div>
                 <div style="font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.1em; color: #94a3b8; font-weight: 700; margin-bottom: 2px;">🏰 Fairmont Hotel & Resorts • Mumbai</div>
-                <div class="serif-title">EHCO Executive Compliance Dashboard</div>
+                <div class="serif-title">EHCO Dashboard</div>
             </div>
             <div style="display: flex; align-items: center; gap: 12px;">
                 <div style="background: #111827; border: 1px solid #374151; padding: 6px 14px; border-radius: 8px; text-align: right;">
