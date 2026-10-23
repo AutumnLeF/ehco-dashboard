@@ -107,7 +107,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 FORM_MAPPING = {
-    "🏠 Fairmont Mumbai - EHCO Status": 0,
+    "🏠 Fairmont Mumbai - EHCO Status Overview": 0,
     "RECORD 02 - FOOD DELIVERY RECORD": 23703,
     "RECORD 03 - COOLROOM / FRIDGE / FREEZER TEMPERATURE RECORD": 23705,
     "RECORD 04 - COOKING/REHEATING TEMPERATURE RECORD": 23706,
