@@ -6,6 +6,7 @@ MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer <= -18.0°C
 
 NIGHT_LOCATIONS = {"black lacquer bar", "black lacquer kitchen"}
+NIGHT_UNIT_PREFIXES = ("RMOBL", "RMOBLK")
 INVALID_UNIT_TOKENS = {"", "NONE", "NAN", "NULL", "NA", "N/A"}
 
 UNIT_CATALOG = {
@@ -108,14 +109,43 @@ def _pick_first_valid_unit(*values):
     return ""
 
 
-def _resolve_ist_hour(parsed_dt_ist, time_clean):
+def _parse_dt_to_ist(raw_val):
+    """Parse date/timestamp into timezone-naive IST datetime, or NaT if invalid."""
+    if raw_val is None or (not isinstance(raw_val, (datetime, pd.Timestamp)) and str(raw_val).strip() in ["", "None", "nan", "NaT"]):
+        return pd.NaT
+
+    parsed = pd.to_datetime(raw_val, errors="coerce")
+    if pd.isna(parsed):
+        parsed = pd.to_datetime(raw_val, dayfirst=True, errors="coerce")
+    if pd.isna(parsed):
+        return pd.NaT
+
+    if parsed.tzinfo is None:
+        # Naive timestamps from source are UTC -> convert to IST (+05:30)
+        return parsed + timedelta(hours=5, minutes=30)
+    return parsed.tz_convert("Asia/Kolkata").tz_localize(None)
+
+
+def _has_time_component(raw_val):
+    if isinstance(raw_val, (datetime, pd.Timestamp)):
+        return not (raw_val.hour == 0 and raw_val.minute == 0 and raw_val.second == 0)
+    s = str(raw_val).strip()
+    return ":" in s or "T" in s
+
+
+def _resolve_ist_hour(dt_ist, time_clean):
     """Extract IST hour (0-23) for shift classification."""
     if time_clean and ":" in time_clean:
         try:
             return int(time_clean.split(":")[0])
         except ValueError:
             pass
-    return parsed_dt_ist.hour if pd.notna(parsed_dt_ist) else 12
+    return dt_ist.hour if pd.notna(dt_ist) else 12
+
+
+def _is_night_outlet(location_name, clean_unit):
+    loc_lower = str(location_name or "").strip().lower()
+    return loc_lower in NIGHT_LOCATIONS or (bool(clean_unit) and clean_unit.startswith(NIGHT_UNIT_PREFIXES))
 
 
 def parse_record_03_submissions(raw_df):
@@ -141,27 +171,27 @@ def parse_record_03_submissions(raw_df):
         sub = rec.get("submission") if isinstance(rec.get("submission"), dict) else rec
         entry = sub.get("Entry") if isinstance(sub.get("Entry"), dict) else {}
 
-        raw_date = (
-            sub.get("Date")
-            or sub.get("date")
-            or rec.get("createdAt")
-            or rec.get("dateTimeSubmitted")
-            or ""
-        )
-        parsed_dt = pd.to_datetime(raw_date, errors="coerce")
-        if pd.isna(parsed_dt):
-            parsed_dt = pd.to_datetime(raw_date, dayfirst=True, errors="coerce")
+        raw_date = sub.get("Date") or sub.get("date") or ""
+        raw_ts = rec.get("createdAt") or rec.get("dateTimeSubmitted") or ""
 
-        if pd.notna(parsed_dt):
-            if parsed_dt.tzinfo is None:
-                # Naive timestamps from source are UTC -> convert to IST (+05:30)
-                parsed_dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
-            else:
-                parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata").tz_localize(None)
+        dt_date_ist = _parse_dt_to_ist(raw_date)
+        dt_sub_ist = _parse_dt_to_ist(raw_ts)
+
+        # Prefer full submission timestamp if Date field is date-only without a time component
+        if pd.notna(dt_sub_ist) and (pd.isna(dt_date_ist) or not _has_time_component(raw_date)):
+            parsed_dt_ist = dt_sub_ist
+        elif pd.notna(dt_date_ist):
+            parsed_dt_ist = dt_date_ist
+        elif pd.notna(dt_sub_ist):
+            parsed_dt_ist = dt_sub_ist
+        else:
+            parsed_dt_ist = pd.NaT
+
+        if pd.notna(parsed_dt_ist):
             date_str = parsed_dt_ist.strftime("%d/%m/%Y")
             date_obj = parsed_dt_ist.date()
         else:
-            date_str = str(raw_date)[:10]
+            date_str = str(raw_date or raw_ts)[:10]
             date_obj = None
             parsed_dt_ist = datetime.now()
 
@@ -211,6 +241,7 @@ def parse_record_03_submissions(raw_df):
                 break
 
         final_unit = matched_id if matched_id else raw_unit_str
+        clean_final_unit = clean_unit_token(final_unit)
 
         status_raw = str(entry.get("USE") or sub.get("USE") or "IN USE").strip().upper()
         is_in_use = "NOT" not in status_raw
@@ -230,11 +261,11 @@ def parse_record_03_submissions(raw_df):
 
         sign = str(sub.get("Sign") or sub.get("sign") or "Staff").strip()
 
-        # Night-operation attribution for Black Lacquer Bar & Kitchen:
+        # Night-operation attribution for Black Lacquer Bar & Black Lacquer Kitchen:
         # Closing logs from 00:00 to 04:59 IST belong to the previous day's service date.
         effective_date_obj = date_obj
         effective_date_str = date_str
-        is_night_loc = matched_loc.lower() in NIGHT_LOCATIONS
+        is_night_loc = _is_night_outlet(matched_loc, clean_final_unit)
 
         if is_night_loc and shift_hour < 5 and effective_date_obj is not None:
             prev_day = effective_date_obj - timedelta(days=1)
@@ -253,7 +284,7 @@ def parse_record_03_submissions(raw_df):
             "Shift_Sort": f"{shift_sort_key:02d}:{time_clean[-2:]}",
             "Location": matched_loc,
             "Unit_ID": final_unit,
-            "Clean_Unit": clean_unit_token(final_unit),
+            "Clean_Unit": clean_final_unit,
             "Unit_Type": matched_type,
             "In_Use": is_in_use,
             "Temp": num_temp,
@@ -276,10 +307,12 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         if not df_items.empty and "Date_Obj" in df_items.columns:
             date_counts = df_items["Date_Obj"].dropna().value_counts().sort_index(ascending=False).to_dict()
             st.write("Records per date found:", {str(k): v for k, v in date_counts.items()})
-            bl_df = df_items[df_items["Location"].str.lower().isin(NIGHT_LOCATIONS)]
+            bl_df = df_items[
+                df_items.apply(lambda r: _is_night_outlet(r.get("Location"), r.get("Clean_Unit")), axis=1)
+            ]
             st.write(f"Black Lacquer (Bar & Kitchen) parsed records: **{len(bl_df)}**")
             if not bl_df.empty:
-                st.dataframe(bl_df[["Date_Str", "Time", "Location", "Unit_ID", "Temp_Disp", "Has_Breach", "Sign"]], use_container_width=True)
+                st.dataframe(bl_df[["Date_Str", "Time", "Shift_Hour", "Location", "Unit_ID", "Temp_Disp", "Has_Breach", "Sign"]], use_container_width=True)
         else:
             st.write("No valid dates found in the payload.")
 
