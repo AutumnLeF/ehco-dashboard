@@ -59,11 +59,22 @@ UNIT_CATALOG = {
     ],
 }
 
+INVALID_UNIT_TOKENS = {"", "NONE", "NAN", "NULL", "NA", "N/A"}
+
 
 def clean_unit_token(val):
     if not val or pd.isna(val):
         return ""
-    return str(val).replace("/", "").replace("_", "").replace(" ", "").replace("-", "").strip().upper()
+    cleaned = (
+        str(val)
+        .replace("/", "")
+        .replace("_", "")
+        .replace(" ", "")
+        .replace("-", "")
+        .strip()
+        .upper()
+    )
+    return "" if cleaned in INVALID_UNIT_TOKENS else cleaned
 
 
 def extract_temp_value(entry, sub):
@@ -77,12 +88,23 @@ def extract_temp_value(entry, sub):
         sub.get("Temperature °C (Freezer -18°C or colder)"),
     ]
     for c in candidates:
-        if c is not None and str(c).strip() not in ["", "None", "nan"]:
+        if c is not None and str(c).strip().lower() not in ["", "none", "nan", "null", "n/a"]:
             val_clean = str(c).replace("°C", "").replace("°", "").strip()
             num = pd.to_numeric(val_clean, errors="coerce")
             if pd.notna(num):
                 return float(num)
     return None
+
+
+def _pick_first_valid_unit(*values):
+    for val in values:
+        if isinstance(val, list):
+            for item in val:
+                if clean_unit_token(item):
+                    return str(item).strip()
+        elif clean_unit_token(val):
+            return str(val).strip()
+    return ""
 
 
 def parse_record_03_submissions(raw_df):
@@ -121,9 +143,10 @@ def parse_record_03_submissions(raw_df):
 
         if pd.notna(parsed_dt):
             if parsed_dt.tzinfo is None:
-                parsed_dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
+                # Keep naive timestamps as local IST; change to + timedelta(hours=5, minutes=30) if source is UTC
+                parsed_dt_ist = parsed_dt
             else:
-                parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata")
+                parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata").tz_localize(None)
             date_str = parsed_dt_ist.strftime("%d/%m/%Y")
             date_obj = parsed_dt_ist.date()
         else:
@@ -138,7 +161,7 @@ def parse_record_03_submissions(raw_df):
             or ""
         )
         raw_time_str = str(raw_time).strip()
-        
+
         if raw_time_str and len(raw_time_str) >= 3 and ":" in raw_time_str:
             if "T" in raw_time_str:
                 try:
@@ -150,25 +173,18 @@ def parse_record_03_submissions(raw_df):
             else:
                 time_clean = raw_time_str[:5]
         else:
-            if pd.notna(parsed_dt_ist):
-                time_clean = parsed_dt_ist.strftime("%H:%M")
-            else:
-                time_clean = "00:00"
+            time_clean = parsed_dt_ist.strftime("%H:%M") if pd.notna(parsed_dt_ist) else "00:00"
 
         location = str(sub.get("Location") or "").strip()
 
-        raw_unit = (
-            entry.get("Fridge")
-            or entry.get("Freezer")
-            or entry.get("Coolroom")
-            or sub.get("Fridge")
-            or sub.get("Freezer")
-            or sub.get("Coolroom")
-            or ""
+        raw_unit_str = _pick_first_valid_unit(
+            entry.get("Fridge"),
+            entry.get("Freezer"),
+            entry.get("Coolroom"),
+            sub.get("Fridge"),
+            sub.get("Freezer"),
+            sub.get("Coolroom"),
         )
-        if isinstance(raw_unit, list) and len(raw_unit) > 0:
-            raw_unit = raw_unit[0]
-        raw_unit_str = str(raw_unit).strip()
 
         clean_u = clean_unit_token(raw_unit_str)
         matched_id = None
@@ -176,7 +192,7 @@ def parse_record_03_submissions(raw_df):
         matched_type = str(entry.get("Type") or sub.get("Coolroom/Fridge/Freezer") or "Fridge").capitalize()
 
         for m in flat_master:
-            if clean_u == m["Clean_ID"]:
+            if clean_u and clean_u == m["Clean_ID"]:
                 matched_id = m["Unit_ID"]
                 matched_loc = m["Location"]
                 matched_type = m["Type"]
@@ -203,8 +219,7 @@ def parse_record_03_submissions(raw_df):
         sign = str(sub.get("Sign") or sub.get("sign") or "Staff").strip()
 
         # Custom shift attribution for Black Lacquer Bar:
-        # If entry happens in the midnight/early AM hours (00:00 to 05:00), 
-        # it belongs to the *previous* calendar day's closing shift.
+        # Entries in midnight/early AM hours (00:00 to 04:59) belong to the previous day's closing shift.
         effective_date_obj = date_obj
         effective_date_str = date_str
         if matched_loc.lower() == "black lacquer bar" and pd.notna(parsed_dt_ist) and parsed_dt_ist.hour < 5:
@@ -242,6 +257,10 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
         if not df_items.empty and "Date_Obj" in df_items.columns:
             date_counts = df_items["Date_Obj"].dropna().value_counts().sort_index(ascending=False).to_dict()
             st.write("Records per date found:", {str(k): v for k, v in date_counts.items()})
+            bl_df = df_items[df_items["Location"].str.lower() == "black lacquer bar"]
+            st.write(f"Black Lacquer Bar parsed records: **{len(bl_df)}**")
+            if not bl_df.empty:
+                st.dataframe(bl_df[["Date_Str", "Time", "Unit_ID", "Temp_Disp", "Has_Breach", "Sign"]], use_container_width=True)
         else:
             st.write("No valid dates found in the payload.")
 
@@ -252,13 +271,9 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
 
     with tab_day:
         target_date_obj = datetime.strptime(selected_day_str, "%d/%m/%Y").date()
-        next_date_obj = target_date_obj + timedelta(days=1)
 
         if not df_items.empty:
-            day_df = df_items[
-                (df_items["Date_Obj"] == target_date_obj) |
-                ((df_items["Date_Obj"] == next_date_obj) & (df_items["Timestamp_DT"].dt.hour < 5))
-            ]
+            day_df = df_items[df_items["Date_Obj"] == target_date_obj]
         else:
             day_df = pd.DataFrame()
 
@@ -287,17 +302,17 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 u_type = u["Type"]
                 clean_target = clean_unit_token(u_id)
                 unit_logs = day_df[day_df["Clean_Unit"] == clean_target] if not day_df.empty else pd.DataFrame()
-                
-                if any(unit_logs["Has_Breach"]):
+
+                if not unit_logs.empty and any(unit_logs["Has_Breach"]):
                     loc_breaches += 1
                     total_breaches += 1
 
                 # Custom shift separation for Black Lacquer Bar:
-                # 1st entry is PM (>= 12:00 PM), 2nd entry is AM next day (< 5:00 AM)
+                # Day/evening logs (05:00 - 23:59) = Opening/service log; early AM logs (< 05:00) = Closing log
                 if loc_name.lower() == "black lacquer bar":
-                    pm_logs = unit_logs[unit_logs["Timestamp_DT"].dt.hour >= 12]
-                    am_logs = unit_logs[unit_logs["Timestamp_DT"].dt.hour < 5]
-                    
+                    pm_logs = unit_logs[unit_logs["Timestamp_DT"].dt.hour >= 5] if not unit_logs.empty else pd.DataFrame()
+                    am_logs = unit_logs[unit_logs["Timestamp_DT"].dt.hour < 5] if not unit_logs.empty else pd.DataFrame()
+
                     has_opening = not pm_logs.empty
                     has_closing = not am_logs.empty
 
@@ -329,7 +344,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
 
             op_count = len(opening_logged)
             cl_count = len(closing_logged)
-            
+
             if op_count == total_u and cl_count == total_u and loc_breaches == 0:
                 fully_logged_areas += 1
 
@@ -357,9 +372,9 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
 
         st.write("")
         st.markdown(f"<h4 style='color:#0f172a; margin-top:1rem;'>📋 Shift Status Across Locations ({selected_day_str})</h4>", unsafe_allow_html=True)
-        
+
         shift_col1, shift_col2 = st.columns(2)
-        
+
         with shift_col1:
             op_items_html = ""
             for item in loc_summary_data:
@@ -371,7 +386,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 else:
                     badge = f"<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending ({c_op}/{t_u})</span>"
                 op_items_html += f"<div style='padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:0.85rem;'><b>{l_name}</b> {badge}</div>"
-            
+
             st.markdown(f"""
             <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #16a34a; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                 <div style="font-weight:700; font-size:0.95rem; color:#15803d; margin-bottom:8px; display:flex; justify-content:space-between;">
@@ -393,7 +408,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 else:
                     badge = f"<span style='color:#d97706; font-weight:700; float:right;'>⏳ Pending ({c_cl}/{t_u})</span>"
                 cl_items_html += f"<div style='padding:6px 0; border-bottom:1px solid #f1f5f9; font-size:0.85rem;'><b>{l_name}</b> {badge}</div>"
-            
+
             st.markdown(f"""
             <div style="background:#ffffff; border:1px solid #cbd5e1; border-top:4px solid #0284c7; border-radius:6px; padding:12px 16px; margin-bottom:14px; box-shadow:0 1px 3px rgba(0,0,0,0.05);">
                 <div style="font-weight:700; font-size:0.95rem; color:#0369a1; margin-bottom:8px; display:flex; justify-content:space-between;">
@@ -427,7 +442,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 compliance_badge = "<span style='color:#16a34a; font-weight:700; font-size:0.75rem; float:right;'>🟢 Fully Compliant</span>"
 
             pending_op_html = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:8px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_opening]) if pending_opening else "<div style='font-size:0.75rem; color:#16a34a; margin-top:2px; margin-left:8px;'>• All units logged for opening.</div>"
-            
+
             pending_cl_html = "".join([f"<div style='font-size:0.75rem; color:#b45309; margin-left:8px; margin-top:2px;'>• {p_item}</div>" for p_item in pending_closing]) if pending_closing else "<div style='font-size:0.75rem; color:#16a34a; margin-top:2px; margin-left:8px;'>• All units logged for closing.</div>"
 
             col_target.markdown(f"""
