@@ -108,8 +108,8 @@ def _pick_first_valid_unit(*values):
     return ""
 
 
-def _resolve_shift_hour(parsed_dt_ist, time_clean):
-    """Use explicit Time field if valid, otherwise fall back to Timestamp_DT hour."""
+def _resolve_ist_hour(parsed_dt_ist, time_clean):
+    """Extract IST hour (0-23) for shift classification."""
     if time_clean and ":" in time_clean:
         try:
             return int(time_clean.split(":")[0])
@@ -154,7 +154,8 @@ def parse_record_03_submissions(raw_df):
 
         if pd.notna(parsed_dt):
             if parsed_dt.tzinfo is None:
-                parsed_dt_ist = parsed_dt
+                # Naive timestamps from source are UTC -> convert to IST (+05:30)
+                parsed_dt_ist = parsed_dt + timedelta(hours=5, minutes=30)
             else:
                 parsed_dt_ist = parsed_dt.tz_convert("Asia/Kolkata").tz_localize(None)
             date_str = parsed_dt_ist.strftime("%d/%m/%Y")
@@ -185,7 +186,7 @@ def parse_record_03_submissions(raw_df):
         else:
             time_clean = parsed_dt_ist.strftime("%H:%M") if pd.notna(parsed_dt_ist) else "00:00"
 
-        shift_hour = _resolve_shift_hour(parsed_dt_ist, time_clean)
+        shift_hour = _resolve_ist_hour(parsed_dt_ist, time_clean)
         location = str(sub.get("Location") or "").strip()
 
         raw_unit_str = _pick_first_valid_unit(
@@ -229,8 +230,8 @@ def parse_record_03_submissions(raw_df):
 
         sign = str(sub.get("Sign") or sub.get("sign") or "Staff").strip()
 
-        # Night-operation attribution for Black Lacquer Bar & Black Lacquer Kitchen:
-        # Entries logged between 00:00 and 04:59 belong to the previous day's closing shift.
+        # Night-operation attribution for Black Lacquer Bar & Kitchen:
+        # Closing logs from 00:00 to 04:59 IST belong to the previous day's service date.
         effective_date_obj = date_obj
         effective_date_str = date_str
         is_night_loc = matched_loc.lower() in NIGHT_LOCATIONS
@@ -240,7 +241,7 @@ def parse_record_03_submissions(raw_df):
             effective_date_obj = prev_day
             effective_date_str = prev_day.strftime("%d/%m/%Y")
 
-        # Shift sort order: for night locations, 05:00-23:59 (#1 Opening) comes before 00:00-04:59 (#2 Closing)
+        # Sort order: for night locations, 05:00-23:59 (#1 Opening) comes before 00:00-04:59 (#2 Closing)
         shift_sort_key = (24 + shift_hour) if (is_night_loc and shift_hour < 5) else shift_hour
 
         rows.append({
@@ -327,10 +328,11 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                     total_breaches += 1
 
                 # Night locations (Black Lacquer Bar & Kitchen):
-                # Opening = after lunch / evening (12:00 - 22:59), Closing = late night / early AM (23:00 - 04:59)
+                # Opening = after lunch up to before 8:00 PM IST (12:00 - 19:59)
+                # Closing = 8:00 PM IST till 5:00 AM next day IST (20:00 - 23:59 and 00:00 - 04:59)
                 if is_night_loc:
-                    op_logs = unit_logs[(unit_logs["Shift_Hour"] >= 8) & (unit_logs["Shift_Hour"] < 19)] if not unit_logs.empty else pd.DataFrame()
-                    cl_logs = unit_logs[(unit_logs["Shift_Hour"] >= 19) | (unit_logs["Shift_Hour"] < 5)] if not unit_logs.empty else pd.DataFrame()
+                    op_logs = unit_logs[(unit_logs["Shift_Hour"] >= 12) & (unit_logs["Shift_Hour"] < 20)] if not unit_logs.empty else pd.DataFrame()
+                    cl_logs = unit_logs[(unit_logs["Shift_Hour"] >= 20) | (unit_logs["Shift_Hour"] < 5)] if not unit_logs.empty else pd.DataFrame()
 
                     has_opening = not op_logs.empty
                     has_closing = not cl_logs.empty
