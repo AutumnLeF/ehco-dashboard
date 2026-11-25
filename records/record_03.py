@@ -329,7 +329,7 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
                 # Night locations (Black Lacquer Bar & Kitchen):
                 # Opening = after lunch / evening (12:00 - 22:59), Closing = late night / early AM (23:00 - 04:59)
                 if is_night_loc:
-                    op_logs = unit_logs[(unit_logs["Shift_Hour"] >= 12) & (unit_logs["Shift_Hour"] < 19)] if not unit_logs.empty else pd.DataFrame()
+                    op_logs = unit_logs[(unit_logs["Shift_Hour"] >= 12) & (unit_logs["Shift_Hour"] < 21)] if not unit_logs.empty else pd.DataFrame()
                     cl_logs = unit_logs[(unit_logs["Shift_Hour"] >= 19) | (unit_logs["Shift_Hour"] < 5)] if not unit_logs.empty else pd.DataFrame()
 
                     has_opening = not op_logs.empty
