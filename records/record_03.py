@@ -5,6 +5,10 @@ import streamlit as st
 MAX_FRIDGE_TEMP = 4.0     # Coolroom / Fridge <= 4.0°C
 MAX_FREEZER_TEMP = -18.0  # Freezer <= -18.0°C
 
+# Set True if raw Date/Time fields in payload are UTC (converts +05:30 to IST).
+# Set False if raw Date/Time fields are already IST.
+SOURCE_IS_UTC = True
+
 NIGHT_LOCATIONS = {"black lacquer bar", "black lacquer kitchen"}
 NIGHT_UNIT_PREFIXES = ("RMOBL", "RMOBLK")
 INVALID_UNIT_TOKENS = {"", "NONE", "NAN", "NULL", "NA", "N/A"}
@@ -111,7 +115,10 @@ def _pick_first_valid_unit(*values):
 
 def _parse_dt_to_ist(raw_val):
     """Parse date/timestamp into timezone-naive IST datetime, or NaT if invalid."""
-    if raw_val is None or (not isinstance(raw_val, (datetime, pd.Timestamp)) and str(raw_val).strip() in ["", "None", "nan", "NaT"]):
+    if raw_val is None or (
+        not isinstance(raw_val, (datetime, pd.Timestamp))
+        and str(raw_val).strip() in ["", "None", "nan", "NaT"]
+    ):
         return pd.NaT
 
     parsed = pd.to_datetime(raw_val, errors="coerce")
@@ -121,8 +128,7 @@ def _parse_dt_to_ist(raw_val):
         return pd.NaT
 
     if parsed.tzinfo is None:
-        # Naive timestamps from source are UTC -> convert to IST (+05:30)
-        return parsed + timedelta(hours=5, minutes=30)
+        return parsed + timedelta(hours=5, minutes=30) if SOURCE_IS_UTC else parsed
     return parsed.tz_convert("Asia/Kolkata").tz_localize(None)
 
 
@@ -131,6 +137,17 @@ def _has_time_component(raw_val):
         return not (raw_val.hour == 0 and raw_val.minute == 0 and raw_val.second == 0)
     s = str(raw_val).strip()
     return ":" in s or "T" in s
+
+
+def _shift_hhmm_to_ist(hhmm_str):
+    """Convert a naive HH:MM string by +05:30 if SOURCE_IS_UTC is True."""
+    try:
+        dt = datetime.strptime(hhmm_str[:5], "%H:%M")
+        if SOURCE_IS_UTC:
+            dt = dt + timedelta(hours=5, minutes=30)
+        return dt.strftime("%H:%M")
+    except Exception:
+        return hhmm_str[:5]
 
 
 def _resolve_ist_hour(dt_ist, time_clean):
@@ -145,7 +162,9 @@ def _resolve_ist_hour(dt_ist, time_clean):
 
 def _is_night_outlet(location_name, clean_unit):
     loc_lower = str(location_name or "").strip().lower()
-    return loc_lower in NIGHT_LOCATIONS or (bool(clean_unit) and clean_unit.startswith(NIGHT_UNIT_PREFIXES))
+    return loc_lower in NIGHT_LOCATIONS or (
+        bool(clean_unit) and clean_unit.startswith(NIGHT_UNIT_PREFIXES)
+    )
 
 
 def parse_record_03_submissions(raw_df):
@@ -177,7 +196,6 @@ def parse_record_03_submissions(raw_df):
         dt_date_ist = _parse_dt_to_ist(raw_date)
         dt_sub_ist = _parse_dt_to_ist(raw_ts)
 
-        # Prefer full submission timestamp if Date field is date-only without a time component
         if pd.notna(dt_sub_ist) and (pd.isna(dt_date_ist) or not _has_time_component(raw_date)):
             parsed_dt_ist = dt_sub_ist
         elif pd.notna(dt_date_ist):
@@ -207,14 +225,17 @@ def parse_record_03_submissions(raw_df):
             if "T" in raw_time_str:
                 try:
                     t_part = raw_time_str.split("T")[1][:5]
-                    t_obj = datetime.strptime(t_part, "%H:%M")
-                    time_clean = t_obj.strftime("%H:%M")
+                    time_clean = _shift_hhmm_to_ist(t_part)
                 except Exception:
-                    time_clean = raw_time_str[-8:]
+                    time_clean = _shift_hhmm_to_ist(raw_time_str[-8:])
             else:
-                time_clean = raw_time_str[:5]
+                time_clean = _shift_hhmm_to_ist(raw_time_str[:5])
+        elif pd.notna(dt_sub_ist):
+            time_clean = dt_sub_ist.strftime("%H:%M")
+        elif pd.notna(parsed_dt_ist):
+            time_clean = parsed_dt_ist.strftime("%H:%M")
         else:
-            time_clean = parsed_dt_ist.strftime("%H:%M") if pd.notna(parsed_dt_ist) else "00:00"
+            time_clean = "00:00"
 
         shift_hour = _resolve_ist_hour(parsed_dt_ist, time_clean)
         location = str(sub.get("Location") or "").strip()
@@ -261,7 +282,7 @@ def parse_record_03_submissions(raw_df):
 
         sign = str(sub.get("Sign") or sub.get("sign") or "Staff").strip()
 
-        # Night-operation attribution for Black Lacquer Bar & Black Lacquer Kitchen:
+        # Night-operation attribution for Black Lacquer Bar & Kitchen:
         # Closing logs from 00:00 to 04:59 IST belong to the previous day's service date.
         effective_date_obj = date_obj
         effective_date_str = date_str
@@ -312,7 +333,10 @@ def render_record_03_view(raw_df, selected_day_str, start_date, end_date):
             ]
             st.write(f"Black Lacquer (Bar & Kitchen) parsed records: **{len(bl_df)}**")
             if not bl_df.empty:
-                st.dataframe(bl_df[["Date_Str", "Time", "Shift_Hour", "Location", "Unit_ID", "Temp_Disp", "Has_Breach", "Sign"]], use_container_width=True)
+                st.dataframe(
+                    bl_df[["Date_Str", "Time", "Shift_Hour", "Location", "Unit_ID", "Temp_Disp", "Has_Breach", "Sign"]],
+                    use_container_width=True,
+                )
         else:
             st.write("No valid dates found in the payload.")
 
